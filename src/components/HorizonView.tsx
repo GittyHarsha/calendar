@@ -9,9 +9,9 @@ import { MacroGoalsPanel } from './MacroGoalsPanel';
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export function HorizonView() {
-  const { projects, tasks } = useStore();
+  const { projects, tasks, hideCompleted, toggleHideCompleted } = useStore();
   const today = startOfToday();
-  const [viewMode, setViewMode] = useState<ViewMode>('daily');
+  const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [baseDate, setBaseDate] = useState<Date>(today);
   const [horizonLengths, setHorizonLengths] = useState<Record<ViewMode, number | ''>>({
     daily: 90,
@@ -52,11 +52,9 @@ export function HorizonView() {
     <div className="flex flex-col h-full w-full bg-[#141414]">
       {/* Header */}
       <div className="p-6 border-b border-[#2A2A2A] shrink-0 flex justify-between items-center bg-[#050505]">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tighter text-white uppercase font-display">
-            Horizon View
-          </h1>
-          <p className="text-sm text-[#8E9299] font-mono mt-1">
+        <div className="flex items-center gap-3">
+          <img src="/logo.svg" alt="Horizon" className="w-8 h-8 shrink-0" />
+          <p className="text-sm text-[#8E9299] font-mono">
             {format(columns[0].startDate, 'MMMM do, yyyy')} — {format(columns[columns.length - 1].endDate, 'MMMM do, yyyy')}
           </p>
         </div>
@@ -120,6 +118,17 @@ export function HorizonView() {
             <div className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Active Goals</div>
             <div className="text-2xl font-mono text-white leading-none mt-1">{projects.length}</div>
           </div>
+          <button
+            onClick={toggleHideCompleted}
+            className={cn(
+              'text-xs font-semibold uppercase tracking-wider px-3 py-1.5 rounded-md border transition-colors',
+              hideCompleted
+                ? 'bg-[#F27D26]/10 border-[#F27D26]/40 text-[#F27D26]'
+                : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#8E9299] hover:text-white'
+            )}
+          >
+            {hideCompleted ? 'Show Done' : 'Hide Done'}
+          </button>
         </div>
       </div>
 
@@ -135,7 +144,8 @@ export function HorizonView() {
               startDate={col.startDate} 
               endDate={col.endDate}
               mode={viewMode}
-              index={index} 
+              index={index}
+              hideCompleted={hideCompleted}
             />
           ))}
         </div>
@@ -144,14 +154,15 @@ export function HorizonView() {
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean }) {
   const { tasks, projects } = useStore();
   const today = startOfToday();
   const startDateStr = format(startDate, 'yyyy-MM-dd');
   const endDateStr = format(endDate, 'yyyy-MM-dd');
   
-  const columnTasks = tasks.filter(t => t.date && t.date >= startDateStr && t.date <= endDateStr);
-  const deadlineProjects = projects.filter(p => p.deadline >= startDateStr && p.deadline <= endDateStr);
+  const allColumnTasks = tasks.filter(t => t.date && t.date >= startDateStr && t.date <= endDateStr);
+  const columnTasks = hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks;
+  const deadlineProjects = projects.filter(p => p.deadline && p.deadline >= startDateStr && p.deadline <= endDateStr);
 
   const { setNodeRef, isOver } = useDroppable({
     id: startDateStr,
@@ -260,7 +271,7 @@ function TimeColumn({ startDate, endDate, mode, index }: { key?: React.Key; star
               <span className="truncate mr-2">{p.name}</span>
               <div className="flex items-center gap-2 shrink-0">
                 {mode !== 'daily' && (
-                  <span className="text-[9px] opacity-80">{format(parseISO(p.deadline), 'MMM d')}</span>
+                  <span className="text-[9px] opacity-80">{p.deadline ? format(parseISO(p.deadline), 'MMM d') : ''}</span>
                 )}
                 <span>DUE</span>
               </div>
@@ -274,6 +285,14 @@ function TimeColumn({ startDate, endDate, mode, index }: { key?: React.Key; star
         {columnTasks.map(task => (
           <DraggableTask key={task.id} task={task} showDate={mode !== 'daily'} />
         ))}
+        {columnTasks.length === 0 && (
+          <div className={cn(
+            'flex-1 flex items-center justify-center text-[#333] text-xs italic select-none border border-dashed rounded transition-colors',
+            isOver ? 'border-[#F27D26]/40 text-[#F27D26]/40' : 'border-[#222]'
+          )}>
+            {isOver ? 'Drop here' : '+ task'}
+          </div>
+        )}
       </div>
     </div>
   );

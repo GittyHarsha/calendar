@@ -4,15 +4,30 @@
  */
 
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HorizonView } from './components/HorizonView';
 import { ThinkPad } from './components/ThinkPad';
 import { Task } from './store';
 import { useStore } from './store';
+import { newProjectTrigger } from './components/MacroGoalsPanel';
 
 export default function App() {
   const { tasks, updateTask } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (e.key === 'n' || e.key === 'N') {
+        document.getElementById('new-task-input')?.focus();
+      } else if (e.key === 'p' || e.key === 'P') {
+        newProjectTrigger.open();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

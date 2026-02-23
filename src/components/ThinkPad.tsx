@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
-import { useStore, Recurrence } from '../store';
+import { useStore, Recurrence, Priority } from '../store';
 import { useDroppable } from '@dnd-kit/core';
 import { DraggableTask } from './DraggableTask';
-import { Plus, GripVertical } from 'lucide-react';
+import { Plus } from 'lucide-react';
+import { format, startOfToday } from 'date-fns';
 
 export function ThinkPad() {
-  const { tasks, thinkPadNotes, setThinkPadNotes, addTask, projects } = useStore();
+  const { tasks, thinkPadNotes, setThinkPadNotes, addTask, projects, hideCompleted } = useStore();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [newTaskDate, setNewTaskDate] = useState('');
   const [newTaskRecurrence, setNewTaskRecurrence] = useState<Recurrence>('none');
+  const [selectedPriority, setSelectedPriority] = useState<Priority>('Medium');
 
-  // Tasks that are not scheduled (date is null)
-  const inboxTasks = tasks.filter(t => t.date === null);
+  const today = format(startOfToday(), 'yyyy-MM-dd');
+  // Tasks with no date (inbox)
+  const inboxTasks = tasks.filter(t => t.date === null && (!hideCompleted || !t.completed));
+  // Overdue: has a date in the past, not completed
+  const overdueTasks = tasks.filter(t => t.date !== null && t.date < today && !t.completed);
 
   const { setNodeRef, isOver } = useDroppable({
     id: 'think-pad',
@@ -26,11 +31,13 @@ export function ThinkPad() {
       title: newTaskTitle.trim(),
       projectId: selectedProjectId || null,
       date: newTaskDate || null,
+      priority: selectedPriority,
     }, newTaskRecurrence, newTaskDate || undefined);
     
     setNewTaskTitle('');
     setNewTaskDate('');
     setNewTaskRecurrence('none');
+    setSelectedPriority('Medium');
   };
 
   return (
@@ -54,12 +61,26 @@ export function ThinkPad() {
           />
         </div>
 
+        {/* Overdue Tasks */}
+        {overdueTasks.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-red-500/80 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
+              Overdue · {overdueTasks.length}
+            </label>
+            {overdueTasks.map(task => (
+              <DraggableTask key={task.id} task={task} showDate />
+            ))}
+          </div>
+        )}
+
         {/* Inbox Tasks */}
         <div className="flex flex-col gap-2 flex-1">
           <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Inbox Tasks</label>
           
           <form onSubmit={handleAddTask} className="flex flex-col gap-2 mb-2 bg-[#141414] p-3 rounded-md border border-[#2A2A2A]">
             <input
+              id="new-task-input"
               type="text"
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
@@ -73,9 +94,25 @@ export function ThinkPad() {
                 className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
               >
                 <option value="">No Project</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                {projects.filter(p => !p.parentId).map(p => (
+                  <React.Fragment key={p.id}>
+                    <option value={p.id}>{p.name}</option>
+                    {projects.filter(sp => sp.parentId === p.id).map(sp => (
+                      <option key={sp.id} value={sp.id}>{'  ↳ ' + sp.name}</option>
+                    ))}
+                  </React.Fragment>
                 ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={selectedPriority}
+                onChange={(e) => setSelectedPriority(e.target.value as Priority)}
+                className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
+              >
+                <option value="High">High Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="Low">Low Priority</option>
               </select>
             </div>
             <div className="flex gap-2">

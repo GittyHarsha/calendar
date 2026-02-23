@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1A1A1A"/>
+      <stop offset="100%" stop-color="#0A0A0A"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F59547"/>
+      <stop offset="100%" stop-color="#E06010"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- Subtle border -->
+  <rect width="64" height="64" rx="14" fill="none" stroke="#2A2A2A" stroke-width="1"/>
+
+  <!-- Row 1 — dim -->
+  <rect x="12" y="18" width="8"  height="3" rx="1.5" fill="#2A2A2A"/>
+  <rect x="23" y="18" width="14" height="3" rx="1.5" fill="#2A2A2A"/>
+  <rect x="40" y="18" width="12" height="3" rx="1.5" fill="#2A2A2A"/>
+
+  <!-- Row 2 -->
+  <rect x="12" y="25" width="12" height="3" rx="1.5" fill="#333"/>
+  <rect x="27" y="25" width="8"  height="3" rx="1.5" fill="#333"/>
+  <rect x="38" y="25" width="14" height="3" rx="1.5" fill="#333"/>
+
+  <!-- TODAY marker — left accent bar -->
+  <rect x="8" y="30" width="2" height="7" rx="1" fill="url(#orange)" filter="url(#glow)"/>
+
+  <!-- Row 3 — TODAY, orange -->
+  <rect x="12" y="32" width="6"  height="3" rx="1.5" fill="url(#orange)" filter="url(#glow)"/>
+  <rect x="21" y="32" width="18" height="3" rx="1.5" fill="url(#orange)" filter="url(#glow)"/>
+  <rect x="42" y="32" width="10" height="3" rx="1.5" fill="#F27D26" opacity="0.4"/>
+
+  <!-- Row 4 -->
+  <rect x="12" y="39" width="16" height="3" rx="1.5" fill="#2A2A2A"/>
+  <rect x="31" y="39" width="6"  height="3" rx="1.5" fill="#2A2A2A"/>
+  <rect x="40" y="39" width="12" height="3" rx="1.5" fill="#2A2A2A"/>
+
+  <!-- Row 5 — fading out -->
+  <rect x="12" y="46" width="10" height="3" rx="1.5" fill="#1E1E1E"/>
+  <rect x="25" y="46" width="20" height="3" rx="1.5" fill="#1E1E1E"/>
+</svg>

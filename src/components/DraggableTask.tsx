@@ -1,24 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { Task, useStore } from '../store';
-import { GripVertical, CheckCircle2, Circle, Trash2, PlayCircle } from 'lucide-react';
+import { Task, Priority, useStore } from '../store';
+import { GripVertical, Trash2, FileText } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfToday } from 'date-fns';
+import { TaskNotesModal } from './TaskNotesModal';
+
+const PRIORITY_NEXT: Record<Priority, Priority> = { High: 'Medium', Medium: 'Low', Low: 'High' };
+const PRIORITY_BORDER: Record<Priority, string> = {
+  High: 'border-l-red-500',
+  Medium: 'border-l-yellow-400',
+  Low: 'border-l-[#2A2A2A]',
+};
 
 export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task; showDate?: boolean }) {
   const { projects, updateTask, setHoveredProjectId, deleteTask } = useStore();
   const project = projects.find(p => p.id === task.projectId);
+  const parentProject = project?.parentId ? projects.find(p => p.id === project.parentId) : null;
+  const projectLabel = parentProject ? `${parentProject.name} › ${project!.name}` : project?.name;
 
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: task.id,
-  });
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleVal, setTitleVal] = useState(task.title);
+  const [editingDate, setEditingDate] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
-  const toggleComplete = () => {
-    updateTask(task.id, { completed: !task.completed });
-  };
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  const priority: Priority = task.priority ?? 'Low';
 
-  const startTask = () => {
-    updateTask(task.id, { startedAt: new Date().toISOString() });
+  const saveTitle = () => {
+    if (titleVal.trim()) updateTask(task.id, { title: titleVal.trim() });
+    else setTitleVal(task.title);
+    setEditingTitle(false);
   };
 
   return (
@@ -27,63 +39,111 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
       onMouseEnter={() => setHoveredProjectId(task.projectId)}
       onMouseLeave={() => setHoveredProjectId(null)}
       className={cn(
-        "flex items-center gap-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-md p-2 group transition-all relative",
-        isDragging ? "opacity-50" : "hover:border-[#444]",
-        task.completed && "opacity-50"
+        'group flex flex-col bg-[#141414] border border-[#222] border-l-2 rounded transition-colors',
+        PRIORITY_BORDER[priority],
+        isDragging ? 'opacity-40' : 'hover:border-[#333] hover:border-l-2',
+        task.completed && 'opacity-40'
       )}
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-[#555] hover:text-[#888] p-1 -ml-1 shrink-0"
-      >
-        <GripVertical size={14} />
-      </div>
+      <div className="flex items-center gap-2 px-2 py-1.5">
+        {/* Drag — hover only */}
+        <div {...attributes} {...listeners}
+          className="hidden group-hover:block cursor-grab text-[#444] hover:text-[#777] shrink-0 -ml-1">
+          <GripVertical size={13} />
+        </div>
 
-      <button onClick={toggleComplete} className="text-[#555] hover:text-[#F27D26] transition-colors shrink-0">
-        {task.completed ? <CheckCircle2 size={16} className="text-[#F27D26]" /> : <Circle size={16} />}
-      </button>
+        {/* Project color dot */}
+        {project && (
+          <div
+            className="shrink-0 w-1.5 h-1.5 rounded-full opacity-70 group-hover:opacity-100"
+            style={{ backgroundColor: project.color }}
+            title={projectLabel}
+          />
+        )}
 
-      {!task.completed && !task.startedAt && (
-        <button 
-          onClick={startTask} 
-          className="text-[#555] hover:text-blue-400 transition-colors shrink-0"
-          title="Start Task"
-        >
-          <PlayCircle size={16} />
-        </button>
-      )}
-
-      <div className="flex flex-col flex-1 min-w-0">
-        <span className={cn(
-          "text-sm truncate",
-          task.completed && "line-through text-[#888]"
-        )}>
-          {task.title}
-        </span>
-        {(showDate && task.date) || task.startedAt ? (
-          <span className="text-[10px] text-[#8E9299] font-mono mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
-            {showDate && task.date && <span>{format(parseISO(task.date), 'MMM d')}</span>}
-            {task.startedAt && <span className="text-blue-400/80">Started {format(parseISO(task.startedAt), 'MMM d, h:mm a')}</span>}
-          </span>
-        ) : null}
-      </div>
-
-      {project && (
-        <div 
-          className="w-2 h-2 rounded-full shrink-0 group-hover:hidden" 
-          style={{ backgroundColor: project.color }}
-          title={project.name}
+        {/* Check */}
+        <button
+          onClick={() => updateTask(task.id, { completed: !task.completed })}
+          className={cn('shrink-0 w-3.5 h-3.5 rounded-full border transition-colors',
+            task.completed ? 'bg-[#F27D26] border-[#F27D26]' : 'border-[#444] hover:border-[#F27D26]'
+          )}
+          title="Toggle complete"
         />
-      )}
 
-      <button 
-        onClick={() => deleteTask(task.id)}
-        className="hidden group-hover:flex text-[#555] hover:text-red-500 p-1 transition-colors shrink-0"
-        title="Delete task"
-      >
-        <Trash2 size={14} />
-      </button>
+        {/* Title */}
+        {editingTitle ? (
+          <input autoFocus value={titleVal}
+            onChange={e => setTitleVal(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleVal(task.title); setEditingTitle(false); } }}
+            className="flex-1 text-sm text-white bg-transparent border-b border-[#F27D26] focus:outline-none" />
+        ) : (
+          <span
+            onClick={() => setEditingTitle(true)}
+            className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate',
+              task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
+            )}
+            title={task.title}
+          >{task.title}</span>
+        )}
+
+        {/* Note badge — visible when description exists and notes panel is closed */}
+        {task.description && !showNotes && (
+          <FileText size={10} className="shrink-0 text-[#444] group-hover:hidden" />
+        )}
+
+        {/* Date — dim, right-aligned; only in calendar views */}
+        {showDate && task.date && !editingDate && (
+          <span onClick={() => setEditingDate(true)}
+            className="text-[10px] text-[#444] font-mono cursor-pointer hover:text-[#888] shrink-0 group-hover:hidden">
+            {format(parseISO(task.date), 'MMM d')}
+          </span>
+        )}
+        {editingDate && (
+          <input type="date" autoFocus value={task.date ?? format(new Date(), 'yyyy-MM-dd')}
+            onChange={e => updateTask(task.id, { date: e.target.value || null })}
+            onBlur={() => setEditingDate(false)}
+            onKeyDown={e => { if (e.key === 'Escape' || e.key === 'Enter') setEditingDate(false); }}
+            className="text-xs bg-[#0A0A0A] border border-[#F27D26] rounded px-1 text-white focus:outline-none w-28 shrink-0" />
+        )}
+
+        {/* Hover actions */}
+        <div className="hidden group-hover:flex items-center gap-1.5 shrink-0">
+          {/* Move to today — only show if task is not already today */}
+          {task.date !== format(startOfToday(), 'yyyy-MM-dd') && (
+            <button
+              onClick={() => updateTask(task.id, { date: format(startOfToday(), 'yyyy-MM-dd') })}
+              className="text-[10px] text-[#444] hover:text-[#F27D26] font-mono"
+              title="Move to today"
+            >→ Today</button>
+          )}
+          {!editingDate && (
+            <button onClick={() => setEditingDate(true)}
+              className="text-[10px] text-[#444] hover:text-[#888] font-mono">
+              {task.date ? format(parseISO(task.date), 'MMM d') : '+date'}
+            </button>
+          )}
+          <button
+            onClick={() => updateTask(task.id, { priority: PRIORITY_NEXT[priority] })}
+            title={`Priority: ${priority}`}
+            className={cn('text-[10px] font-semibold leading-none hover:opacity-80',
+              priority === 'High' ? 'text-red-400' : priority === 'Medium' ? 'text-yellow-400' : 'text-[#444]'
+            )}>
+            {priority === 'High' ? 'H' : priority === 'Medium' ? 'M' : 'L'}
+          </button>
+          <button onClick={() => setShowNotes(n => !n)} className="text-[#444] hover:text-[#888]" title="Notes">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </button>
+          <button onClick={() => deleteTask(task.id)} className="text-[#444] hover:text-red-500 transition-colors">
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+
+      {showNotes && (
+        <TaskNotesModal task={task} onClose={() => setShowNotes(false)} />
+      )}
     </div>
   );
 }
+

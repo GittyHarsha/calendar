@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { addDays, format, startOfToday, parseISO, addMonths } from 'date-fns';
 
 export type Priority = 'High' | 'Medium' | 'Low';
@@ -8,10 +9,11 @@ export type Project = {
   id: string;
   name: string;
   color: string;
-  deadline: string; // ISO date string
+  deadline?: string | null; // ISO date string, optional
   createdAt: string;
   priority: Priority;
   startedAt?: string | null;
+  parentId?: string | null; // null/undefined = top-level project, set = subproject
 };
 
 export type Task = {
@@ -21,6 +23,8 @@ export type Task = {
   date: string | null; // ISO date string if scheduled, null if in Think Pad
   completed: boolean;
   startedAt?: string | null;
+  priority?: Priority;
+  description?: string;
 };
 
 type EpochState = {
@@ -28,6 +32,7 @@ type EpochState = {
   tasks: Task[];
   thinkPadNotes: string;
   hoveredProjectId: string | null;
+  hideCompleted: boolean;
   
   // Actions
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
@@ -40,6 +45,7 @@ type EpochState = {
   
   setThinkPadNotes: (notes: string) => void;
   setHoveredProjectId: (id: string | null) => void;
+  toggleHideCompleted: () => void;
 };
 
 const today = startOfToday();
@@ -74,11 +80,14 @@ const initialTasks: Task[] = [
   { id: 't5', projectId: null, title: 'Buy groceries', date: format(today, 'yyyy-MM-dd'), completed: false, startedAt: null },
 ];
 
-export const useStore = create<EpochState>((set) => ({
+export const useStore = create<EpochState>()(
+  persist(
+    (set) => ({
   projects: initialProjects,
   tasks: initialTasks,
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
+  hideCompleted: false,
   
   addProject: (project) => set((state) => ({
     projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
@@ -88,10 +97,19 @@ export const useStore = create<EpochState>((set) => ({
     projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p)
   })),
   
-  deleteProject: (id) => set((state) => ({
-    projects: state.projects.filter(p => p.id !== id),
-    tasks: state.tasks.map(t => t.projectId === id ? { ...t, projectId: null } : t)
-  })),
+  deleteProject: (id) => set((state) => {
+    // Collect the project and all descendants recursively
+    const toDelete = new Set<string>();
+    const collect = (pid: string) => {
+      toDelete.add(pid);
+      state.projects.filter(p => p.parentId === pid).forEach(c => collect(c.id));
+    };
+    collect(id);
+    return {
+      projects: state.projects.filter(p => !toDelete.has(p.id)),
+      tasks: state.tasks.map(t => toDelete.has(t.projectId ?? '') ? { ...t, projectId: null } : t),
+    };
+  }),
   
   addTask: (task, recurrence = 'none', startDate) => set((state) => {
     const baseTask = { ...task, startedAt: task.startedAt || null };
@@ -133,6 +151,19 @@ export const useStore = create<EpochState>((set) => ({
     tasks: state.tasks.filter(t => t.id !== id)
   })),
   
-  setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
-  setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
-}));
+      setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
+      setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
+      toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
+    }),
+    {
+      name: 'calendar-storage',
+      // hoveredProjectId is transient — don't persist it
+      partialize: (state) => ({
+        projects: state.projects,
+        tasks: state.tasks,
+        thinkPadNotes: state.thinkPadNotes,
+        hideCompleted: state.hideCompleted,
+      }),
+    }
+  )
+);
