@@ -5,6 +5,7 @@ import { GripVertical, Trash2, FileText } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
+import { DatePickerPopover } from './DatePickerPopover';
 
 const PRIORITY_NEXT: Record<Priority, Priority> = { High: 'Medium', Medium: 'Low', Low: 'High' };
 const PRIORITY_BORDER: Record<Priority, string> = {
@@ -23,6 +24,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   const [titleVal, setTitleVal] = useState(task.title);
   const [editingDate, setEditingDate] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const dateButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
   const priority: Priority = task.priority ?? 'Low';
@@ -39,7 +41,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
       onMouseEnter={() => setHoveredProjectId(task.projectId)}
       onMouseLeave={() => setHoveredProjectId(null)}
       className={cn(
-        'group flex flex-col bg-[#141414] border border-[#222] border-l-2 rounded transition-colors',
+        'relative group flex flex-col bg-[#141414] border border-[#222] border-l-2 rounded transition-colors',
         PRIORITY_BORDER[priority],
         isDragging ? 'opacity-40' : 'hover:border-[#333] hover:border-l-2',
         task.completed && 'opacity-40'
@@ -99,12 +101,15 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             {format(parseISO(task.date), 'MMM d')}
           </span>
         )}
+        {/* Date picker popover */}
         {editingDate && (
-          <input type="date" autoFocus value={task.date ?? format(new Date(), 'yyyy-MM-dd')}
-            onChange={e => updateTask(task.id, { date: e.target.value || null })}
-            onBlur={() => setEditingDate(false)}
-            onKeyDown={e => { if (e.key === 'Escape' || e.key === 'Enter') setEditingDate(false); }}
-            className="text-xs bg-[#0A0A0A] border border-[#F27D26] rounded px-1 text-white focus:outline-none w-28 shrink-0" />
+          <DatePickerPopover
+            value={task.date}
+            onChange={date => { updateTask(task.id, { date }); setEditingDate(false); }}
+            onClose={() => setEditingDate(false)}
+            clearable
+            anchorRef={dateButtonRef}
+          />
         )}
 
         {/* Hover actions */}
@@ -118,7 +123,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             >→ Today</button>
           )}
           {!editingDate && (
-            <button onClick={() => setEditingDate(true)}
+            <button ref={dateButtonRef} onClick={() => setEditingDate(true)}
               className="text-[10px] text-[#444] hover:text-[#888] font-mono">
               {task.date ? format(parseISO(task.date), 'MMM d') : '+date'}
             </button>

@@ -1,17 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useStore, Recurrence, Priority } from '../store';
 import { useDroppable } from '@dnd-kit/core';
 import { DraggableTask } from './DraggableTask';
-import { Plus } from 'lucide-react';
+import { Plus, Maximize2 } from 'lucide-react';
 import { format, startOfToday } from 'date-fns';
+import { DatePickerPopover } from './DatePickerPopover';
+
+function ScratchpadModal({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0A0A0A]">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[#1E1E1E] shrink-0">
+        <span className="text-xs font-bold uppercase tracking-widest text-[#555]">Scratchpad</span>
+        <button onClick={onClose} className="text-[10px] font-bold uppercase tracking-wider text-[#555] hover:text-white px-3 py-1 border border-[#2A2A2A] rounded hover:border-[#444] transition-colors">
+          Esc · Close
+        </button>
+      </div>
+      <textarea
+        autoFocus
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="flex-1 bg-transparent text-[#E4E3E0] font-mono text-sm p-8 focus:outline-none resize-none leading-relaxed"
+        placeholder="Dump your thoughts here..."
+        style={{ caretColor: '#F27D26' }}
+      />
+    </div>,
+    document.body
+  );
+}
 
 export function ThinkPad() {
   const { tasks, thinkPadNotes, setThinkPadNotes, addTask, projects, hideCompleted } = useStore();
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [newTaskDate, setNewTaskDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [newTaskRecurrence, setNewTaskRecurrence] = useState<Recurrence>('none');
   const [selectedPriority, setSelectedPriority] = useState<Priority>('Medium');
+  const [scratchpadFullscreen, setScratchpadFullscreen] = useState(false);
 
   const today = format(startOfToday(), 'yyyy-MM-dd');
   // Tasks with no date (inbox)
@@ -52,14 +84,23 @@ export function ThinkPad() {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
         {/* Notes Area */}
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Scratchpad</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Scratchpad</label>
+            <button onClick={() => setScratchpadFullscreen(true)} className="text-[#444] hover:text-[#8E9299] transition-colors" title="Fullscreen">
+              <Maximize2 size={12} />
+            </button>
+          </div>
           <textarea
             value={thinkPadNotes}
             onChange={(e) => setThinkPadNotes(e.target.value)}
+            onDoubleClick={() => setScratchpadFullscreen(true)}
             className="w-full h-40 bg-[#1A1A1A] border border-[#2A2A2A] rounded-md p-3 text-sm text-[#E4E3E0] placeholder-[#555] focus:outline-none focus:border-[#F27D26] resize-none font-mono"
             placeholder="Dump your thoughts here..."
           />
         </div>
+        {scratchpadFullscreen && (
+          <ScratchpadModal value={thinkPadNotes} onChange={setThinkPadNotes} onClose={() => setScratchpadFullscreen(false)} />
+        )}
 
         {/* Overdue Tasks */}
         {overdueTasks.length > 0 && (
@@ -115,13 +156,15 @@ export function ThinkPad() {
                 <option value="Low">Low Priority</option>
               </select>
             </div>
-            <div className="flex gap-2">
-              <input 
-                type="date" 
-                value={newTaskDate}
-                onChange={(e) => setNewTaskDate(e.target.value)}
-                className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
-              />
+            <div className="relative flex gap-2">
+              <button type="button"
+                onClick={() => setShowDatePicker(p => !p)}
+                className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
+                {newTaskDate ? format(new Date(newTaskDate + 'T00:00:00'), 'MMM d, yyyy') : 'Pick date…'}
+              </button>
+              {showDatePicker && (
+                <DatePickerPopover value={newTaskDate || null} onChange={d => { setNewTaskDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />
+              )}
               <select
                 value={newTaskRecurrence}
                 onChange={(e) => setNewTaskRecurrence(e.target.value as Recurrence)}

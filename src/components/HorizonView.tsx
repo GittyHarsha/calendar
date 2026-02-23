@@ -1,24 +1,187 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store';
-import { addDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears } from 'date-fns';
+import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
 import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock } from 'lucide-react';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+function Carousel({ items, accentFn }: {
+  items: { label: string; sublabel: string; accent: string; urgent: boolean }[];
+  accentFn?: (i: number) => string;
+}) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % items.length), 2500);
+    return () => clearInterval(t);
+  }, [items.length]);
+
+  if (items.length === 0) return <div className="flex items-center justify-center h-full text-[10px] text-[#333] italic">none</div>;
+
+  const item = items[idx];
+  return (
+    <div className="relative flex flex-col justify-center h-full overflow-hidden">
+      {/* Cycling item */}
+      <div key={idx} className="flex flex-col gap-0.5 animate-fade">
+        <div className="flex items-baseline gap-1.5">
+          {item.urgent && <AlertTriangle size={10} style={{ color: item.accent }} className="shrink-0 mb-0.5" />}
+          <span className="text-2xl font-mono font-black leading-none" style={{ color: item.accent }}>
+            {item.label}
+          </span>
+        </div>
+        <span className="text-[10px] font-semibold text-[#C8C7C4] leading-tight truncate max-w-[150px]">{item.sublabel}</span>
+      </div>
+      {/* Dot indicators */}
+      {items.length > 1 && (
+        <div className="flex gap-0.5 mt-1.5">
+          {items.map((_, i) => (
+            <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
+              className="w-1 h-1 rounded-full transition-all"
+              style={{ background: i === idx ? item.accent : '#333' }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
+  const { projects, tasks } = useStore();
+  const today = startOfToday();
+  const topLevel = projects
+    .filter(p => !p.parentId)
+    .sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+    });
+
+  if (topLevel.length === 0) return null;
+
+  const descendantIds = (id: string): string[] => {
+    const kids = projects.filter(p => p.parentId === id);
+    return [id, ...kids.flatMap(k => descendantIds(k.id))];
+  };
+
+  return (
+    <div className="border-b border-[#1E1E1E] bg-[#0A0A0A] flex items-stretch px-3 gap-3 overflow-x-auto shrink-0 py-2.5" style={{ scrollbarWidth: 'none' }}>
+      {topLevel.map(p => {
+        const days = p.deadline ? differenceInDays(parseISO(p.deadline), today) : null;
+        const overdue = days !== null && days < 0;
+        const urgent = days !== null && days >= 0 && days <= 7;
+        const soon = days !== null && days > 7 && days <= 30;
+        const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : soon ? '#eab308' : '#3B82F6';
+        const noDeadline = days === null;
+
+        // subprojects carousel items
+        const subs = projects.filter(sp => sp.parentId === p.id);
+        const subItems = subs.map(sp => {
+          const d = sp.deadline ? differenceInDays(parseISO(sp.deadline), today) : null;
+          const ov = d !== null && d < 0;
+          const urg = d !== null && d >= 0 && d <= 7;
+          const so = d !== null && d > 7 && d <= 30;
+          const a = ov ? '#ef4444' : urg ? '#F27D26' : so ? '#eab308' : '#3B82F6';
+          return {
+            label: d === null ? '—' : String(Math.abs(d)),
+            sublabel: sp.name,
+            accent: d === null ? '#444' : a,
+            urgent: ov || urg,
+          };
+        });
+
+        // tasks carousel items (all descendants)
+        const ids = descendantIds(p.id);
+        const upcomingTasks = tasks
+          .filter(t => ids.includes(t.projectId ?? '') && t.date && !t.completed)
+          .map(t => ({ ...t, d: differenceInDays(parseISO(t.date!), today) }))
+          .sort((a, b) => a.d - b.d);
+        const taskItems = upcomingTasks.map(t => {
+          const ov = t.d < 0; const urg = t.d >= 0 && t.d <= 3; const so = t.d > 3 && t.d <= 10;
+          const a = ov ? '#ef4444' : urg ? '#F27D26' : so ? '#eab308' : '#3B82F6';
+          const lbl = ov ? `${Math.abs(t.d)}d` : t.d === 0 ? '0d' : `${t.d}d`;
+          return { label: lbl, sublabel: t.title, accent: a, urgent: ov || urg };
+        });
+
+        return (
+          <button key={p.id} onClick={onOpenGoals}
+            className="flex items-stretch gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
+            style={{ background: `${p.color}12`, border: `1px solid ${noDeadline ? '#252525' : accent + '45'}` }}>
+
+            {/* Left urgency bar */}
+            <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
+
+            {/* Project deadline */}
+            <div className="flex flex-col justify-center gap-0.5 px-3 py-1 min-w-[110px]">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-[#555]">Goal</span>
+              <span className="text-xs font-bold text-white truncate max-w-[110px]">{p.name}</span>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                {(overdue || urgent) && <AlertTriangle size={10} style={{ color: accent }} />}
+                <span className="text-2xl font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
+                  {noDeadline ? '—' : Math.abs(days!)}
+                </span>
+                <span className="text-[9px] font-mono uppercase" style={{ color: noDeadline ? '#333' : accent }}>
+                  {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
+                </span>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px self-stretch bg-[#1E1E1E]" />
+
+            {/* Subprojects carousel */}
+            {subs.length > 0 && (
+              <>
+                <div className="flex flex-col justify-center px-3 py-1 min-w-[130px]">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#555] mb-1">Subprojects</span>
+                  <Carousel items={subItems} />
+                </div>
+                <div className="w-px self-stretch bg-[#1E1E1E]" />
+              </>
+            )}
+
+            {/* Tasks carousel */}
+            <div className="flex flex-col justify-center px-3 py-1 min-w-[150px]">
+              <span className="text-[9px] font-bold uppercase tracking-widest text-[#555] mb-1">Tasks</span>
+              <Carousel items={taskItems} />
+            </div>
+
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function HorizonView() {
   const { projects, tasks, hideCompleted, toggleHideCompleted } = useStore();
   const today = startOfToday();
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [baseDate, setBaseDate] = useState<Date>(today);
+  const [showProjects, setShowProjects] = useState(false);
   const [horizonLengths, setHorizonLengths] = useState<Record<ViewMode, number | ''>>({
     daily: 90,
     weekly: 14,
     monthly: 12,
     yearly: 5
   });
+  const projectsPanelRef = useRef<HTMLDivElement>(null);
+
+  // Close projects panel when clicking outside
+  useEffect(() => {
+    if (!showProjects) return;
+    const handler = (e: MouseEvent) => {
+      if (projectsPanelRef.current && !projectsPanelRef.current.contains(e.target as Node)) {
+        setShowProjects(false);
+      }
+    };
+    setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showProjects]);
 
   const currentLength = Math.max(1, typeof horizonLengths[viewMode] === 'number' ? (horizonLengths[viewMode] as number) : 1);
 
@@ -48,96 +211,111 @@ export function HorizonView() {
     });
   }
 
+  const navigate = (dir: 1 | -1) => {
+    setBaseDate(prev => {
+      if (viewMode === 'daily') return dir > 0 ? addDays(prev, currentLength) : subDays(prev, currentLength);
+      if (viewMode === 'weekly') return dir > 0 ? addWeeks(prev, currentLength) : subWeeks(prev, currentLength);
+      if (viewMode === 'monthly') return dir > 0 ? addMonths(prev, currentLength) : subMonths(prev, currentLength);
+      return dir > 0 ? addYears(prev, currentLength) : subYears(prev, currentLength);
+    });
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-[#141414]">
-      {/* Header */}
-      <div className="p-6 border-b border-[#2A2A2A] shrink-0 flex justify-between items-center bg-[#050505]">
-        <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Horizon" className="w-8 h-8 shrink-0" />
-          <p className="text-sm text-[#8E9299] font-mono">
-            {format(columns[0].startDate, 'MMMM do, yyyy')} — {format(columns[columns.length - 1].endDate, 'MMMM do, yyyy')}
-          </p>
-        </div>
-        <div className="flex items-center gap-6">
-          {/* Date Filter */}
-          <div className="flex items-center gap-2">
-            <input 
-              type="month" 
-              value={format(baseDate, 'yyyy-MM')}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setBaseDate(parseISO(e.target.value + '-01'));
-                }
-              }}
-              className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-md px-2 py-1.5 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
-            />
-            <button 
-              onClick={() => setBaseDate(today)} 
-              className="text-xs font-bold uppercase tracking-wider text-[#8E9299] hover:text-white transition-colors px-2 py-1.5 bg-[#1A1A1A] border border-[#2A2A2A] rounded-md"
-            >
-              {format(today, 'MMM d, yyyy')}
-            </button>
-          </div>
+      {/* Toolbar */}
+      <div className="h-11 border-b border-[#1E1E1E] shrink-0 flex items-center gap-0 bg-[#0A0A0A] px-3">
+        {/* Logo */}
+        <img src="/logo.svg" alt="Horizon" className="w-6 h-6 shrink-0 mr-4" />
 
-          {/* View Toggle */}
-          <div className="flex bg-[#1A1A1A] rounded-md p-1 border border-[#2A2A2A]">
-            {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors",
-                  viewMode === mode ? "bg-[#2A2A2A] text-white shadow-sm" : "text-[#8E9299] hover:text-[#E4E3E0]"
-                )}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-
-          {/* Horizon Length Control */}
-          <div className="flex items-center gap-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-md px-2 py-1.5">
-            <span className="text-xs font-bold uppercase tracking-wider text-[#8E9299]">Show</span>
-            <input
-              type="number"
-              value={horizonLengths[viewMode]}
-              onChange={(e) => {
-                const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
-                setHorizonLengths(prev => ({ ...prev, [viewMode]: val }));
-              }}
-              className="bg-transparent text-white text-xs font-mono w-12 text-center focus:outline-none"
-              min="1"
-              max="365"
-            />
-            <span className="text-xs font-bold uppercase tracking-wider text-[#8E9299]">
-              {viewMode === 'daily' ? 'Days' : viewMode === 'weekly' ? 'Weeks' : viewMode === 'monthly' ? 'Months' : 'Years'}
-            </span>
-          </div>
-
-          <div className="text-right border-l border-[#2A2A2A] pl-6">
-            <div className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Active Goals</div>
-            <div className="text-2xl font-mono text-white leading-none mt-1">{projects.length}</div>
-          </div>
-          <button
-            onClick={toggleHideCompleted}
-            className={cn(
-              'text-xs font-semibold uppercase tracking-wider px-3 py-1.5 rounded-md border transition-colors',
-              hideCompleted
-                ? 'bg-[#F27D26]/10 border-[#F27D26]/40 text-[#F27D26]'
-                : 'bg-[#1A1A1A] border-[#2A2A2A] text-[#8E9299] hover:text-white'
-            )}
-          >
-            {hideCompleted ? 'Show Done' : 'Hide Done'}
+        {/* Nav arrows + Today */}
+        <div className="flex items-center gap-0.5 mr-3">
+          <button onClick={() => navigate(-1)} className="w-7 h-7 flex items-center justify-center rounded text-[#555] hover:text-[#E4E3E0] hover:bg-[#1A1A1A] transition-colors">
+            <ChevronLeft size={15} />
+          </button>
+          <button onClick={() => setBaseDate(today)} className="h-7 px-2.5 rounded text-[10px] font-bold uppercase tracking-wider text-[#555] hover:text-[#E4E3E0] hover:bg-[#1A1A1A] transition-colors whitespace-nowrap">
+            Today
+          </button>
+          <button onClick={() => navigate(1)} className="w-7 h-7 flex items-center justify-center rounded text-[#555] hover:text-[#E4E3E0] hover:bg-[#1A1A1A] transition-colors">
+            <ChevronRight size={15} />
           </button>
         </div>
+
+        {/* Date range label */}
+        <span className="text-[11px] text-[#555] font-mono mr-auto">
+          {format(columns[0].startDate, 'MMM d')} — {format(columns[columns.length - 1].endDate, 'MMM d, yyyy')}
+        </span>
+
+        {/* View mode */}
+        <div className="flex items-center gap-px bg-[#141414] border border-[#222] rounded-md p-0.5 mr-3">
+          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
+            <button key={mode} onClick={() => setViewMode(mode)}
+              className={cn('px-3 h-6 text-[10px] font-bold uppercase tracking-wider rounded transition-colors',
+                viewMode === mode ? 'bg-[#2A2A2A] text-white' : 'text-[#555] hover:text-[#E4E3E0]'
+              )}>
+              {mode[0]}
+            </button>
+          ))}
+        </div>
+
+        {/* Length control */}
+        <div className="flex items-center gap-1 mr-3">
+          <span className="text-[10px] text-[#444] uppercase tracking-wider">Show</span>
+          <input type="number" value={horizonLengths[viewMode]}
+            onChange={e => {
+              const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+              setHorizonLengths(prev => ({ ...prev, [viewMode]: val }));
+            }}
+            className="bg-[#1A1A1A] border border-[#222] text-white text-[11px] font-mono w-10 text-center rounded px-1 py-0.5 focus:outline-none focus:border-[#F27D26]"
+            min="1" max="365"
+          />
+          <span className="text-[10px] text-[#444] uppercase tracking-wider">
+            {viewMode === 'daily' ? 'd' : viewMode === 'weekly' ? 'wk' : viewMode === 'monthly' ? 'mo' : 'yr'}
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-[#222] mx-2" />
+
+        {/* Hide done */}
+        <button onClick={toggleHideCompleted}
+          className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
+            hideCompleted ? 'text-[#F27D26]' : 'text-[#444] hover:text-[#E4E3E0] hover:bg-[#1A1A1A]'
+          )}
+          title={hideCompleted ? 'Show completed' : 'Hide completed'}>
+          {hideCompleted ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-5 bg-[#222] mx-1" />
+
+        {/* Projects toggle */}
+        <button onClick={() => setShowProjects(p => !p)}
+          className={cn('h-7 px-2.5 flex items-center gap-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-colors',
+            showProjects ? 'bg-[#F27D26]/15 text-[#F27D26]' : 'text-[#444] hover:text-[#E4E3E0] hover:bg-[#1A1A1A]'
+          )}>
+          <LayoutGrid size={13} />
+          <span>Goals</span>
+          {projects.filter(p => !p.parentId).length > 0 && (
+            <span className={cn('font-mono', showProjects ? 'text-[#F27D26]' : 'text-[#555]')}>
+              {projects.filter(p => !p.parentId).length}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Macro Goals Panel */}
-      <MacroGoalsPanel />
+      {/* Goals overlay panel — floats over calendar, doesn't push it */}
+      {showProjects && (
+        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl" style={{ background: '#0A0A0A' }}>
+          <MacroGoalsPanel />
+        </div>
+      )}
+
+      {/* Always-visible project deadlines strip */}
+      <ProjectDeadlinesStrip onOpenGoals={() => setShowProjects(true)} />
 
       {/* Timeline Scroll Container */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden flex relative">
-        <div className="flex h-full min-w-max">
+      <div className="flex-1 overflow-x-auto flex relative min-h-0">
+        <div className="flex min-w-max h-full">
           {columns.map((col, index) => (
             <TimeColumn 
               key={col.startDate.toISOString()} 
@@ -181,7 +359,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
       ref={setNodeRef}
       className={cn(
         widthClass,
-        "border-r border-[#2A2A2A] flex flex-col h-full transition-colors relative",
+        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors relative",
         isOver && "bg-[#1A1A1A]",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
         isCurrent && "bg-[#F27D26]/5 border-l-2 border-l-[#F27D26]"
