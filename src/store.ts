@@ -1,0 +1,138 @@
+import { create } from 'zustand';
+import { addDays, format, startOfToday, parseISO, addMonths } from 'date-fns';
+
+export type Priority = 'High' | 'Medium' | 'Low';
+export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly';
+
+export type Project = {
+  id: string;
+  name: string;
+  color: string;
+  deadline: string; // ISO date string
+  createdAt: string;
+  priority: Priority;
+  startedAt?: string | null;
+};
+
+export type Task = {
+  id: string;
+  projectId: string | null;
+  title: string;
+  date: string | null; // ISO date string if scheduled, null if in Think Pad
+  completed: boolean;
+  startedAt?: string | null;
+};
+
+type EpochState = {
+  projects: Project[];
+  tasks: Task[];
+  thinkPadNotes: string;
+  hoveredProjectId: string | null;
+  
+  // Actions
+  addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
+  updateProject: (id: string, updates: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
+  
+  addTask: (task: Omit<Task, 'id' | 'completed'>, recurrence?: Recurrence, startDate?: string) => void;
+  updateTask: (id: string, updates: Partial<Task>) => void;
+  deleteTask: (id: string) => void;
+  
+  setThinkPadNotes: (notes: string) => void;
+  setHoveredProjectId: (id: string | null) => void;
+};
+
+const today = startOfToday();
+
+// Initial dummy data to show the concept
+const initialProjects: Project[] = [
+  {
+    id: 'p1',
+    name: 'Launch V1 of SaaS App',
+    color: '#F27D26', // Urgent orange
+    deadline: format(addDays(today, 45), 'yyyy-MM-dd'),
+    createdAt: format(today, 'yyyy-MM-dd'),
+    priority: 'High',
+    startedAt: null,
+  },
+  {
+    id: 'p2',
+    name: 'Write Research Paper',
+    color: '#3B82F6', // Blue
+    deadline: format(addDays(today, 80), 'yyyy-MM-dd'),
+    createdAt: format(today, 'yyyy-MM-dd'),
+    priority: 'Medium',
+    startedAt: null,
+  }
+];
+
+const initialTasks: Task[] = [
+  { id: 't1', projectId: 'p1', title: 'DB schema design', date: format(addDays(today, 1), 'yyyy-MM-dd'), completed: false, startedAt: null },
+  { id: 't2', projectId: 'p1', title: 'Auth implementation', date: format(addDays(today, 3), 'yyyy-MM-dd'), completed: false, startedAt: null },
+  { id: 't3', projectId: 'p1', title: 'UI design', date: null, completed: false, startedAt: null },
+  { id: 't4', projectId: 'p2', title: 'Literature review', date: format(addDays(today, 5), 'yyyy-MM-dd'), completed: false, startedAt: null },
+  { id: 't5', projectId: null, title: 'Buy groceries', date: format(today, 'yyyy-MM-dd'), completed: false, startedAt: null },
+];
+
+export const useStore = create<EpochState>((set) => ({
+  projects: initialProjects,
+  tasks: initialTasks,
+  thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
+  hoveredProjectId: null,
+  
+  addProject: (project) => set((state) => ({
+    projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
+  })),
+  
+  updateProject: (id, updates) => set((state) => ({
+    projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p)
+  })),
+  
+  deleteProject: (id) => set((state) => ({
+    projects: state.projects.filter(p => p.id !== id),
+    tasks: state.tasks.map(t => t.projectId === id ? { ...t, projectId: null } : t)
+  })),
+  
+  addTask: (task, recurrence = 'none', startDate) => set((state) => {
+    const baseTask = { ...task, startedAt: task.startedAt || null };
+    if (recurrence === 'none' || !startDate) {
+      return { tasks: [...state.tasks, { ...baseTask, id: crypto.randomUUID(), completed: false }] };
+    }
+    
+    const newTasks: Task[] = [];
+    let currentDate = parseISO(startDate);
+    const endDate = addDays(startOfToday(), 90);
+    
+    let count = 0;
+    while (currentDate <= endDate && count < 100) {
+      newTasks.push({
+        ...baseTask,
+        id: crypto.randomUUID(),
+        date: format(currentDate, 'yyyy-MM-dd'),
+        completed: false,
+      });
+      
+      if (recurrence === 'daily') {
+        currentDate = addDays(currentDate, 1);
+      } else if (recurrence === 'weekly') {
+        currentDate = addDays(currentDate, 7);
+      } else if (recurrence === 'monthly') {
+        currentDate = addMonths(currentDate, 1);
+      }
+      count++;
+    }
+    
+    return { tasks: [...state.tasks, ...newTasks] };
+  }),
+  
+  updateTask: (id, updates) => set((state) => ({
+    tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
+  })),
+  
+  deleteTask: (id) => set((state) => ({
+    tasks: state.tasks.filter(t => t.id !== id)
+  })),
+  
+  setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
+  setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
+}));
