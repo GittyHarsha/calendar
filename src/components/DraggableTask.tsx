@@ -67,8 +67,8 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
       <div ref={popupRef}
         onMouseEnter={onMouseEnter}
         onMouseLeave={pickerOpen ? undefined : onMouseLeave}
-        className="fixed z-[9999] w-56 rounded-xl border border-[#2A2A2A] bg-[#0F0F0F] shadow-2xl p-3 flex flex-col gap-3"
-        style={{ top: pos.top, left: pos.left, opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? 'auto' : 'none' }}>
+        className="fixed z-[9999] w-56 rounded-xl border border-[#2A2A2A] shadow-2xl p-3 flex flex-col gap-3"
+        style={{ top: pos.top, left: pos.left, opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? 'auto' : 'none', background: 'var(--bg-0)' }}>
 
         {/* Title row */}
         <div className="text-sm font-semibold text-white leading-snug">{task.title}</div>

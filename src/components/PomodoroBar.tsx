@@ -33,9 +33,9 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
       <div style={{
-        background: '#111', border: '1px solid #2a2a2a', borderRadius: 16,
+        background: 'var(--bg-1)', border: '1px solid var(--border-1)', borderRadius: 16,
         padding: '32px 40px', maxWidth: 360, width: '100%', textAlign: 'center',
-        fontFamily: 'Consolas, monospace', color: '#E4E3E0', boxShadow: '0 25px 60px rgba(0,0,0,0.8)',
+        fontFamily: 'Consolas, monospace', color: 'var(--text-1)', boxShadow: '0 25px 60px rgba(0,0,0,0.8)',
       }}>
         <div style={{ fontSize: 40, marginBottom: 8 }}>🍅</div>
         <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Session complete!</div>
@@ -59,8 +59,8 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
             Start break
           </button>
           <button onClick={onSkipBreak} style={{
-            flex: 1, padding: '10px 0', background: '#1a1a1a', border: '1px solid #333',
-            borderRadius: 8, color: '#aaa', fontSize: 13, cursor: 'pointer', fontFamily: 'Consolas, monospace',
+            flex: 1, padding: '10px 0', background: 'var(--bg-2)', border: '1px solid var(--border-1)',
+            borderRadius: 8, color: 'var(--text-2)', fontSize: 13, cursor: 'pointer', fontFamily: 'Consolas, monospace',
           }}>
             Skip → continue
           </button>
@@ -125,7 +125,7 @@ export function PomodoroBar() {
         <div style={{
           position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
           zIndex: 9990, display: 'flex', alignItems: 'center', gap: 14,
-          background: '#0F0F0F', border: `1px solid ${accent}33`,
+          background: 'var(--bg-0)', border: `1px solid ${accent}33`,
           borderRadius: 40, padding: '10px 20px',
           boxShadow: `0 4px 32px rgba(0,0,0,0.7), 0 0 0 1px ${accent}22`,
           fontFamily: 'Consolas, monospace', userSelect: 'none',
@@ -192,8 +192,8 @@ export function PomodoroBar() {
 
 function btnStyle(bg: string): React.CSSProperties {
   return {
-    width: 30, height: 30, borderRadius: '50%', border: '1px solid #2a2a2a',
-    background: bg, color: '#aaa', cursor: 'pointer', fontSize: 12,
+    width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--border-1)',
+    background: bg, color: 'var(--text-2)', cursor: 'pointer', fontSize: 12,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     fontFamily: 'Consolas, monospace',
   };

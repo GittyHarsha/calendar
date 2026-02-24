@@ -48,14 +48,36 @@ body {
 [data-theme="dawn"] {
   color-scheme: light;
 }
-[data-theme="dawn"] * {
-  border-color: #D4CCC2;
-}
+/* All dark bg classes → light surfaces */
+[data-theme="dawn"] .bg-\[\#090909\],
+[data-theme="dawn"] .bg-\[\#0A0A0A\],
+[data-theme="dawn"] .bg-\[\#0D0D0D\],
+[data-theme="dawn"] .bg-\[\#0F0F0F\],
+[data-theme="dawn"] .bg-\[\#111\],
+[data-theme="dawn"] .bg-\[\#111111\],
+[data-theme="dawn"] .bg-\[\#141414\],
+[data-theme="dawn"] .bg-\[\#161616\] { background-color: #FAF7F2 !important; }
+
+[data-theme="dawn"] .bg-\[\#1A1A1A\],
+[data-theme="dawn"] .bg-\[\#1E1E1E\],
+[data-theme="dawn"] .bg-\[\#1a1a1a\] { background-color: #EDE8E1 !important; }
+
+[data-theme="dawn"] .bg-\[\#2A2A2A\] { background-color: #D4CCC2 !important; }
+[data-theme="dawn"] .bg-\[\#3A3A3A\] { background-color: #C4BBB0 !important; }
+
+[data-theme="dawn"] .bg-\[\#0A0A0A\]\/50,
+[data-theme="dawn"] .bg-\[\#0A0A0A\]\/80,
+[data-theme="dawn"] .bg-\[\#0A0A0A\]\/90,
+[data-theme="dawn"] .bg-\[\#1A1A1A\]\/80 { background-color: #E8E3DC !important; }
+
+/* Borders */
 [data-theme="dawn"] .border-\[\#1E1E1E\],
 [data-theme="dawn"] .border-\[\#2A2A2A\],
-[data-theme="dawn"] .border-\[\#333\] {
-  border-color: #D4CCC2 !important;
-}
+[data-theme="dawn"] .border-\[\#222\],
+[data-theme="dawn"] .border-\[\#333\],
+[data-theme="dawn"] .border-\[\#444\] { border-color: #D4CCC2 !important; }
+
+/* Text colors */
 [data-theme="dawn"] .text-\[\#bbb\],
 [data-theme="dawn"] .text-\[\#aaa\],
 [data-theme="dawn"] .text-\[\#888\],
@@ -65,25 +87,35 @@ body {
 [data-theme="dawn"] .text-\[\#444\],
 [data-theme="dawn"] .text-\[\#C8C7C4\],
 [data-theme="dawn"] .text-\[\#E4E3E0\],
-[data-theme="dawn"] .text-\[\#8E9299\] {
-  color: #4A4540 !important;
-}
-[data-theme="dawn"] .bg-\[\#0A0A0A\]\/50,
-[data-theme="dawn"] .bg-\[\#1A1A1A\] {
-  background-color: #E8E3DC !important;
-}
+[data-theme="dawn"] .text-\[\#D4D3D0\],
+[data-theme="dawn"] .text-\[\#8E9299\] { color: #4A4540 !important; }
+
+[data-theme="dawn"] .text-white { color: #1C1A18 !important; }
+[data-theme="dawn"] .placeholder-\[\#555\]::placeholder { color: #A09890 !important; }
+
+/* Scrollbar */
 [data-theme="dawn"] ::-webkit-scrollbar-track { background: #EAE6E0; }
 [data-theme="dawn"] ::-webkit-scrollbar-thumb { background: #C4BEB7; }
 
-/* ── Dusk theme — make it clearly blue/navy ── */
+/* ── Dark theme surface overrides for Dusk/Ember/Moss ── */
+[data-theme="dusk"] .bg-\[\#141414\],
 [data-theme="dusk"] .bg-\[\#1A1A1A\],
 [data-theme="dusk"] .bg-\[\#0A0A0A\]\/50 { background-color: #1E2238 !important; }
+[data-theme="dusk"] .bg-\[\#0A0A0A\],
+[data-theme="dusk"] .bg-\[\#0D0D0D\],
+[data-theme="dusk"] .bg-\[\#0F0F0F\] { background-color: #0D0F1E !important; }
 
-/* ── Ember theme — make it clearly warm/brown ── */
+[data-theme="ember"] .bg-\[\#141414\],
 [data-theme="ember"] .bg-\[\#1A1A1A\],
 [data-theme="ember"] .bg-\[\#0A0A0A\]\/50 { background-color: #351A00 !important; }
+[data-theme="ember"] .bg-\[\#0A0A0A\],
+[data-theme="ember"] .bg-\[\#0D0D0D\],
+[data-theme="ember"] .bg-\[\#0F0F0F\] { background-color: #1A0C00 !important; }
 
-/* ── Moss theme — make it clearly forest green ── */
+[data-theme="moss"] .bg-\[\#141414\],
 [data-theme="moss"] .bg-\[\#1A1A1A\],
 [data-theme="moss"] .bg-\[\#0A0A0A\]\/50 { background-color: #122516 !important; }
+[data-theme="moss"] .bg-\[\#0A0A0A\],
+[data-theme="moss"] .bg-\[\#0D0D0D\],
+[data-theme="moss"] .bg-\[\#0F0F0F\] { background-color: #061208 !important; }
 
