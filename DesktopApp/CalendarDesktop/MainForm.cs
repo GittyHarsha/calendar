@@ -7,12 +7,14 @@ namespace CalendarDesktop;
 public class MainForm : Form
 {
     private readonly WebView2 _webView;
-    private CoreWebView2Environment? _sharedEnv;
     private WidgetForm? _widget;
     private NotificationService? _notifService;
     public NotifyIcon TrayIcon { get; private set; }
 
     private const string VirtualHost = "calendar.app";
+    internal static readonly string UserDataFolder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "CalendarDesktop", "WebView2");
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -47,7 +49,7 @@ public class MainForm : Form
         trayMenu.Items.Add("Open Horizon", null, (_, _) => { Show(); Activate(); WindowState = FormWindowState.Maximized; });
         trayMenu.Items.Add("Toggle Widget", null, (_, _) => ToggleWidget());
         trayMenu.Items.Add(new ToolStripSeparator());
-        trayMenu.Items.Add("Exit", null, (_, _) => { TrayIcon.Visible = false; Application.Exit(); });
+        trayMenu.Items.Add("Exit", null, (_, _) => { _widget?.Close(); TrayIcon.Visible = false; Application.Exit(); });
         TrayIcon.ContextMenuStrip = trayMenu;
         TrayIcon.DoubleClick += (_, _) => { Show(); Activate(); WindowState = FormWindowState.Maximized; };
 
@@ -56,7 +58,7 @@ public class MainForm : Form
         KeyDown += (_, e) => { if (e.Control && e.KeyCode == Keys.W) ToggleWidget(); };
 
         Load += OnLoad;
-        FormClosing += (_, e) => { e.Cancel = true; Hide(); }; // Close to tray
+        FormClosing += (_, e) => { e.Cancel = true; Hide(); _widget?.Hide(); }; // Close to tray, hide widget too
         HandleCreated += (_, _) => EnableDarkTitleBar();
     }
 
@@ -70,11 +72,9 @@ public class MainForm : Form
     {
         try
         {
-            _sharedEnv = await CoreWebView2Environment.CreateAsync(null, Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "CalendarDesktop", "WebView2"));
+            var env = await CoreWebView2Environment.CreateAsync(null, UserDataFolder);
 
-            await _webView.EnsureCoreWebView2Async(_sharedEnv);
+            await _webView.EnsureCoreWebView2Async(env);
 
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -114,7 +114,7 @@ public class MainForm : Form
     {
         if (_widget == null || _widget.IsDisposed)
         {
-            _widget = new WidgetForm(_sharedEnv!, ResolveDist(), () => { Show(); Activate(); WindowState = FormWindowState.Maximized; });
+            _widget = new WidgetForm(ResolveDist(), () => { Show(); Activate(); WindowState = FormWindowState.Maximized; });
             _widget.Show();
         }
         else _widget.Show();

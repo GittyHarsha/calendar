@@ -20,7 +20,7 @@ public class WidgetForm : Form
     [StructLayout(LayoutKind.Sequential)]
     private struct MARGINS { public int Left, Right, Top, Bottom; }
 
-    public WidgetForm(CoreWebView2Environment sharedEnv, string distFolder, Action onFocusMain)
+    public WidgetForm(string distFolder, Action onFocusMain)
     {
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -50,7 +50,8 @@ public class WidgetForm : Form
 
         Load += async (_, _) =>
         {
-            await _webView.EnsureCoreWebView2Async(sharedEnv);
+            var env = await CoreWebView2Environment.CreateAsync(null, MainForm.UserDataFolder);
+            await _webView.EnsureCoreWebView2Async(env);
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
