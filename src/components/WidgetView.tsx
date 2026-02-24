@@ -185,19 +185,33 @@ export function WidgetView() {
   return (
     <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13 }}>
       {/* Stats bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
         <span>{format(today, 'EEE, MMM d')}</span>
-        <span style={{ color: doneToday > 0 ? '#4ade80' : 'var(--border-1)' }}>✓ {doneToday} done</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
+            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop eye rest' : 'Start 25m eye rest timer'}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: '1px 5px',
+              borderRadius: 4, fontSize: 13,
+              color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : 'var(--text-2)',
+              outline: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '1px solid #22d3ee55' : 'none',
+            }}>
+            👁
+          </button>
+          <span style={{ color: doneToday > 0 ? '#4ade80' : 'var(--border-1)' }}>✓ {doneToday} done</span>
+        </div>
       </div>
 
       {/* Pomodoro mini-bar */}
       {pomodoro.phase !== 'idle' && (() => {
         const isWork = pomodoro.phase === 'work';
+        const isEyeRest = pomodoro.taskId === null;
         const dur = isWork ? WORK_DURATION : BREAK_DURATION;
         const rem = Math.max(0, dur - elapsed);
         const pct = Math.min(1, elapsed / dur);
         const task = tasks.find(t => t.id === pomodoro.taskId);
-        const pColor = isWork ? accent : '#22c55e';
+        const pColor = isWork ? (isEyeRest ? '#22d3ee' : accent) : '#22c55e';
         const tracked = pomodoro.taskId ? getTaskTime(pomodoro.taskId) : 0;
         return (
           <div style={{
@@ -214,9 +228,9 @@ export function WidgetView() {
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px' }} />
             </svg>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isWork ? 'FOCUS' : 'BREAK'} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isEyeRest ? 'EYE REST' : isWork ? 'FOCUS' : 'BREAK'} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
               <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {task?.title ?? '—'}{tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : ''}
+                {isEyeRest ? '👁 look away from screen' : (task?.title ?? '—') + (tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : '')}
               </div>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>

@@ -232,10 +232,10 @@ export const useStore = create<EpochState>()(
 
   pausePomodoro: () => set((state) => {
     const { pomodoro } = state;
-    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart || !pomodoro.taskId) return {};
+    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart) return {};
     const endedAt = new Date().toISOString();
     const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
-    if (duration < 5000) return { pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null } };
+    if (!pomodoro.taskId || duration < 5000) return { pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null } };
     return {
       pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null },
       timeEntries: [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }],
@@ -255,12 +255,15 @@ export const useStore = create<EpochState>()(
 
   completeWorkSession: () => set((state) => {
     const { pomodoro } = state;
-    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart || !pomodoro.taskId) return {};
+    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart) return {};
     const endedAt = new Date().toISOString();
     const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
+    const newEntries = pomodoro.taskId
+      ? [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }]
+      : state.timeEntries; // eye rest — no time entry
     return {
       pomodoro: { ...pomodoro, phase: 'break', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted + 1 },
-      timeEntries: [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }],
+      timeEntries: newEntries,
     };
   }),
 
