@@ -1,201 +1,182 @@
-import React from 'react';
-import { differenceInDays, format, parseISO, startOfToday } from 'date-fns';
-import { CheckCircle2, Circle, ArrowRight, ExternalLink } from 'lucide-react';
-import { useStore, Task } from '../store';
+import React, { useState } from 'react';
+import { differenceInCalendarDays, format, parseISO, startOfToday } from 'date-fns';
+import { useStore, Task, Project } from '../store';
 
-function urgencyColor(days: number) {
-  if (days < 0)  return '#ef4444';
-  if (days === 0) return '#F27D26';
-  if (days <= 3)  return '#f97316';
-  if (days <= 7)  return '#eab308';
-  return '#3B82F6';
+const today = startOfToday();
+const todayStr = format(today, 'yyyy-MM-dd');
+
+function daysLabel(dl: string) {
+  const d = differenceInCalendarDays(parseISO(dl), today);
+  return d < 0 ? `${Math.abs(d)}d over` : d === 0 ? 'today' : d === 1 ? 'tmrw' : `${d}d`;
+}
+function daysColor(dl: string) {
+  const d = differenceInCalendarDays(parseISO(dl), today);
+  if (d < 0)  return '#ef4444';
+  if (d === 0) return '#F27D26';
+  if (d <= 3)  return '#f97316';
+  return '#eab308';
 }
 
-function DeadlineBadge({ days }: { days: number }) {
-  const color = urgencyColor(days);
-  const label = days < 0 ? `${Math.abs(days)}d over` : days === 0 ? 'today' : days === 1 ? 'tmrw' : `${days}d`;
-  return <span className="text-[10px] font-mono font-bold shrink-0" style={{ color }}>{label}</span>;
-}
-
-function TaskRow({ task, onComplete, onMoveToday }: {
-  key?: React.Key;
-  task: Task & { days?: number };
-  onComplete: () => void;
-  onMoveToday?: () => void;
+function TaskRow({ task, projects, fading, onComplete }: {
+  task: Task; projects: Project[]; fading: boolean; onComplete: () => void;
 }) {
-  const { projects } = useStore();
-  const project = projects.find(p => p.id === task.projectId);
-  const today = format(startOfToday(), 'yyyy-MM-dd');
-  const isToday = task.date === today;
-
+  const proj = projects.find(p => p.id === task.projectId);
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/[0.03] group rounded transition-colors">
-      <button onClick={onComplete} className="shrink-0 text-[#444] hover:text-[#F27D26] transition-colors">
-        {task.completed ? <CheckCircle2 size={14} className="text-[#F27D26]" /> : <Circle size={14} />}
-      </button>
-      {project && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: project.color }} />}
-      <span className="flex-1 text-[13px] text-[#C8C7C4] truncate">{task.title}</span>
-      {task.days !== undefined && <DeadlineBadge days={task.days} />}
-      {!isToday && onMoveToday && (
-        <button onClick={onMoveToday}
-          className="hidden group-hover:flex items-center gap-0.5 text-[10px] text-[#F27D26] hover:underline shrink-0">
-          <ArrowRight size={10} />today
-        </button>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px',
+      opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
+      borderBottom: '1px solid #111',
+    }}>
+      <button onClick={onComplete} style={{
+        width: 15, height: 15, borderRadius: '50%', border: '1.5px solid #2a2a2a',
+        background: 'none', cursor: 'pointer', flexShrink: 0, padding: 0,
+        transition: 'border-color 0.15s',
+      }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = '#F27D26')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = '#2a2a2a')}
+      />
+      {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />}
+      <span style={{ flex: 1, fontSize: 11, color: '#777', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {task.title}
+      </span>
+      {task.deadline && (
+        <span style={{ fontSize: 10, fontWeight: 700, color: daysColor(task.deadline), flexShrink: 0 }}>
+          {daysLabel(task.deadline)}
+        </span>
       )}
     </div>
   );
 }
 
-export function WidgetView() {
-  const { tasks, projects, updateTask } = useStore();
-  const today = startOfToday();
-  const todayStr = format(today, 'yyyy-MM-dd');
-
-  // Categorise
-  const overdue = tasks.filter(t =>
-    !t.completed && t.deadline && differenceInDays(parseISO(t.deadline), today) < 0
-  ).map(t => ({ ...t, days: differenceInDays(parseISO(t.deadline!), today) }))
-    .sort((a, b) => a.days - b.days);
-
-  const dueToday = tasks.filter(t =>
-    !t.completed && t.deadline &&
-    differenceInDays(parseISO(t.deadline), today) === 0 &&
-    !overdue.find(o => o.id === t.id)
-  ).map(t => ({ ...t, days: 0 }));
-
-  const workToday = tasks.filter(t =>
-    !t.completed && t.date === todayStr &&
-    !overdue.find(o => o.id === t.id) &&
-    !dueToday.find(d => d.id === t.id)
+function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ padding: '6px 12px 3px', fontSize: 9, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700 }}>
+        {label}
+      </div>
+      {children}
+    </div>
   );
+}
 
-  const upNext = tasks.filter(t => {
-    if (t.completed || !t.deadline) return false;
-    const d = differenceInDays(parseISO(t.deadline), today);
-    return d > 0 && d <= 3;
-  }).map(t => ({ ...t, days: differenceInDays(parseISO(t.deadline!), today) }))
-    .sort((a, b) => a.days - b.days)
-    .slice(0, 4);
+export function WidgetView() {
+  const { tasks, projects, updateTask, addTask } = useStore();
+  const [fading, setFading] = useState<Set<string>>(new Set());
+  const [quickAdd, setQuickAdd] = useState('');
 
-  // Project pulse
-  const topProjects = projects.filter(p => !p.parentId).slice(0, 5);
+  const active = tasks.filter(t => !t.completed && !fading.has(t.id));
 
-  const completeTask = (id: string) => updateTask(id, { completed: true });
-  const moveToToday = (id: string) => updateTask(id, { date: todayStr });
+  const overdue   = active.filter(t => t.deadline && t.deadline < todayStr)
+                          .sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
+  const dueToday  = active.filter(t => t.deadline === todayStr && t.date !== todayStr);
+  const workToday = active.filter(t => t.date === todayStr);
+  const upNext    = active.filter(t => {
+    if (!t.deadline || t.deadline <= todayStr) return false;
+    return differenceInCalendarDays(parseISO(t.deadline), today) <= 7;
+  }).sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? '')).slice(0, 5);
 
-  const openApp = () => {
-    // postMessage to C# host to focus main window
-    if ((window as any).chrome?.webview) {
-      (window as any).chrome.webview.postMessage(JSON.stringify({ type: 'focusMain' }));
-    }
-  };
+  const doneToday = tasks.filter(t => t.completed && t.date === todayStr).length;
+  const topProjects = projects.filter(p => !p.parentId).slice(0, 4);
+
+  function complete(id: string) {
+    setFading(s => new Set(s).add(id));
+    setTimeout(() => updateTask(id, { completed: true }), 260);
+  }
+
+  function submitQuickAdd(e: React.KeyboardEvent) {
+    if (e.key !== 'Enter' || !quickAdd.trim()) return;
+    addTask({
+      projectId: projects[0]?.id ?? null,
+      title: quickAdd.trim(),
+      date: todayStr,
+      deadline: null,
+      deadlineHistory: [],
+      priority: 'Medium',
+      description: '',
+    });
+    setQuickAdd('');
+  }
+
+  const rowProps = (t: Task) => ({ task: t, projects, fading: fading.has(t.id), onComplete: () => complete(t.id) });
+  const empty = overdue.length + dueToday.length + workToday.length + upNext.length === 0;
 
   return (
-    <div className="flex flex-col h-screen bg-[#0A0A0A] text-[#C8C7C4] select-none overflow-hidden"
-      style={{ fontFamily: 'ui-monospace, monospace' }}>
-
-      {/* Header — drag handle */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1A1A1A] cursor-move widget-drag shrink-0">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-[#444]">Horizon</span>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-[#333] font-mono">{format(today, 'MMM d')}</span>
-          <button onClick={openApp} className="text-[#333] hover:text-[#888] transition-colors" title="Open Horizon">
-            <ExternalLink size={11} />
-          </button>
-        </div>
+    <div style={{ fontFamily: 'Consolas, monospace', background: '#0D0D0D', color: '#C8C7C4', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 12 }}>
+      {/* Stats bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid #161616', color: '#333', fontSize: 10 }}>
+        <span>{format(today, 'EEE, MMM d')}</span>
+        <span style={{ color: doneToday > 0 ? '#4ade80' : '#2a2a2a' }}>✓ {doneToday} done</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-
-        {/* Overdue */}
+      {/* Scrollable content */}
+      <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
         {overdue.length > 0 && (
-          <section className="mt-2">
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#ef4444]/60">
-              Overdue · {overdue.length}
-            </div>
-            {overdue.map(t => (
-              <TaskRow key={t.id} task={t} onComplete={() => completeTask(t.id)} onMoveToday={() => moveToToday(t.id)} />
-            ))}
-          </section>
+          <Section label={`Overdue · ${overdue.length}`} color="#ef4444">
+            {overdue.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
+          </Section>
         )}
-
-        {/* Due today */}
         {dueToday.length > 0 && (
-          <section className="mt-2">
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#F27D26]/60">
-              Due today · {dueToday.length}
-            </div>
-            {dueToday.map(t => (
-              <TaskRow key={t.id} task={t} onComplete={() => completeTask(t.id)} />
-            ))}
-          </section>
+          <Section label={`Due today · ${dueToday.length}`} color="#F27D26">
+            {dueToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
+          </Section>
         )}
-
-        {/* Scheduled today */}
         {workToday.length > 0 && (
-          <section className="mt-2">
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#555]">
-              Today's work · {workToday.length}
-            </div>
-            {workToday.map(t => (
-              <TaskRow key={t.id} task={t} onComplete={() => completeTask(t.id)} />
-            ))}
-          </section>
+          <Section label={`Today's work · ${workToday.length}`} color="#555">
+            {workToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
+          </Section>
         )}
-
-        {/* Up next */}
         {upNext.length > 0 && (
-          <section className="mt-2">
-            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-[#555]">
-              Up next
-            </div>
-            {upNext.map(t => (
-              <TaskRow key={t.id} task={t} onComplete={() => completeTask(t.id)} />
-            ))}
-          </section>
+          <Section label="Up next" color="#444">
+            {upNext.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
+          </Section>
         )}
-
-        {overdue.length === 0 && dueToday.length === 0 && workToday.length === 0 && upNext.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-32 text-[#333] text-xs">
-            <span>nothing due soon</span>
-            <span className="text-[10px] mt-1 text-[#252525]">you're clear 👌</span>
+        {empty && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, color: '#2a2a2a', fontSize: 11 }}>
+            <span>you're clear</span>
+            <span style={{ fontSize: 9, marginTop: 4, color: '#1e1e1e' }}>nothing due soon 👌</span>
           </div>
         )}
 
         {/* Project pulse */}
         {topProjects.length > 0 && (
-          <section className="mt-3 mx-3 pt-3 border-t border-[#1A1A1A]">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[#333] mb-2">Projects</div>
-            <div className="flex flex-col gap-1.5">
-              {topProjects.map(p => {
-                const days = p.deadline ? differenceInDays(parseISO(p.deadline), today) : null;
-                const overdue = days !== null && days < 0;
-                const urgent = days !== null && days >= 0 && days <= 7;
-                const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : p.color;
-                const pTasks = tasks.filter(t => t.projectId === p.id && !t.completed);
-                const done = tasks.filter(t => t.projectId === p.id && t.completed).length;
-                const total = done + pTasks.length;
-                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                return (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-                    <span className="flex-1 text-[11px] truncate text-[#555]" title={p.name}>{p.name}</span>
-                    <div className="w-16 h-1 rounded-full bg-[#1A1A1A] shrink-0">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: accent }} />
-                    </div>
-                    {days !== null && (
-                      <span className="text-[10px] font-mono shrink-0" style={{ color: accent }}>
-                        {overdue ? `${Math.abs(days)}d` : `${days}d`}
-                      </span>
-                    )}
+          <div style={{ margin: '8px 12px 0', paddingTop: 8, borderTop: '1px solid #161616' }}>
+            <div style={{ fontSize: 9, color: '#2a2a2a', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Projects</div>
+            {topProjects.map(p => {
+              const done = tasks.filter(t => t.projectId === p.id && t.completed).length;
+              const total = tasks.filter(t => t.projectId === p.id).length;
+              const pct = total > 0 ? (done / total) * 100 : 0;
+              const dl = p.deadline ? differenceInCalendarDays(parseISO(p.deadline), today) : null;
+              const accent = dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 7 ? '#F27D26' : p.color;
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 10, color: '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  <div style={{ width: 50, height: 2, background: '#1a1a1a', borderRadius: 2, flexShrink: 0 }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: accent, borderRadius: 2 }} />
                   </div>
-                );
-              })}
-            </div>
-          </section>
+                </div>
+              );
+            })}
+          </div>
         )}
+        <div style={{ height: 8 }} />
+      </div>
 
-        <div className="h-4" />
+      {/* Quick add */}
+      <div style={{ borderTop: '1px solid #161616', padding: '6px 12px' }}>
+        <input
+          value={quickAdd}
+          onChange={e => setQuickAdd(e.target.value)}
+          onKeyDown={submitQuickAdd}
+          placeholder="+ add task for today…"
+          style={{
+            width: '100%', background: 'transparent', border: 'none',
+            borderBottom: '1px solid #1e1e1e', color: '#555', fontSize: 11,
+            fontFamily: 'Consolas, monospace', padding: '3px 0', outline: 'none', boxSizing: 'border-box',
+          }}
+          onFocus={e => (e.target.style.borderBottomColor = '#F27D26')}
+          onBlur={e => (e.target.style.borderBottomColor = '#1e1e1e')}
+        />
       </div>
     </div>
   );
