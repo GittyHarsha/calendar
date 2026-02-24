@@ -185,7 +185,6 @@ export function ThinkPad() {
                 value={newTaskRecurrence}
                 onChange={(e) => setNewTaskRecurrence(e.target.value as Recurrence)}
                 className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
-                disabled={!newTaskDate}
               >
                 <option value="none">Once</option>
                 <option value="daily">Daily</option>
