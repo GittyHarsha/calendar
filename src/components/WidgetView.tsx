@@ -46,7 +46,7 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
           background: 'none', cursor: 'pointer', flexShrink: 0, padding: 0, transition: 'border-color 0.15s',
         }} />
         {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />}
-        <span style={{ flex: 1, fontSize: 11, color: hovered ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>
+        <span title={task.title} style={{ flex: 1, fontSize: 11, color: hovered ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>
           {task.title}
         </span>
         {task.deadline && (
