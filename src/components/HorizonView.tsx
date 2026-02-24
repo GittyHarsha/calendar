@@ -5,7 +5,8 @@ import { useDroppable } from '@dnd-kit/core';
 import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag, AppWindow } from 'lucide-react';
+import { ThemePanel } from './ThemePanel';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag, AppWindow, Palette } from 'lucide-react';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -164,6 +165,7 @@ export function HorizonView() {
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [baseDate, setBaseDate] = useState<Date>(today);
   const [showProjects, setShowProjects] = useState(false);
+  const [showTheme, setShowTheme] = useState(false);
   const [horizonLengths, setHorizonLengths] = useState<Record<ViewMode, number | ''>>({
     daily: 90,
     weekly: 14,
@@ -306,6 +308,19 @@ export function HorizonView() {
           className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors ml-1">
           <AppWindow size={13} />
         </button>
+
+        {/* Theme picker */}
+        <div className="relative ml-1">
+          <button
+            onClick={() => setShowTheme(p => !p)}
+            title="Theme"
+            className={cn('w-6 h-6 flex items-center justify-center transition-colors',
+              showTheme ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}>
+            <Palette size={13} />
+          </button>
+          {showTheme && <ThemePanel onClose={() => setShowTheme(false)} />}
+        </div>
       </div>
 
       {/* Goals overlay panel — floats over calendar, doesn't push it */}

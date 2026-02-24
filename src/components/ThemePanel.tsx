@@ -1,0 +1,52 @@
+import { useStore, THEMES, ThemeKey } from '../store';
+
+export function ThemePanel({ onClose }: { onClose: () => void }) {
+  const { theme, setTheme } = useStore();
+
+  return (
+    <div
+      style={{
+        position: 'absolute', top: 42, right: 8, zIndex: 999,
+        background: '#111', border: '1px solid #2a2a2a', borderRadius: 12,
+        padding: '14px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+        fontFamily: 'Consolas, monospace', minWidth: 200,
+      }}
+      onMouseLeave={onClose}
+    >
+      <div style={{ fontSize: 9, letterSpacing: '0.12em', color: '#444', textTransform: 'uppercase', marginBottom: 12 }}>
+        Theme
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {(Object.entries(THEMES) as [ThemeKey, typeof THEMES[ThemeKey]][]).map(([key, t]) => (
+          <button
+            key={key}
+            onClick={() => { setTheme(key); onClose(); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: theme === key ? `${t.accent}18` : 'transparent',
+              outline: theme === key ? `1px solid ${t.accent}55` : '1px solid transparent',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { if (theme !== key) (e.currentTarget as HTMLElement).style.background = '#1a1a1a'; }}
+            onMouseLeave={e => { if (theme !== key) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            {/* Swatch */}
+            <div style={{
+              width: 20, height: 20, borderRadius: '50%',
+              background: `radial-gradient(circle at 35% 35%, ${t.accent}, ${t.bg2})`,
+              border: `2px solid ${t.accent}88`, flexShrink: 0,
+            }} />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: 12, color: theme === key ? t.accent : '#bbb', fontWeight: 600 }}>{t.name}</div>
+              <div style={{ fontSize: 9, color: '#444', marginTop: 1 }}>{t.bg1} · {t.accent}</div>
+            </div>
+            {theme === key && (
+              <span style={{ marginLeft: 'auto', fontSize: 10, color: t.accent }}>✓</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

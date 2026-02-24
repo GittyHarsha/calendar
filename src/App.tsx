@@ -9,12 +9,25 @@ import { HorizonView } from './components/HorizonView';
 import { ThinkPad } from './components/ThinkPad';
 import { PomodoroBar } from './components/PomodoroBar';
 import { Task } from './store';
-import { useStore } from './store';
+import { useStore, THEMES } from './store';
 import { newProjectTrigger } from './components/MacroGoalsPanel';
 
 export default function App() {
-  const { tasks, updateTask } = useStore();
+  const { tasks, updateTask, theme } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  // Apply theme CSS vars to root
+  useEffect(() => {
+    const t = THEMES[theme] ?? THEMES.void;
+    const r = document.documentElement;
+    r.style.setProperty('--accent', t.accent);
+    r.style.setProperty('--bg-0', t.bg0);
+    r.style.setProperty('--bg-1', t.bg1);
+    r.style.setProperty('--bg-2', t.bg2);
+    r.style.setProperty('--border-1', t.border);
+    r.style.setProperty('--text-1', t.text1);
+    r.style.setProperty('--text-2', t.text2);
+  }, [theme]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

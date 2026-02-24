@@ -13,8 +13,8 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background-color: #141414;
-  color: #E4E3E0;
+  background-color: var(--bg-1, #141414);
+  color: var(--text-1, #E4E3E0);
 }
 
 /* Custom Scrollbar for a more technical feel */

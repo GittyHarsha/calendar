@@ -49,6 +49,24 @@ export type PomodoroState = {
 export const WORK_DURATION  = 25 * 60 * 1000;
 export const BREAK_DURATION =  5 * 60 * 1000;
 
+export type ThemeKey = 'void' | 'dusk' | 'ember' | 'moss' | 'aurora';
+
+export type ThemeConfig = {
+  name: string;
+  accent: string;
+  bg0: string; bg1: string; bg2: string;
+  border: string;
+  text1: string; text2: string;
+};
+
+export const THEMES: Record<ThemeKey, ThemeConfig> = {
+  void:   { name: 'Void',   accent: '#F27D26', bg0: '#090909', bg1: '#111111', bg2: '#1A1A1A', border: '#222222', text1: '#E4E3E0', text2: '#888888' },
+  dusk:   { name: 'Dusk',   accent: '#818CF8', bg0: '#0A0A14', bg1: '#12121E', bg2: '#1C1C2E', border: '#2A2A3E', text1: '#E4E3F8', text2: '#9090B8' },
+  ember:  { name: 'Ember',  accent: '#F43F5E', bg0: '#120A0A', bg1: '#1A1010', bg2: '#251515', border: '#332020', text1: '#F0E4E4', text2: '#A08888' },
+  moss:   { name: 'Moss',   accent: '#4ADE80', bg0: '#080E08', bg1: '#101810', bg2: '#162016', border: '#253025', text1: '#E3F0E4', text2: '#88A888' },
+  aurora: { name: 'Aurora', accent: '#22D3EE', bg0: '#060E14', bg1: '#0C1620', bg2: '#142030', border: '#1E3040', text1: '#E3F0F4', text2: '#88A8B8' },
+};
+
 /** Format ms as "Xh Ym" or "Ym" */
 export function fmtDuration(ms: number): string {
   const m = Math.floor(ms / 60000);
@@ -61,6 +79,7 @@ type EpochState = {
   tasks: Task[];
   timeEntries: TimeEntry[];
   pomodoro: PomodoroState;
+  theme: ThemeKey;
   thinkPadNotes: string;
   hoveredProjectId: string | null;
   hideCompleted: boolean;
@@ -76,14 +95,15 @@ type EpochState = {
 
   // Pomodoro + time tracking
   startPomodoro: (taskId: string) => void;
-  pausePomodoro: () => void;   // stops current session, saves partial time entry
-  stopPomodoro: () => void;    // fully stop, save time entry
-  completeWorkSession: () => void; // 25m up → transition to break phase
+  pausePomodoro: () => void;
+  stopPomodoro: () => void;
+  completeWorkSession: () => void;
   startBreak: () => void;
-  skipBreak: () => void;       // skip break, start new work session immediately
-  getTaskTime: (taskId: string) => number; // total ms for a task
+  skipBreak: () => void;
+  getTaskTime: (taskId: string) => number;
   getProjectTime: (projectId: string) => number;
-  
+
+  setTheme: (theme: ThemeKey) => void;
   setThinkPadNotes: (notes: string) => void;
   setHoveredProjectId: (id: string | null) => void;
   toggleHideCompleted: () => void;
@@ -128,6 +148,7 @@ export const useStore = create<EpochState>()(
   tasks: initialTasks,
   timeEntries: [],
   pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0 },
+  theme: 'void' as ThemeKey,
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
   hideCompleted: false,
@@ -266,6 +287,7 @@ export const useStore = create<EpochState>()(
     return get().timeEntries.filter(e => taskIds.includes(e.taskId)).reduce((s, e) => s + e.duration, 0);
   },
 
+      setTheme: (theme) => set({ theme }),
       setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
@@ -276,6 +298,7 @@ export const useStore = create<EpochState>()(
         projects: state.projects,
         tasks: state.tasks,
         timeEntries: state.timeEntries,
+        theme: state.theme,
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
       }),
