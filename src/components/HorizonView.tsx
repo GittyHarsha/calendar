@@ -226,9 +226,9 @@ export function HorizonView() {
   return (
     <div className="flex flex-col h-full w-full" style={{ background: 'var(--bg-1)' }}>
       {/* Toolbar */}
-      <div className="h-10 border-b border-[#1E1E1E] shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)' }}>
+      <div className="h-10 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid color-mix(in srgb, var(--accent) 18%, var(--border-1))' }}>
         {/* Logo */}
-        <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5 opacity-60" />
+        <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5" style={{ filter: 'drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent))' }} />
 
         {/* Nav */}
         <div className="flex items-center gap-0 mr-4">

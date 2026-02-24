@@ -60,11 +60,11 @@ export type ThemeConfig = {
 };
 
 export const THEMES: Record<ThemeKey, ThemeConfig> = {
-  void:   { name: 'Void',    accent: '#F27D26', bg0: '#090909', bg1: '#111111', bg2: '#1A1A1A', border: '#222222', text1: '#E4E3E0', text2: '#888888' },
-  dusk:   { name: 'Dusk',    accent: '#818CF8', bg0: '#0D0F1E', bg1: '#151829', bg2: '#1E2238', border: '#2A2E50', text1: '#D8D9FF', text2: '#7070AA' },
-  ember:  { name: 'Ember',   accent: '#FB923C', bg0: '#1A0C00', bg1: '#251200', bg2: '#351A00', border: '#4A2E00', text1: '#FFE0C0', text2: '#A06030' },
-  moss:   { name: 'Moss',    accent: '#4ADE80', bg0: '#061208', bg1: '#0A1A0E', bg2: '#122516', border: '#1A3A20', text1: '#D0F0D8', text2: '#507860' },
-  dawn:   { name: 'Dawn',    accent: '#C2410C', bg0: '#F0EBE3', bg1: '#FAF7F2', bg2: '#EFECE6', border: '#D4CCC2', text1: '#1C1A18', text2: '#7A6F65' },
+  void:   { name: 'Void',  accent: '#FF7B2F', bg0: '#080808', bg1: '#0F0F0F', bg2: '#191919', border: '#252525', text1: '#F0EDEA', text2: '#686868' },
+  dusk:   { name: 'Dusk',  accent: '#A78BFA', bg0: '#080B1C', bg1: '#0F1328', bg2: '#171C3C', border: '#242854', text1: '#DDDEFF', text2: '#6870B0' },
+  ember:  { name: 'Ember', accent: '#FF6B35', bg0: '#120600', bg1: '#1C0B00', bg2: '#2C1500', border: '#482200', text1: '#FFE4CC', text2: '#A85028' },
+  moss:   { name: 'Moss',  accent: '#2FD96A', bg0: '#040E06', bg1: '#071408', bg2: '#0D1E10', border: '#143A18', text1: '#D0F5DA', text2: '#3A7848' },
+  dawn:   { name: 'Dawn',  accent: '#DC4A0E', bg0: '#EEE8DF', bg1: '#F8F4EE', bg2: '#EDE8E2', border: '#CFC7BC', text1: '#1A1714', text2: '#5C5248' },
 };
 
 /** Format ms as "Xh Ym" or "Ym" */

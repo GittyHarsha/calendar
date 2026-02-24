@@ -36,8 +36,9 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
       onMouseLeave={() => setHovered(false)}
       style={{
         borderBottom: '1px solid var(--border-1)',
-        opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
-        background: isActive ? `${accent}10` : hovered ? 'var(--bg-2)' : 'transparent',
+        borderLeft: hovered ? `3px solid ${accent}` : '3px solid transparent',
+        opacity: fading ? 0 : 1, transition: 'opacity 0.25s, border-left-color 0.15s',
+        background: isActive ? `${accent}10` : hovered ? `${accent}08` : 'transparent',
       }}>
       {/* Main row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }}>
@@ -85,7 +86,11 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
 function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 4 }}>
-      <div style={{ padding: '6px 12px 3px', fontSize: 10, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700 }}>
+      <div style={{
+        padding: '5px 12px 4px 9px', borderLeft: `3px solid ${color}`,
+        fontSize: 10, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700,
+        background: `${color}10`,
+      }}>
         {label}
       </div>
       {children}

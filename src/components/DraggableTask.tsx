@@ -246,11 +246,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
         onMouseEnter={() => { cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true); }}
         onMouseLeave={() => { setHoveredProjectId(null); scheduleClose(); }}
         className={cn(
-          'relative group flex flex-col bg-[#141414] border border-[#222] border-l-2 rounded transition-colors overflow-hidden cursor-default',
+          'relative group flex flex-col bg-[#141414] border border-[#222] border-l-2 rounded transition-all overflow-hidden cursor-default',
           PRIORITY_BORDER[priority],
           isDragging ? 'opacity-40' : '',
           task.completed && 'opacity-40'
         )}
+        style={showPopup && !isDragging ? { boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)' } : undefined}
       >
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div {...attributes} {...listeners}
