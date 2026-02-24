@@ -79,9 +79,9 @@ export default function App() {
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex h-screen w-full bg-[#141414] text-[#E4E3E0] font-sans overflow-hidden">
+      <div className="flex h-screen w-full font-sans overflow-hidden" style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }}>
         {/* Left Sidebar: Think Pad */}
-        <div className="w-80 border-r border-[#2A2A2A] flex flex-col bg-[#0A0A0A] shrink-0">
+        <div className="w-80 border-r border-[#2A2A2A] flex flex-col shrink-0" style={{ background: 'var(--bg-0)' }}>
           <ThinkPad />
         </div>
 

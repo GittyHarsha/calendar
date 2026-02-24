@@ -70,7 +70,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
   };
 
   return (
-    <div className="border-b border-[#1E1E1E] bg-[#0A0A0A] flex items-stretch px-3 gap-3 overflow-x-auto shrink-0 py-2.5" style={{ scrollbarWidth: 'none' }}>
+    <div className="border-b border-[#1E1E1E] flex items-stretch px-3 gap-3 overflow-x-auto shrink-0 py-2.5" style={{ background: 'var(--bg-0)', scrollbarWidth: 'none' }}>
       {topLevel.map(p => {
         const days = p.deadline ? differenceInDays(parseISO(p.deadline), today) : null;
         const overdue = days !== null && days < 0;
@@ -224,9 +224,9 @@ export function HorizonView() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#141414]">
+    <div className="flex flex-col h-full w-full" style={{ background: 'var(--bg-1)' }}>
       {/* Toolbar */}
-      <div className="h-10 border-b border-[#1E1E1E] shrink-0 flex items-center gap-0 bg-[#0D0D0D] px-4">
+      <div className="h-10 border-b border-[#1E1E1E] shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)' }}>
         {/* Logo */}
         <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5 opacity-60" />
 
@@ -256,8 +256,9 @@ export function HorizonView() {
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
               className={cn('w-7 h-6 text-[12px] font-mono uppercase tracking-widest transition-colors rounded',
-                viewMode === mode ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
-              )}>
+                viewMode === mode ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+              )}
+              style={viewMode === mode ? { color: 'var(--accent)' } : undefined}>
               {mode[0]}
             </button>
           ))}
@@ -281,8 +282,9 @@ export function HorizonView() {
         {/* Hide done */}
         <button onClick={toggleHideCompleted}
           className={cn('w-6 h-6 flex items-center justify-center transition-colors mr-1',
-            hideCompleted ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            hideCompleted ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
           )}
+          style={hideCompleted ? { color: 'var(--accent)' } : undefined}
           title={hideCompleted ? 'Show completed' : 'Hide completed'}>
           {hideCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
         </button>
@@ -290,8 +292,9 @@ export function HorizonView() {
         {/* Projects toggle */}
         <button onClick={() => setShowProjects(p => !p)}
           className={cn('h-6 px-2 flex items-center gap-1.5 rounded text-[12px] font-mono uppercase tracking-widest transition-colors',
-            showProjects ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
-          )}>
+            showProjects ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+          )}
+          style={showProjects ? { color: 'var(--accent)' } : undefined}>
           <LayoutGrid size={12} />
           <span>goals</span>
           {projects.filter(p => !p.parentId).length > 0 && (
@@ -315,8 +318,9 @@ export function HorizonView() {
             onClick={() => setShowTheme(p => !p)}
             title="Theme"
             className={cn('w-6 h-6 flex items-center justify-center transition-colors',
-              showTheme ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
-            )}>
+              showTheme ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={showTheme ? { color: 'var(--accent)' } : undefined}>
             <Palette size={13} />
           </button>
           {showTheme && <ThemePanel onClose={() => setShowTheme(false)} />}
@@ -325,7 +329,7 @@ export function HorizonView() {
 
       {/* Goals overlay panel — floats over calendar, doesn't push it */}
       {showProjects && (
-        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl" style={{ background: '#0A0A0A' }}>
+        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl" style={{ background: 'var(--bg-0)' }}>
           <MacroGoalsPanel />
         </div>
       )}
@@ -388,26 +392,23 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors relative",
         isOver && "bg-[#1A1A1A]",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
-        isCurrent && "bg-[#F27D26]/5 border-l-2 border-l-[#F27D26]"
       )}
+      style={isCurrent ? { borderLeft: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined}
     >
       {/* Header */}
-      <div className={cn(
-        "p-3 border-b border-[#2A2A2A] shrink-0 relative",
-        isCurrent && "bg-[#F27D26]/10"
-      )}>
+      <div className="p-3 border-b border-[#2A2A2A] shrink-0 relative"
+        style={isCurrent ? { background: 'color-mix(in srgb, var(--accent) 10%, transparent)' } : undefined}>
         {isCurrent && (
-          <div className="absolute top-0 right-0 bg-[#F27D26] text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider">
+          <div className="absolute top-0 right-0 text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider"
+            style={{ background: 'var(--accent)' }}>
             {format(today, 'MMM d, yyyy')}
           </div>
         )}
         {mode === 'daily' && (
           <>
             <div className="flex justify-between items-baseline">
-              <span className={cn(
-                "text-sm font-bold uppercase tracking-wider",
-                isCurrent ? "text-[#F27D26]" : "text-[#8E9299]"
-              )}>
+              <span className="text-sm font-bold uppercase tracking-wider"
+                style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
                 {format(startDate, 'EEE')}
               </span>
               <span className={cn(
