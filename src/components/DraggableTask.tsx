@@ -15,7 +15,7 @@ const PRIORITY_BORDER: Record<Priority, string> = {
   Low: 'border-l-[#2A2A2A]',
 };
 const PRIORITY_LABEL: Record<Priority, string> = { High: 'High', Medium: 'Medium', Low: 'Low' };
-const PRIORITY_COLOR: Record<Priority, string> = { High: '#ef4444', Medium: '#eab308', Low: '#444' };
+const PRIORITY_COLOR: Record<Priority, string> = { High: '#ef4444', Medium: '#eab308', Low: '#666' };
 
 function deadlineAccent(days: number | null) {
   if (days === null) return null;
@@ -81,7 +81,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           return proj ? (
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: proj.color }} />
-              <span className="text-xs text-[#666] truncate" title={label}>{label}</span>
+              <span className="text-xs text-[#999] truncate" title={label}>{label}</span>
             </div>
           ) : null;
         })()}
@@ -90,14 +90,14 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
         {/* Work date */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-[#666]">
+          <div className="flex items-center gap-2 text-xs text-[#999]">
             <CalendarDays size={13} />
             <span>Work date</span>
           </div>
           <div className="flex items-center gap-1.5">
             {task.date && task.date !== format(today, 'yyyy-MM-dd') && (
               <button onClick={() => { updateTask(task.id, { date: format(today, 'yyyy-MM-dd') }); onClose(); }}
-                className="text-[10px] text-[#F27D26] hover:underline font-mono flex items-center gap-0.5">
+                className="text-[12px] text-[#F27D26] hover:underline font-mono flex items-center gap-0.5">
                 <ArrowRight size={10} /> Today
               </button>
             )}
@@ -114,7 +114,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
             <Flag size={13} />
             <span>{dl ? dl.label : 'Deadline'}</span>
             {(task.deadlineHistory?.length ?? 0) > 0 && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded"
+              <span className="text-[13px] font-bold px-1 py-0.5 rounded"
                 title={`Shifted ${task.deadlineHistory.length}× (was: ${task.deadlineHistory.map(d => format(parseISO(d), 'MMM d')).join(' → ')})`}
                 style={{ background: '#ef444420', color: '#ef4444' }}>↻{task.deadlineHistory.length}</span>
             )}
@@ -127,7 +127,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
         {/* Priority */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-[#666]">Priority</span>
+          <span className="text-xs text-[#999]">Priority</span>
           <button onClick={() => updateTask(task.id, { priority: PRIORITY_NEXT[priority] })}
             className="text-xs font-semibold px-2 py-0.5 rounded"
             style={{ background: PRIORITY_COLOR[priority] + '22', color: PRIORITY_COLOR[priority] }}>
@@ -140,12 +140,12 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
         {/* Notes + Delete */}
         <div className="flex items-center justify-between">
           <button onClick={() => { onOpenNotes(); onClose(); }}
-            className="flex items-center gap-1.5 text-xs text-[#555] hover:text-[#C8C7C4] transition-colors">
+            className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEb] transition-colors">
             <AlignLeft size={13} />
             {task.description ? 'Edit notes' : 'Add notes'}
           </button>
           <button onClick={() => { deleteTask(task.id); onClose(); }}
-            className="flex items-center gap-1 text-xs text-[#555] hover:text-red-400 transition-colors">
+            className="flex items-center gap-1 text-xs text-[#aaa] hover:text-red-400 transition-colors">
             <Trash2 size={13} />
             Delete
           </button>
@@ -219,7 +219,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
       >
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div {...attributes} {...listeners}
-            className="opacity-0 group-hover:opacity-100 cursor-grab text-[#444] hover:text-[#777] shrink-0 -ml-1 pointer-events-none group-hover:pointer-events-auto">
+            className="opacity-0 group-hover:opacity-100 cursor-grab text-[#888] hover:text-[#777] shrink-0 -ml-1 pointer-events-none group-hover:pointer-events-auto">
             <GripVertical size={13} />
           </div>
 
@@ -244,27 +244,27 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
           ) : (
             <span onClick={() => setEditingTitle(true)}
               className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate',
-                task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
+                task.completed ? 'line-through text-[#aaa]' : 'text-[#C8C7C4]'
               )} title={task.title}>{task.title}</span>
           )}
 
           {/* Badges (hidden on hover since popup handles it) */}
           {task.description && (
-            <FileText size={10} className="shrink-0 text-[#444] group-hover:hidden" />
+            <FileText size={10} className="shrink-0 text-[#888] group-hover:hidden" />
           )}
           {(task.deadlineHistory?.length ?? 0) > 0 && (
-            <span className="shrink-0 text-[9px] font-bold font-mono px-1 py-0.5 rounded group-hover:hidden"
+            <span className="shrink-0 text-[13px] font-bold font-mono px-1 py-0.5 rounded group-hover:hidden"
               style={{ background: '#ef444420', color: '#ef4444' }}>
               ↻{task.deadlineHistory.length}
             </span>
           )}
           {dl && (
-            <span className="text-[10px] font-mono group-hover:hidden" style={{ color: dl.color }}>
+            <span className="text-[12px] font-mono group-hover:hidden" style={{ color: dl.color }}>
               <Flag size={9} className="inline mr-0.5" style={{ color: dl.color }} />{dl.label}
             </span>
           )}
           {showDate && task.date && (
-            <span className="text-[10px] text-[#444] font-mono shrink-0 group-hover:hidden">
+            <span className="text-[12px] text-[#888] font-mono shrink-0 group-hover:hidden">
               {format(parseISO(task.date), 'MMM d')}
             </span>
           )}

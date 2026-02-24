@@ -41,12 +41,12 @@ export function TaskNotesModal({ task, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-4 border-b border-[#222] shrink-0">
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-widest text-[#555] font-semibold mb-1">Notes</div>
+            <div className="text-[12px] uppercase tracking-widest text-[#aaa] font-semibold mb-1">Notes</div>
             <div className="text-lg font-semibold text-[#E4E3E0] truncate">{task.title}</div>
           </div>
           <button
             onClick={handleClose}
-            className="ml-4 text-[#555] hover:text-white transition-colors shrink-0"
+            className="ml-4 text-[#aaa] hover:text-white transition-colors shrink-0"
           >
             <X size={18} />
           </button>
@@ -63,7 +63,7 @@ export function TaskNotesModal({ task, onClose }: Props) {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-8 py-3 border-t border-[#222] shrink-0">
-          <span className="text-[10px] text-[#444]">Esc to save & close</span>
+          <span className="text-[12px] text-[#888]">Esc to save & close</span>
           <button
             onClick={handleClose}
             className="text-xs font-semibold px-4 py-1.5 bg-[#F27D26] hover:bg-[#E06D16] text-black rounded transition-colors"

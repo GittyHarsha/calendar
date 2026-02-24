@@ -8,7 +8,7 @@ import { DatePickerPopover } from './DatePickerPopover';
 export const newProjectTrigger = { open: () => {} };
 
 function urgencyStyles(days: number | null) {
-  if (days === null) return { border: 'border-[#2A2A2A]', text: 'text-[#555]', bg: 'bg-[#141414]', icon: null };
+  if (days === null) return { border: 'border-[#2A2A2A]', text: 'text-[#aaa]', bg: 'bg-[#141414]', icon: null };
   if (days < 0)   return { border: 'border-red-500',     text: 'text-red-500',     bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-500" /> };
   if (days <= 7)  return { border: 'border-[#F27D26] border-2 shadow-[0_0_12px_rgba(242,125,38,0.2)]', text: 'text-[#F27D26]', bg: 'bg-[#F27D26]/10', icon: <AlertTriangle size={14} className="text-[#F27D26]" /> };
   if (days <= 30) return { border: 'border-yellow-500',  text: 'text-yellow-500',  bg: 'bg-yellow-500/10', icon: <Clock size={14} className="text-yellow-500" /> };
@@ -32,7 +32,7 @@ function ProgressBar({ projectId }: { projectId: string }) {
       <div className="flex-1 h-0.5 bg-[#2A2A2A] rounded-full overflow-hidden">
         <div className="h-full bg-green-500/70 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[9px] font-mono text-[#444] shrink-0">{done}/{all.length}</span>
+      <span className="text-[13px] font-mono text-[#888] shrink-0">{done}/{all.length}</span>
     </div>
   );
 }
@@ -59,10 +59,10 @@ function UpcomingTasks({ projectId, today }: { projectId: string; today: Date })
         const shifts = t.deadlineHistory?.length ?? 0;
         return (
           <div key={t.id} className="flex items-center gap-2">
-            <span className="text-[9px] font-black font-mono shrink-0 w-10 text-right" style={{ color: accent }}>{label}</span>
+            <span className="text-[13px] font-black font-mono shrink-0 w-10 text-right" style={{ color: accent }}>{label}</span>
             <div className="w-px h-2.5 shrink-0 opacity-40" style={{ background: accent }} />
-            <span className="text-[10px] truncate" title={t.title} style={{ color: overdue || isToday || urgent ? '#C8C7C4' : '#777' }}>{t.title}</span>
-            {shifts > 0 && <span className="text-[9px] font-bold font-mono shrink-0" style={{ color: '#ef4444' }}>↻{shifts}</span>}
+            <span className="text-[12px] truncate" title={t.title} style={{ color: overdue || isToday || urgent ? '#C8C7C4' : '#bbb' }}>{t.title}</span>
+            {shifts > 0 && <span className="text-[13px] font-bold font-mono shrink-0" style={{ color: '#ef4444' }}>↻{shifts}</span>}
           </div>
         );
       })}
@@ -96,8 +96,8 @@ function ProjectForm({
   return (
     <form onSubmit={handle} className={cn('flex flex-col gap-2 rounded-lg bg-[#141414] border border-[#2A2A2A]', compact ? 'p-3' : 'p-4')}>
       <div className="flex justify-between items-center">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[#8E9299]">{label}</span>
-        <button type="button" onClick={onCancel} className="text-[#555] hover:text-white"><X size={13} /></button>
+        <span className="text-[12px] font-bold uppercase tracking-wider text-[#8E9299]">{label}</span>
+        <button type="button" onClick={onCancel} className="text-[#aaa] hover:text-white"><X size={13} /></button>
       </div>
       <input type="text" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Name…"
         className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#F27D26]" />
@@ -108,7 +108,7 @@ function ProjectForm({
             {deadline ? format(parseISO(deadline), 'MMM d, yyyy') : 'No deadline'}
           </button>
           {deadline && (
-            <button type="button" onClick={() => setDeadline('')} className="text-[#555] hover:text-red-400 transition-colors" title="Clear deadline">
+            <button type="button" onClick={() => setDeadline('')} className="text-[#aaa] hover:text-red-400 transition-colors" title="Clear deadline">
               <X size={13} />
             </button>
           )}
@@ -119,7 +119,7 @@ function ProjectForm({
         <div className="flex gap-1">
           {[30, 60, 90, 180].map(d => (
             <button key={d} type="button" onClick={() => setDeadline(format(addDays(today, d), 'yyyy-MM-dd'))}
-              className="flex-1 text-[10px] bg-[#1A1A1A] hover:bg-[#2A2A2A] text-[#8E9299] rounded py-1 transition-colors">+{d}d</button>
+              className="flex-1 text-[12px] bg-[#1A1A1A] hover:bg-[#2A2A2A] text-[#8E9299] rounded py-1 transition-colors">+{d}d</button>
           ))}
         </div>
       </div>
@@ -172,7 +172,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         <div className="flex items-center gap-2">
           {/* Expand */}
           {children.length > 0 && (
-            <button onClick={() => setExpanded(e => !e)} className="text-[#444] hover:text-[#888] shrink-0">
+            <button onClick={() => setExpanded(e => !e)} className="text-[#888] hover:text-[#888] shrink-0">
               {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
             </button>
           )}
@@ -192,7 +192,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           )}
           {/* Hover actions */}
           <div className="hidden group-hover:flex items-center gap-1.5 shrink-0">
-            <button onClick={() => setAddingChild(true)} className="text-[#444] hover:text-[#8E9299]" title="Add subproject">
+            <button onClick={() => setAddingChild(true)} className="text-[#888] hover:text-[#D0CFC7]" title="Add subproject">
               <FolderPlus size={13} />
             </button>
             <button onClick={() => updateProject(project.id, { priority: PRIORITY_NEXT[project.priority] })}
@@ -202,10 +202,10 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
             {confirmDelete
               ? <span className="flex items-center gap-1 text-xs">
                   <button onClick={() => deleteProject(project.id)} className="text-red-400 hover:text-red-300 font-bold">Yes</button>
-                  <span className="text-[#444]">/</span>
-                  <button onClick={() => setConfirmDelete(false)} className="text-[#555] hover:text-white">No</button>
+                  <span className="text-[#888]">/</span>
+                  <button onClick={() => setConfirmDelete(false)} className="text-[#aaa] hover:text-white">No</button>
                 </span>
-              : <button onClick={() => setConfirmDelete(true)} className="text-[#444] hover:text-red-500 transition-colors">
+              : <button onClick={() => setConfirmDelete(true)} className="text-[#888] hover:text-red-500 transition-colors">
                   <X size={14} />
                 </button>
             }
@@ -216,10 +216,10 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           <button onClick={() => setEditingDL(true)}
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
             {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} />}
-            <span className="text-base font-mono font-black leading-none" style={{ color: days === null ? '#333' : accent }}>
+            <span className="text-base font-mono font-black leading-none" style={{ color: days === null ? '#bbb' : accent }}>
               {days === null ? '—' : Math.abs(days)}
             </span>
-            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: days === null ? '#333' : accent }}>
+            <span className="text-[12px] uppercase tracking-wider font-semibold" style={{ color: days === null ? '#bbb' : accent }}>
               {days === null ? 'no date' : overdue ? 'overdue' : 'days left'}
             </span>
           </button>
@@ -309,18 +309,18 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <span className={cn('text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded cursor-pointer hover:opacity-70', PRIORITY_CLASS[project.priority])}
+            <span className={cn('text-[13px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded cursor-pointer hover:opacity-70', PRIORITY_CLASS[project.priority])}
               onClick={() => updateProject(project.id, { priority: PRIORITY_NEXT[project.priority] })}>
               {project.priority}
             </span>
-            <button onClick={() => setEditing(true)} className="hidden group-hover:flex text-[#444] hover:text-[#8E9299]"><Pencil size={11} /></button>
+            <button onClick={() => setEditing(true)} className="hidden group-hover:flex text-[#888] hover:text-[#D0CFC7]"><Pencil size={11} /></button>
             {confirmDelete
-              ? <span className="flex items-center gap-0.5 text-[10px]">
+              ? <span className="flex items-center gap-0.5 text-[12px]">
                   <button onClick={() => deleteProject(project.id)} className="text-red-400 font-bold">Yes</button>
-                  <span className="text-[#444]">/</span>
-                  <button onClick={() => setConfirmDelete(false)} className="text-[#444] hover:text-white">No</button>
+                  <span className="text-[#888]">/</span>
+                  <button onClick={() => setConfirmDelete(false)} className="text-[#888] hover:text-white">No</button>
                 </span>
-              : <button onClick={() => setConfirmDelete(true)} className="hidden group-hover:flex text-[#444] hover:text-red-500"><X size={12} /></button>
+              : <button onClick={() => setConfirmDelete(true)} className="hidden group-hover:flex text-[#888] hover:text-red-500"><X size={12} /></button>
             }
           </div>
         </div>
@@ -329,15 +329,15 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {icon}
-            <button onClick={() => setEditingDL(true)} className={cn('text-2xl font-mono font-bold leading-none', daysRemaining === null ? 'text-[#444]' : text)}>
+            <button onClick={() => setEditingDL(true)} className={cn('text-2xl font-mono font-bold leading-none', daysRemaining === null ? 'text-[#888]' : text)}>
               {daysRemaining === null ? '—' : Math.abs(daysRemaining)}
             </button>
-            <span className="text-[10px] uppercase tracking-wider text-[#555] leading-none mt-1.5">
+            <span className="text-[12px] uppercase tracking-wider text-[#aaa] leading-none mt-1.5">
               {daysRemaining === null ? 'no deadline' : daysRemaining < 0 ? 'overdue' : 'days left'}
             </span>
           </div>
           {lostDays > 0 && (
-            <div className="text-[9px] font-mono uppercase tracking-wider text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded">
+            <div className="text-[13px] font-mono uppercase tracking-wider text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded">
               {lostDays}d lost
             </div>
           )}
@@ -355,7 +355,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
       {(children.length > 0 || addingSub) && (
         <div className="border-t border-[#1E1E1E] bg-[#0D0D0D]">
           <button onClick={() => setExpanded(e => !e)}
-            className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-[#444] hover:text-[#666] transition-colors">
+            className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-bold uppercase tracking-widest text-[#888] hover:text-[#ccc] transition-colors">
             {expanded ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
             {children.length} Subproject{children.length !== 1 ? 's' : ''}
           </button>
@@ -383,7 +383,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
           </div>
         ) : (
           <button onClick={() => setAddingSub(true)}
-            className="w-full flex items-center gap-1.5 px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-[#333] hover:text-[#666] transition-colors">
+            className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] font-bold uppercase tracking-widest text-[#777] hover:text-[#ccc] transition-colors">
             <Plus size={9} /> Add Subproject
           </button>
         )}
@@ -426,7 +426,7 @@ export function MacroGoalsPanel() {
         </div>
       ) : (
         <button onClick={() => setIsCreating(true)}
-          className="w-[280px] shrink-0 rounded-lg p-4 flex flex-col items-center justify-center gap-2 border border-dashed border-[#222] text-[#444] hover:text-[#666] hover:border-[#444] transition-colors min-h-[100px]">
+          className="w-[280px] shrink-0 rounded-lg p-4 flex flex-col items-center justify-center gap-2 border border-dashed border-[#222] text-[#888] hover:text-[#ccc] hover:border-[#444] transition-colors min-h-[100px]">
           <Plus size={20} />
           <span className="text-xs font-bold uppercase tracking-wider">Add Goal</span>
         </button>

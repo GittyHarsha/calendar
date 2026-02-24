@@ -17,8 +17,8 @@ function ScratchpadModal({ value, onChange, onClose }: { value: string; onChange
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0A0A0A]">
       <div className="flex items-center justify-between px-6 py-3 border-b border-[#1E1E1E] shrink-0">
-        <span className="text-xs font-bold uppercase tracking-widest text-[#555]">Scratchpad</span>
-        <button onClick={onClose} className="text-[10px] font-bold uppercase tracking-wider text-[#555] hover:text-white px-3 py-1 border border-[#2A2A2A] rounded hover:border-[#444] transition-colors">
+        <span className="text-xs font-bold uppercase tracking-widest text-[#aaa]">Scratchpad</span>
+        <button onClick={onClose} className="text-[12px] font-bold uppercase tracking-wider text-[#aaa] hover:text-white px-3 py-1 border border-[#2A2A2A] rounded hover:border-[#444] transition-colors">
           Esc · Close
         </button>
       </div>
@@ -91,7 +91,7 @@ export function ThinkPad() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Scratchpad</label>
-            <button onClick={() => setScratchpadFullscreen(true)} className="text-[#444] hover:text-[#8E9299] transition-colors" title="Fullscreen">
+            <button onClick={() => setScratchpadFullscreen(true)} className="text-[#888] hover:text-[#8E9299] transition-colors" title="Fullscreen">
               <Maximize2 size={12} />
             </button>
           </div>
@@ -203,7 +203,7 @@ export function ThinkPad() {
             className={`flex-1 flex flex-col gap-2 rounded-md transition-colors ${isOver ? 'bg-[#1A1A1A]' : ''}`}
           >
             {inboxTasks.length === 0 ? (
-              <div className="text-xs text-[#555] italic p-4 text-center border border-dashed border-[#2A2A2A] rounded-md">
+              <div className="text-xs text-[#aaa] italic p-4 text-center border border-dashed border-[#2A2A2A] rounded-md">
                 No tasks in inbox.
               </div>
             ) : (

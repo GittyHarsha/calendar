@@ -20,7 +20,7 @@ function Carousel({ items, accentFn }: {
     return () => clearInterval(t);
   }, [items.length]);
 
-  if (items.length === 0) return <div className="flex items-center justify-center h-full text-[10px] text-[#333] italic">none</div>;
+  if (items.length === 0) return <div className="flex items-center justify-center h-full text-[12px] text-[#777] italic">none</div>;
 
   const item = items[idx];
   return (
@@ -33,7 +33,7 @@ function Carousel({ items, accentFn }: {
             {item.label}
           </span>
         </div>
-        <span className="text-[10px] font-semibold text-[#C8C7C4] leading-tight truncate max-w-[150px]" title={item.sublabel}>{item.sublabel}</span>
+        <span className="text-[12px] font-semibold text-[#C8C7C4] leading-tight truncate max-w-[150px]" title={item.sublabel}>{item.sublabel}</span>
       </div>
       {/* Dot indicators */}
       {items.length > 1 && (
@@ -118,14 +118,14 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
 
             {/* Project deadline */}
             <div className="flex flex-col justify-center gap-0.5 px-3 py-1 min-w-[110px]">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-[#555]">Goal</span>
+              <span className="text-[13px] font-bold uppercase tracking-widest text-[#aaa]">Goal</span>
               <span className="text-xs font-bold text-white truncate max-w-[110px]" title={p.name}>{p.name}</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
                 {(overdue || urgent) && <AlertTriangle size={10} style={{ color: accent }} />}
                 <span className="text-2xl font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
                   {noDeadline ? '—' : Math.abs(days!)}
                 </span>
-                <span className="text-[9px] font-mono uppercase" style={{ color: noDeadline ? '#333' : accent }}>
+                <span className="text-[13px] font-mono uppercase" style={{ color: noDeadline ? '#333' : accent }}>
                   {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
                 </span>
               </div>
@@ -138,7 +138,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
             {subs.length > 0 && (
               <>
                 <div className="flex flex-col justify-center px-3 py-1 min-w-[130px]">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#555] mb-1">Subprojects</span>
+                  <span className="text-[13px] font-bold uppercase tracking-widest text-[#aaa] mb-1">Subprojects</span>
                   <Carousel items={subItems} />
                 </div>
                 <div className="w-px self-stretch bg-[#1E1E1E]" />
@@ -147,7 +147,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
 
             {/* Tasks carousel */}
             <div className="flex flex-col justify-center px-3 py-1 min-w-[150px]">
-              <span className="text-[9px] font-bold uppercase tracking-widest text-[#555] mb-1">Tasks</span>
+              <span className="text-[13px] font-bold uppercase tracking-widest text-[#aaa] mb-1">Tasks</span>
               <Carousel items={taskItems} />
             </div>
 
@@ -231,21 +231,21 @@ export function HorizonView() {
         {/* Nav */}
         <div className="flex items-center gap-0 mr-4">
           <button onClick={() => navigate(-1)}
-            className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors">
+            className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             <ChevronLeft size={14} />
           </button>
           <button onClick={() => setBaseDate(today)}
-            className="h-6 px-2 text-[10px] font-mono tracking-widest uppercase text-[#555] hover:text-[#C8C7C4] transition-colors">
+            className="h-6 px-2 text-[12px] font-mono tracking-widest uppercase text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             now
           </button>
           <button onClick={() => navigate(1)}
-            className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors">
+            className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             <ChevronRight size={14} />
           </button>
         </div>
 
         {/* Date range */}
-        <span className="text-[11px] text-[#444] font-mono mr-auto tracking-wider">
+        <span className="text-[13px] text-[#aaa] font-mono mr-auto tracking-wider">
           {format(columns[0].startDate, 'MMM d')} – {format(columns[columns.length - 1].endDate, 'MMM d, yyyy')}
         </span>
 
@@ -253,8 +253,8 @@ export function HorizonView() {
         <div className="flex items-center gap-0 mr-4">
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
-              className={cn('w-7 h-6 text-[10px] font-mono uppercase tracking-widest transition-colors rounded',
-                viewMode === mode ? 'text-[#F27D26]' : 'text-[#555] hover:text-[#C8C7C4]'
+              className={cn('w-7 h-6 text-[12px] font-mono uppercase tracking-widest transition-colors rounded',
+                viewMode === mode ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
               )}>
               {mode[0]}
             </button>
@@ -268,10 +268,10 @@ export function HorizonView() {
               const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
               setHorizonLengths(prev => ({ ...prev, [viewMode]: val }));
             }}
-            className="bg-transparent border-b border-[#333] text-[#888] text-[11px] font-mono w-8 text-center focus:outline-none focus:border-[#F27D26] transition-colors"
+            className="bg-transparent border-b border-[#333] text-[#888] text-[13px] font-mono w-8 text-center focus:outline-none focus:border-[#F27D26] transition-colors"
             min="1" max="365"
           />
-          <span className="text-[10px] text-[#444] font-mono">
+          <span className="text-[12px] text-[#888] font-mono">
             {viewMode === 'daily' ? 'd' : viewMode === 'weekly' ? 'wk' : viewMode === 'monthly' ? 'mo' : 'yr'}
           </span>
         </div>
@@ -279,7 +279,7 @@ export function HorizonView() {
         {/* Hide done */}
         <button onClick={toggleHideCompleted}
           className={cn('w-6 h-6 flex items-center justify-center transition-colors mr-1',
-            hideCompleted ? 'text-[#F27D26]' : 'text-[#555] hover:text-[#C8C7C4]'
+            hideCompleted ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
           )}
           title={hideCompleted ? 'Show completed' : 'Hide completed'}>
           {hideCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -287,8 +287,8 @@ export function HorizonView() {
 
         {/* Projects toggle */}
         <button onClick={() => setShowProjects(p => !p)}
-          className={cn('h-6 px-2 flex items-center gap-1.5 rounded text-[10px] font-mono uppercase tracking-widest transition-colors',
-            showProjects ? 'text-[#F27D26]' : 'text-[#555] hover:text-[#C8C7C4]'
+          className={cn('h-6 px-2 flex items-center gap-1.5 rounded text-[12px] font-mono uppercase tracking-widest transition-colors',
+            showProjects ? 'text-[#F27D26]' : 'text-[#bbb] hover:text-[#F0EFEB]'
           )}>
           <LayoutGrid size={12} />
           <span>goals</span>
@@ -303,7 +303,7 @@ export function HorizonView() {
             try { (window as any).chrome.webview.postMessage({ type: 'toggleWidget' }); } catch { }
           }}
           title="Toggle Widget"
-          className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors ml-1">
+          className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors ml-1">
           <AppWindow size={13} />
         </button>
       </div>
@@ -382,7 +382,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         isCurrent && "bg-[#F27D26]/10"
       )}>
         {isCurrent && (
-          <div className="absolute top-0 right-0 bg-[#F27D26] text-black text-[9px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider">
+          <div className="absolute top-0 right-0 bg-[#F27D26] text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider">
             {format(today, 'MMM d, yyyy')}
           </div>
         )}
@@ -397,12 +397,12 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
               </span>
               <span className={cn(
                 "text-lg font-mono",
-                isCurrent ? "text-white" : "text-[#555]"
+                isCurrent ? "text-white" : "text-[#aaa]"
               )}>
                 {format(startDate, 'dd')}
               </span>
             </div>
-            <div className="text-[10px] text-[#555] font-mono mt-1">
+            <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM yyyy')}
             </div>
           </>
@@ -415,7 +415,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
             )}>
               Week of {format(startDate, 'MMM d')}
             </div>
-            <div className="text-[10px] text-[#555] font-mono mt-1">
+            <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
             </div>
           </>
@@ -428,7 +428,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
             )}>
               {format(startDate, 'MMMM')}
             </div>
-            <div className="text-[10px] text-[#555] font-mono mt-1">
+            <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'yyyy')}
             </div>
           </>
@@ -441,7 +441,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
             )}>
               {format(startDate, 'yyyy')}
             </div>
-            <div className="text-[10px] text-[#555] font-mono mt-1">
+            <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'yyyy')}
             </div>
           </>
@@ -460,7 +460,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
               <span className="truncate mr-2" title={p.name}>{p.name}</span>
               <div className="flex items-center gap-2 shrink-0">
                 {mode !== 'daily' && (
-                  <span className="text-[9px] opacity-80">{p.deadline ? format(parseISO(p.deadline), 'MMM d') : ''}</span>
+                  <span className="text-[13px] opacity-80">{p.deadline ? format(parseISO(p.deadline), 'MMM d') : ''}</span>
                 )}
                 <span>DUE</span>
               </div>
@@ -488,13 +488,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
               {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
               <span className="flex-1 text-sm text-[#888] truncate italic" title={task.title}>{task.title}</span>
               <Flag size={9} style={{ color: accent }} />
-              <span className="text-[10px] font-mono" style={{ color: accent }}>{label}</span>
+              <span className="text-[12px] font-mono" style={{ color: accent }}>{label}</span>
             </div>
           );
         })}
         {columnTasks.length === 0 && ghostTasks.length === 0 && (
           <div className={cn(
-            'flex-1 flex items-center justify-center text-[#333] text-xs italic select-none border border-dashed rounded transition-colors',
+            'flex-1 flex items-center justify-center text-[#777] text-xs italic select-none border border-dashed rounded transition-colors',
             isOver ? 'border-[#F27D26]/40 text-[#F27D26]/40' : 'border-[#222]'
           )}>
             {isOver ? 'Drop here' : '+ task'}
