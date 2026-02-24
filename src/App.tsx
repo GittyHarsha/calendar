@@ -7,6 +7,7 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, u
 import { useEffect, useState } from 'react';
 import { HorizonView } from './components/HorizonView';
 import { ThinkPad } from './components/ThinkPad';
+import { PomodoroBar } from './components/PomodoroBar';
 import { Task } from './store';
 import { useStore } from './store';
 import { newProjectTrigger } from './components/MacroGoalsPanel';
@@ -84,6 +85,8 @@ export default function App() {
           </div>
         ) : null}
       </DragOverlay>
+
+      <PomodoroBar />
     </DndContext>
   );
 }

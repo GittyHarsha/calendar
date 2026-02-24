@@ -9,29 +9,58 @@ export type Project = {
   id: string;
   name: string;
   color: string;
-  deadline?: string | null; // ISO date string, optional
+  deadline?: string | null;
   createdAt: string;
   priority: Priority;
   startedAt?: string | null;
-  parentId?: string | null; // null/undefined = top-level project, set = subproject
+  parentId?: string | null;
 };
 
 export type Task = {
   id: string;
   projectId: string | null;
   title: string;
-  date: string | null;      // work date — which day it appears on the calendar
-  deadline: string | null;  // due date — when it must be done by (optional)
-  deadlineHistory: string[]; // previous deadlines, oldest first — tracks procrastination
+  date: string | null;
+  deadline: string | null;
+  deadlineHistory: string[];
   completed: boolean;
   startedAt?: string | null;
   priority?: Priority;
   description?: string;
 };
 
+export type TimeEntry = {
+  id: string;
+  taskId: string;
+  startedAt: string; // ISO timestamp
+  endedAt: string;   // ISO timestamp
+  duration: number;  // ms
+};
+
+export type PomodoroPhase = 'idle' | 'work' | 'break';
+
+export type PomodoroState = {
+  taskId: string | null;
+  phase: PomodoroPhase;
+  sessionStart: string | null; // ISO — when current work/break phase started
+  sessionsCompleted: number;   // total 🍅 this app session
+};
+
+export const WORK_DURATION  = 25 * 60 * 1000;
+export const BREAK_DURATION =  5 * 60 * 1000;
+
+/** Format ms as "Xh Ym" or "Ym" */
+export function fmtDuration(ms: number): string {
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
 type EpochState = {
   projects: Project[];
   tasks: Task[];
+  timeEntries: TimeEntry[];
+  pomodoro: PomodoroState;
   thinkPadNotes: string;
   hoveredProjectId: string | null;
   hideCompleted: boolean;
@@ -44,6 +73,16 @@ type EpochState = {
   addTask: (task: Omit<Task, 'id' | 'completed'>, recurrence?: Recurrence, startDate?: string) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+
+  // Pomodoro + time tracking
+  startPomodoro: (taskId: string) => void;
+  pausePomodoro: () => void;   // stops current session, saves partial time entry
+  stopPomodoro: () => void;    // fully stop, save time entry
+  completeWorkSession: () => void; // 25m up → transition to break phase
+  startBreak: () => void;
+  skipBreak: () => void;       // skip break, start new work session immediately
+  getTaskTime: (taskId: string) => number; // total ms for a task
+  getProjectTime: (projectId: string) => number;
   
   setThinkPadNotes: (notes: string) => void;
   setHoveredProjectId: (id: string | null) => void;
@@ -84,9 +123,11 @@ const initialTasks: Task[] = [
 
 export const useStore = create<EpochState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
   projects: initialProjects,
   tasks: initialTasks,
+  timeEntries: [],
+  pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0 },
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
   hideCompleted: false,
@@ -162,17 +203,79 @@ export const useStore = create<EpochState>()(
   deleteTask: (id) => set((state) => ({
     tasks: state.tasks.filter(t => t.id !== id)
   })),
-  
+
+  // ── Pomodoro ─────────────────────────────────────────────────────────────
+  startPomodoro: (taskId) => set({
+    pomodoro: { taskId, phase: 'work', sessionStart: new Date().toISOString(), sessionsCompleted: 0 }
+  }),
+
+  pausePomodoro: () => set((state) => {
+    const { pomodoro } = state;
+    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart || !pomodoro.taskId) return {};
+    const endedAt = new Date().toISOString();
+    const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
+    if (duration < 5000) return { pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null } };
+    return {
+      pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null },
+      timeEntries: [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }],
+    };
+  }),
+
+  stopPomodoro: () => set((state) => {
+    const { pomodoro } = state;
+    const entries = [...state.timeEntries];
+    if (pomodoro.phase === 'work' && pomodoro.sessionStart && pomodoro.taskId) {
+      const endedAt = new Date().toISOString();
+      const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
+      if (duration >= 5000) entries.push({ id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration });
+    }
+    return { pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0 }, timeEntries: entries };
+  }),
+
+  completeWorkSession: () => set((state) => {
+    const { pomodoro } = state;
+    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart || !pomodoro.taskId) return {};
+    const endedAt = new Date().toISOString();
+    const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
+    return {
+      pomodoro: { ...pomodoro, phase: 'break', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted + 1 },
+      timeEntries: [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }],
+    };
+  }),
+
+  startBreak: () => set((state) => ({
+    pomodoro: { ...state.pomodoro, phase: 'break', sessionStart: new Date().toISOString() }
+  })),
+
+  skipBreak: () => set((state) => ({
+    pomodoro: { ...state.pomodoro, phase: 'work', sessionStart: new Date().toISOString() }
+  })),
+
+  getTaskTime: (taskId) => {
+    const entries = get().timeEntries.filter(e => e.taskId === taskId);
+    const running = get().pomodoro;
+    let extra = 0;
+    if (running.phase === 'work' && running.taskId === taskId && running.sessionStart) {
+      extra = Date.now() - new Date(running.sessionStart).getTime();
+    }
+    return entries.reduce((s, e) => s + e.duration, 0) + extra;
+  },
+
+  getProjectTime: (projectId) => {
+    const taskIds = get().tasks.filter(t => t.projectId === projectId).map(t => t.id);
+    return get().timeEntries.filter(e => taskIds.includes(e.taskId)).reduce((s, e) => s + e.duration, 0);
+  },
+
       setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
     }),
     {
       name: 'calendar-storage',
-      // hoveredProjectId is transient — don't persist it
       partialize: (state) => ({
         projects: state.projects,
         tasks: state.tasks,
+        timeEntries: state.timeEntries,
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
       }),

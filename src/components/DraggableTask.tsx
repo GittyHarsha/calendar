@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useDraggable } from '@dnd-kit/core';
-import { Task, Priority, useStore } from '../store';
-import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft } from 'lucide-react';
+import { Task, Priority, useStore, fmtDuration } from '../store';
+import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday, differenceInDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
@@ -35,7 +35,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
-  const { projects, updateTask, deleteTask } = useStore();
+  const { projects, updateTask, deleteTask, startPomodoro, getTaskTime, pomodoro } = useStore();
   const [editingDate, setEditingDate] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const pickerOpen = editingDate || editingDeadline;
@@ -137,6 +137,25 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
         <div className="border-t border-[#1E1E1E]" />
 
+        {/* Focus timer */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => { startPomodoro(task.id); onClose(); }}
+            className={cn(
+              'flex items-center gap-1.5 text-xs transition-colors',
+              pomodoro.taskId === task.id && pomodoro.phase === 'work'
+                ? 'text-[#F27D26]' : 'text-[#aaa] hover:text-[#F27D26]'
+            )}>
+            <Timer size={13} />
+            {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
+          </button>
+          {(() => { const t = getTaskTime(task.id); return t > 0
+            ? <span className="text-xs text-[#666] font-mono">⏱ {fmtDuration(t)}</span>
+            : null; })()}
+        </div>
+
+        <div className="border-t border-[#1E1E1E]" />
+
         {/* Notes + Delete */}
         <div className="flex items-center justify-between">
           <button onClick={() => { onOpenNotes(); onClose(); }}
@@ -166,7 +185,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 }
 
 export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task; showDate?: boolean }) {
-  const { projects, updateTask, setHoveredProjectId } = useStore();
+  const { projects, updateTask, setHoveredProjectId, getTaskTime, pomodoro } = useStore();
   const project = projects.find(p => p.id === task.projectId);
   const parentProject = project?.parentId ? projects.find(p => p.id === project.parentId) : null;
   const projectLabel = parentProject ? `${parentProject.name} › ${project!.name}` : project?.name;
@@ -257,6 +276,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
               style={{ background: '#ef444420', color: '#ef4444' }}>
               ↻{task.deadlineHistory.length}
             </span>
+          )}
+          {(() => { const t = getTaskTime(task.id); return t > 0
+            ? <span className="text-[11px] text-[#666] font-mono shrink-0 group-hover:hidden">⏱{fmtDuration(t)}</span>
+            : null; })()}
+          {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
+            <span className="text-[11px] font-mono shrink-0 group-hover:hidden animate-pulse" style={{ color: '#F27D26' }}>▶</span>
           )}
           {dl && (
             <span className="text-[12px] font-mono group-hover:hidden" style={{ color: dl.color }}>
