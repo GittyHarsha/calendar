@@ -10,6 +10,41 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
+function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (items.length <= 1) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % items.length), 2500);
+    return () => clearInterval(t);
+  }, [items.length]);
+
+  if (items.length === 0) return (
+    <div className="flex items-center justify-center h-full text-[11px] text-[#555] italic">none due</div>
+  );
+
+  const item = items[idx];
+  return (
+    <div className="relative flex flex-col justify-center h-full overflow-hidden">
+      <div key={idx} className="flex flex-col gap-0.5">
+        <div className="flex items-baseline gap-1.5">
+          {item.urgent && <AlertTriangle size={9} style={{ color: item.accent }} className="shrink-0 mb-0.5" />}
+          <span className="text-[22px] font-mono font-black leading-none" style={{ color: item.accent }}>{item.label}</span>
+        </div>
+        <span className="text-[11px] font-semibold leading-tight truncate max-w-[140px]" style={{ color: '#C8C7C4' }} title={item.sublabel}>{item.sublabel}</span>
+      </div>
+      {items.length > 1 && (
+        <div className="flex gap-0.5 mt-1">
+          {items.map((_, i) => (
+            <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
+              className="w-1 h-1 rounded-full transition-all"
+              style={{ background: i === idx ? item.accent : '#333' }} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
   const { projects, tasks } = useStore();
   const today = startOfToday();
@@ -30,7 +65,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
   };
 
   return (
-    <div className="border-b border-[#1E1E1E] flex items-center px-3 gap-2 overflow-x-auto shrink-0 py-1.5" style={{ background: 'var(--bg-0)', scrollbarWidth: 'none' }}>
+    <div className="border-b border-[#1E1E1E] flex items-stretch px-3 gap-2 overflow-x-auto shrink-0 py-2" style={{ background: 'var(--bg-0)', scrollbarWidth: 'none' }}>
       {topLevel.map(p => {
         const days = p.deadline ? differenceInDays(parseISO(p.deadline), today) : null;
         const overdue = days !== null && days < 0;
@@ -40,43 +75,45 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
         const noDeadline = days === null;
 
         const ids = descendantIds(p.id);
-        const openTasks = tasks.filter(t => ids.includes(t.projectId ?? '') && !t.completed).length;
-        const subs = projects.filter(sp => sp.parentId === p.id);
-
-        const dayLabel = noDeadline ? null : overdue ? `${Math.abs(days!)}d over` : days === 0 ? 'today' : `${days}d`;
+        const upcomingTasks = tasks
+          .filter(t => ids.includes(t.projectId ?? '') && t.deadline && !t.completed)
+          .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
+          .sort((a, b) => a.d - b.d);
+        const taskItems = upcomingTasks.map(t => {
+          const ov = t.d < 0; const urg = t.d >= 0 && t.d <= 3;
+          const so = t.d > 3 && t.d <= 10;
+          const a = ov ? '#ef4444' : urg ? 'var(--accent)' : so ? '#eab308' : '#3B82F6';
+          const lbl = ov ? `${Math.abs(t.d)}d` : t.d === 0 ? 'today' : `${t.d}d`;
+          const shifts = t.deadlineHistory?.length ?? 0;
+          return { label: lbl, sublabel: `${shifts > 0 ? `↻${shifts} ` : ''}${t.title}`, accent: a, urgent: ov || urg };
+        });
 
         return (
           <button key={p.id} onClick={onOpenGoals}
-            className="flex items-center gap-3 rounded-md shrink-0 hover:brightness-110 transition-all text-left px-3 py-1.5"
-            style={{ background: `${p.color}14`, border: `1px solid ${noDeadline ? '#252525' : accent + '66'}` }}>
-            {/* Color dot */}
-            <span className="w-2 h-2 rounded-full shrink-0 mt-0.5" style={{ background: noDeadline ? '#333' : accent }} />
-            {/* Days — hero number */}
-            {dayLabel && (
-              <div className="flex flex-col items-center shrink-0 leading-none">
-                <span className="text-[22px] font-mono font-black leading-none" style={{ color: accent }}>
-                  {overdue ? Math.abs(days!) : days === 0 ? '!' : days}
+            className="flex items-stretch gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
+            style={{ background: `${p.color}12`, border: `1px solid ${noDeadline ? '#252525' : accent + '50'}` }}>
+            {/* Left accent bar */}
+            <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
+            {/* Project deadline */}
+            <div className="flex flex-col justify-center gap-0.5 px-3 py-2 min-w-[110px]">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Goal</span>
+              <span className="text-[12px] font-bold text-white truncate max-w-[110px]" title={p.name}>{p.name}</span>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                {(overdue || urgent) && <AlertTriangle size={9} style={{ color: accent }} />}
+                <span className="text-[22px] font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
+                  {noDeadline ? '—' : Math.abs(days!)}
                 </span>
-                <span className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: accent + 'BB' }}>
-                  {overdue ? 'over' : days === 0 ? 'today' : 'd left'}
+                <span className="text-[10px] font-mono uppercase" style={{ color: noDeadline ? '#333' : accent }}>
+                  {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
                 </span>
               </div>
-            )}
-            {!dayLabel && <span className="text-[22px] font-mono font-black text-[#333] shrink-0">—</span>}
-            {/* Name + meta */}
-            <div className="flex flex-col min-w-0">
-              <span className="text-[12px] font-semibold text-white max-w-[110px] truncate leading-tight" title={p.name}>{p.name}</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                {openTasks > 0 && <span className="text-[10px] font-mono text-[#666]">{openTasks} open</span>}
-                {subs.length > 0 && (
-                  <span className="flex gap-0.5">
-                    {subs.slice(0, 4).map(s => (
-                      <span key={s.id} className="w-1.5 h-1.5 rounded-full opacity-50" style={{ background: s.color }} title={s.name} />
-                    ))}
-                    {subs.length > 4 && <span className="text-[9px] text-[#555]">+{subs.length - 4}</span>}
-                  </span>
-                )}
-              </div>
+            </div>
+            {/* Divider */}
+            <div className="w-px self-stretch bg-[#1E1E1E]" />
+            {/* Tasks carousel */}
+            <div className="flex flex-col justify-center px-3 py-2 min-w-[150px]">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-1">Tasks</span>
+              <TaskCarousel items={taskItems} />
             </div>
           </button>
         );
