@@ -27,6 +27,7 @@ export default function App() {
     r.style.setProperty('--border-1', t.border);
     r.style.setProperty('--text-1', t.text1);
     r.style.setProperty('--text-2', t.text2);
+    document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   useEffect(() => {

@@ -43,3 +43,47 @@ body {
 .animate-fade {
   animation: fade-in 0.3s ease;
 }
+
+/* ── Dawn (light) theme overrides ── */
+[data-theme="dawn"] {
+  color-scheme: light;
+}
+[data-theme="dawn"] * {
+  border-color: #D4CCC2;
+}
+[data-theme="dawn"] .border-\[\#1E1E1E\],
+[data-theme="dawn"] .border-\[\#2A2A2A\],
+[data-theme="dawn"] .border-\[\#333\] {
+  border-color: #D4CCC2 !important;
+}
+[data-theme="dawn"] .text-\[\#bbb\],
+[data-theme="dawn"] .text-\[\#aaa\],
+[data-theme="dawn"] .text-\[\#888\],
+[data-theme="dawn"] .text-\[\#777\],
+[data-theme="dawn"] .text-\[\#666\],
+[data-theme="dawn"] .text-\[\#555\],
+[data-theme="dawn"] .text-\[\#444\],
+[data-theme="dawn"] .text-\[\#C8C7C4\],
+[data-theme="dawn"] .text-\[\#E4E3E0\],
+[data-theme="dawn"] .text-\[\#8E9299\] {
+  color: #4A4540 !important;
+}
+[data-theme="dawn"] .bg-\[\#0A0A0A\]\/50,
+[data-theme="dawn"] .bg-\[\#1A1A1A\] {
+  background-color: #E8E3DC !important;
+}
+[data-theme="dawn"] ::-webkit-scrollbar-track { background: #EAE6E0; }
+[data-theme="dawn"] ::-webkit-scrollbar-thumb { background: #C4BEB7; }
+
+/* ── Dusk theme — make it clearly blue/navy ── */
+[data-theme="dusk"] .bg-\[\#1A1A1A\],
+[data-theme="dusk"] .bg-\[\#0A0A0A\]\/50 { background-color: #1E2238 !important; }
+
+/* ── Ember theme — make it clearly warm/brown ── */
+[data-theme="ember"] .bg-\[\#1A1A1A\],
+[data-theme="ember"] .bg-\[\#0A0A0A\]\/50 { background-color: #351A00 !important; }
+
+/* ── Moss theme — make it clearly forest green ── */
+[data-theme="moss"] .bg-\[\#1A1A1A\],
+[data-theme="moss"] .bg-\[\#0A0A0A\]\/50 { background-color: #122516 !important; }
+

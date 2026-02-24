@@ -49,7 +49,7 @@ export type PomodoroState = {
 export const WORK_DURATION  = 25 * 60 * 1000;
 export const BREAK_DURATION =  5 * 60 * 1000;
 
-export type ThemeKey = 'void' | 'dusk' | 'ember' | 'moss' | 'aurora';
+export type ThemeKey = 'void' | 'dusk' | 'ember' | 'moss' | 'dawn';
 
 export type ThemeConfig = {
   name: string;
@@ -60,11 +60,11 @@ export type ThemeConfig = {
 };
 
 export const THEMES: Record<ThemeKey, ThemeConfig> = {
-  void:   { name: 'Void',   accent: '#F27D26', bg0: '#090909', bg1: '#111111', bg2: '#1A1A1A', border: '#222222', text1: '#E4E3E0', text2: '#888888' },
-  dusk:   { name: 'Dusk',   accent: '#818CF8', bg0: '#0A0A14', bg1: '#12121E', bg2: '#1C1C2E', border: '#2A2A3E', text1: '#E4E3F8', text2: '#9090B8' },
-  ember:  { name: 'Ember',  accent: '#F43F5E', bg0: '#120A0A', bg1: '#1A1010', bg2: '#251515', border: '#332020', text1: '#F0E4E4', text2: '#A08888' },
-  moss:   { name: 'Moss',   accent: '#4ADE80', bg0: '#080E08', bg1: '#101810', bg2: '#162016', border: '#253025', text1: '#E3F0E4', text2: '#88A888' },
-  aurora: { name: 'Aurora', accent: '#22D3EE', bg0: '#060E14', bg1: '#0C1620', bg2: '#142030', border: '#1E3040', text1: '#E3F0F4', text2: '#88A8B8' },
+  void:   { name: 'Void',    accent: '#F27D26', bg0: '#090909', bg1: '#111111', bg2: '#1A1A1A', border: '#222222', text1: '#E4E3E0', text2: '#888888' },
+  dusk:   { name: 'Dusk',    accent: '#818CF8', bg0: '#0D0F1E', bg1: '#151829', bg2: '#1E2238', border: '#2A2E50', text1: '#D8D9FF', text2: '#7070AA' },
+  ember:  { name: 'Ember',   accent: '#FB923C', bg0: '#1A0C00', bg1: '#251200', bg2: '#351A00', border: '#4A2E00', text1: '#FFE0C0', text2: '#A06030' },
+  moss:   { name: 'Moss',    accent: '#4ADE80', bg0: '#061208', bg1: '#0A1A0E', bg2: '#122516', border: '#1A3A20', text1: '#D0F0D8', text2: '#507860' },
+  dawn:   { name: 'Dawn',    accent: '#C2410C', bg0: '#F0EBE3', bg1: '#FAF7F2', bg2: '#EFECE6', border: '#D4CCC2', text1: '#1C1A18', text2: '#7A6F65' },
 };
 
 /** Format ms as "Xh Ym" or "Ym" */

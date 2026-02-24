@@ -7,13 +7,13 @@ export function ThemePanel({ onClose }: { onClose: () => void }) {
     <div
       style={{
         position: 'absolute', top: 42, right: 8, zIndex: 999,
-        background: '#111', border: '1px solid #2a2a2a', borderRadius: 12,
-        padding: '14px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+        background: 'var(--bg-0)', border: '1px solid var(--border-1)', borderRadius: 12,
+        padding: '14px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         fontFamily: 'Consolas, monospace', minWidth: 200,
       }}
       onMouseLeave={onClose}
     >
-      <div style={{ fontSize: 9, letterSpacing: '0.12em', color: '#444', textTransform: 'uppercase', marginBottom: 12 }}>
+      <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-2)', textTransform: 'uppercase', marginBottom: 12 }}>
         Theme
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -38,8 +38,8 @@ export function ThemePanel({ onClose }: { onClose: () => void }) {
               border: `2px solid ${t.accent}88`, flexShrink: 0,
             }} />
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 12, color: theme === key ? t.accent : '#bbb', fontWeight: 600 }}>{t.name}</div>
-              <div style={{ fontSize: 9, color: '#444', marginTop: 1 }}>{t.bg1} · {t.accent}</div>
+              <div style={{ fontSize: 12, color: theme === key ? t.accent : 'var(--text-1)', fontWeight: 600 }}>{t.name}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-2)', marginTop: 1 }}>{t.bg1} · {t.accent}</div>
             </div>
             {theme === key && (
               <span style={{ marginLeft: 'auto', fontSize: 10, color: t.accent }}>✓</span>
