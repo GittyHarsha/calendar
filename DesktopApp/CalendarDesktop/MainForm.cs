@@ -80,6 +80,18 @@ public class MainForm : Form
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
+            // Handle messages from the main app (e.g. widget toggle button)
+            _webView.CoreWebView2.WebMessageReceived += (_, e) =>
+            {
+                try
+                {
+                    var msg = System.Text.Json.JsonDocument.Parse(e.WebMessageAsJson);
+                    var type = msg.RootElement.GetProperty("type").GetString();
+                    if (type == "toggleWidget") Invoke(ToggleWidget);
+                }
+                catch { }
+            };
+
             string distFolder = ResolveDist();
             _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 VirtualHost, distFolder, CoreWebView2HostResourceAccessKind.Allow);

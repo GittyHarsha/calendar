@@ -5,7 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag, AppWindow } from 'lucide-react';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -295,6 +295,16 @@ export function HorizonView() {
           {projects.filter(p => !p.parentId).length > 0 && (
             <span className="font-mono">{projects.filter(p => !p.parentId).length}</span>
           )}
+        </button>
+
+        {/* Widget toggle */}
+        <button
+          onClick={() => {
+            try { (window as any).chrome.webview.postMessage(JSON.stringify({ type: 'toggleWidget' })); } catch { }
+          }}
+          title="Toggle Widget"
+          className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors ml-1">
+          <AppWindow size={13} />
         </button>
       </div>
 

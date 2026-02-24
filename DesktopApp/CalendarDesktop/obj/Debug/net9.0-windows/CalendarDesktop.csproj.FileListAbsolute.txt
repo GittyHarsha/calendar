@@ -24,3 +24,4 @@ C:\projects\calendar\DesktopApp\CalendarDesktop\obj\Debug\net9.0-windows\refint\
 C:\projects\calendar\DesktopApp\CalendarDesktop\obj\Debug\net9.0-windows\CalendarDesktop.pdb
 C:\projects\calendar\DesktopApp\CalendarDesktop\obj\Debug\net9.0-windows\CalendarDesktop.genruntimeconfig.cache
 C:\projects\calendar\DesktopApp\CalendarDesktop\obj\Debug\net9.0-windows\ref\CalendarDesktop.dll
+C:\projects\calendar\DesktopApp\CalendarDesktop\bin\Debug\net9.0-windows\app.ico
