@@ -300,7 +300,7 @@ export function HorizonView() {
         {/* Widget toggle */}
         <button
           onClick={() => {
-            try { (window as any).chrome.webview.postMessage(JSON.stringify({ type: 'toggleWidget' })); } catch { }
+            try { (window as any).chrome.webview.postMessage({ type: 'toggleWidget' }); } catch { }
           }}
           title="Toggle Widget"
           className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors ml-1">
