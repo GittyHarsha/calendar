@@ -46,11 +46,11 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
           background: 'none', cursor: 'pointer', flexShrink: 0, padding: 0, transition: 'border-color 0.15s',
         }} />
         {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />}
-        <span title={task.title} style={{ flex: 1, fontSize: 11, color: hovered ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>
+        <span title={task.title} style={{ flex: 1, fontSize: 13, color: hovered ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>
           {task.title}
         </span>
         {task.deadline && (
-          <span style={{ fontSize: 10, fontWeight: 700, color: daysColor(task.deadline), flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: daysColor(task.deadline), flexShrink: 0 }}>
             {daysLabel(task.deadline)}
           </span>
         )}
@@ -63,7 +63,7 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
           <button onClick={onFocus} style={{
             flex: 1, padding: '4px 0', borderRadius: 5,
             border: `1px solid ${accent}55`, background: `${accent}15`,
-            color: accent, fontSize: 10, cursor: 'pointer',
+            color: accent, fontSize: 11, cursor: 'pointer',
             fontFamily: 'Consolas, monospace', fontWeight: 600,
           }}>
             {isActive ? '▶ focusing' : '⏱ focus 25m'}
@@ -71,7 +71,7 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
           <button onClick={onComplete} style={{
             flex: 1, padding: '4px 0', borderRadius: 5,
             border: '1px solid var(--border-1)', background: 'transparent',
-            color: 'var(--text-2)', fontSize: 10, cursor: 'pointer',
+            color: 'var(--text-2)', fontSize: 11, cursor: 'pointer',
             fontFamily: 'Consolas, monospace',
           }}>
             ✓ done
@@ -85,7 +85,7 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
 function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 4 }}>
-      <div style={{ padding: '6px 12px 3px', fontSize: 9, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700 }}>
+      <div style={{ padding: '6px 12px 3px', fontSize: 10, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700 }}>
         {label}
       </div>
       {children}
@@ -171,9 +171,9 @@ export function WidgetView() {
   const empty = overdue.length + dueToday.length + workToday.length + upNext.length === 0;
 
   return (
-    <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 12 }}>
+    <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13 }}>
       {/* Stats bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
         <span>{format(today, 'EEE, MMM d')}</span>
         <span style={{ color: doneToday > 0 ? '#4ade80' : 'var(--border-1)' }}>✓ {doneToday} done</span>
       </div>
@@ -243,7 +243,7 @@ export function WidgetView() {
           </Section>
         )}
         {empty && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--border-1)', fontSize: 11 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--border-1)', fontSize: 13 }}>
             <span>you're clear</span>
             <span style={{ fontSize: 9, marginTop: 4 }}>nothing due soon 👌</span>
           </div>
@@ -262,7 +262,7 @@ export function WidgetView() {
               return (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: pAccent, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 10, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                   <div style={{ width: 50, height: 2, background: 'var(--bg-2)', borderRadius: 2, flexShrink: 0 }}>
                     <div style={{ height: '100%', width: `${pct}%`, background: pAccent, borderRadius: 2 }} />
                   </div>
@@ -283,7 +283,7 @@ export function WidgetView() {
           placeholder="+ add task for today…"
           style={{
             width: '100%', background: 'transparent', border: 'none',
-            borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 11,
+            borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 13,
             fontFamily: 'Consolas, monospace', padding: '3px 0', outline: 'none', boxSizing: 'border-box',
           }}
           onFocus={e => (e.target.style.borderBottomColor = accent)}

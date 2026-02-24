@@ -11,6 +11,7 @@ public class NotificationService : IDisposable
     private readonly HashSet<string> _shownToday = new();
     private DateTime _lastShownDate = DateTime.MinValue;
     private bool _morningBriefSent = false;
+    private bool _middayNudgeSent = false;
     private bool _eveningNudgeSent = false;
 
     public NotificationService(WebView2 webView)
@@ -32,6 +33,7 @@ public class NotificationService : IDisposable
         {
             _shownToday.Clear();
             _morningBriefSent = false;
+            _middayNudgeSent = false;
             _eveningNudgeSent = false;
             _lastShownDate = now;
         }
@@ -41,7 +43,7 @@ public class NotificationService : IDisposable
             try
             {
                 var json = await _webView.CoreWebView2.ExecuteScriptAsync(
-                    "localStorage.getItem('horizon-storage')");
+                    "localStorage.getItem('calendar-storage')");
 
                 // json is a JSON string (double-encoded)
                 var raw = JsonSerializer.Deserialize<string>(json);
@@ -120,6 +122,13 @@ public class NotificationService : IDisposable
                             ShowToast("🚩 Due Today", title);
                         }
                     }
+                }
+
+                // Midday nudge at 1pm if tasks still open
+                if (now.Hour == 13 && !_middayNudgeSent && incompleteTodayCount > 0)
+                {
+                    _middayNudgeSent = true;
+                    ShowToast("Horizon · Midday Check-in", $"{incompleteTodayCount} task{(incompleteTodayCount > 1 ? "s" : "")} left — afternoon push 💪");
                 }
 
                 // Evening nudge at 6pm
