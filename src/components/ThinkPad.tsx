@@ -150,16 +150,29 @@ export function ThinkPad() {
                 ))}
               </select>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={selectedPriority}
-                onChange={(e) => setSelectedPriority(e.target.value as Priority)}
-                className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
-              >
-                <option value="High">High Priority</option>
-                <option value="Medium">Medium Priority</option>
-                <option value="Low">Low Priority</option>
-              </select>
+            <div className="flex gap-2 items-center">
+              {/* Priority pills */}
+              <div className="flex gap-1">
+                {([['High', 'H', '#ef4444'], ['Medium', 'M', '#eab308'], ['Low', 'L', '#3B82F6']] as const).map(([val, label, color]) => (
+                  <button key={val} type="button" onClick={() => setSelectedPriority(val as Priority)}
+                    className="w-7 h-7 rounded text-[11px] font-bold transition-all"
+                    style={{ background: selectedPriority === val ? color + '33' : '#0A0A0A', color: selectedPriority === val ? color : '#555', border: `1px solid ${selectedPriority === val ? color + '66' : '#2A2A2A'}` }}
+                    title={val + ' Priority'}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* Recurrence pills */}
+              <div className="flex gap-1 ml-auto">
+                {([['none', '·'], ['daily', 'D'], ['weekly', 'W'], ['monthly', 'M']] as const).map(([val, label]) => (
+                  <button key={val} type="button" onClick={() => setNewTaskRecurrence(val as Recurrence)}
+                    className="w-7 h-7 rounded text-[11px] font-bold transition-all"
+                    style={{ background: newTaskRecurrence === val ? 'var(--accent-muted, #F27D2622)' : '#0A0A0A', color: newTaskRecurrence === val ? 'var(--accent)' : '#555', border: `1px solid ${newTaskRecurrence === val ? 'var(--accent)' : '#2A2A2A'}` }}
+                    title={{ none: 'Once', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }[val]}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="relative flex gap-2">
               <button type="button"
@@ -181,18 +194,8 @@ export function ThinkPad() {
               )}
             </div>
             <div className="flex gap-2">
-              <select
-                value={newTaskRecurrence}
-                onChange={(e) => setNewTaskRecurrence(e.target.value as Recurrence)}
-                className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
-              >
-                <option value="none">Once</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
-              <button type="submit" className="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-3 py-2 rounded-md transition-colors flex items-center justify-center">
-                <Plus size={16} />
+              <button type="submit" className="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-3 py-2 rounded-md transition-colors flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider">
+                <Plus size={13} /> Add Task
               </button>
             </div>
           </form>

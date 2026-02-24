@@ -6,49 +6,9 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag, AppWindow, Palette, Timer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer } from 'lucide-react';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
-
-function Carousel({ items, accentFn }: {
-  items: { label: string; sublabel: string; accent: string; urgent: boolean }[];
-  accentFn?: (i: number) => string;
-}) {
-  const [idx, setIdx] = useState(0);
-  useEffect(() => {
-    if (items.length <= 1) return;
-    const t = setInterval(() => setIdx(i => (i + 1) % items.length), 2500);
-    return () => clearInterval(t);
-  }, [items.length]);
-
-  if (items.length === 0) return <div className="flex items-center justify-center h-full text-[12px] text-[#777] italic">none</div>;
-
-  const item = items[idx];
-  return (
-    <div className="relative flex flex-col justify-center h-full overflow-hidden">
-      {/* Cycling item */}
-      <div key={idx} className="flex flex-col gap-0.5 animate-fade">
-        <div className="flex items-baseline gap-1.5">
-          {item.urgent && <AlertTriangle size={10} style={{ color: item.accent }} className="shrink-0 mb-0.5" />}
-          <span className="text-2xl font-mono font-black leading-none" style={{ color: item.accent }}>
-            {item.label}
-          </span>
-        </div>
-        <span className="text-[12px] font-semibold text-[#C8C7C4] leading-tight truncate max-w-[150px]" title={item.sublabel}>{item.sublabel}</span>
-      </div>
-      {/* Dot indicators */}
-      {items.length > 1 && (
-        <div className="flex gap-0.5 mt-1.5">
-          {items.map((_, i) => (
-            <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
-              className="w-1 h-1 rounded-full transition-all"
-              style={{ background: i === idx ? item.accent : '#333' }} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
   const { projects, tasks } = useStore();
@@ -70,88 +30,55 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
   };
 
   return (
-    <div className="border-b border-[#1E1E1E] flex items-stretch px-3 gap-3 overflow-x-auto shrink-0 py-2.5" style={{ background: 'var(--bg-0)', scrollbarWidth: 'none' }}>
+    <div className="border-b border-[#1E1E1E] flex items-center px-3 gap-2 overflow-x-auto shrink-0 py-1.5" style={{ background: 'var(--bg-0)', scrollbarWidth: 'none' }}>
       {topLevel.map(p => {
         const days = p.deadline ? differenceInDays(parseISO(p.deadline), today) : null;
         const overdue = days !== null && days < 0;
         const urgent = days !== null && days >= 0 && days <= 7;
         const soon = days !== null && days > 7 && days <= 30;
-        const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : soon ? '#eab308' : '#3B82F6';
+        const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? '#eab308' : '#3B82F6';
         const noDeadline = days === null;
 
-        // subprojects carousel items
-        const subs = projects.filter(sp => sp.parentId === p.id);
-        const subItems = subs.map(sp => {
-          const d = sp.deadline ? differenceInDays(parseISO(sp.deadline), today) : null;
-          const ov = d !== null && d < 0;
-          const urg = d !== null && d >= 0 && d <= 7;
-          const so = d !== null && d > 7 && d <= 30;
-          const a = ov ? '#ef4444' : urg ? '#F27D26' : so ? '#eab308' : '#3B82F6';
-          return {
-            label: d === null ? '—' : String(Math.abs(d)),
-            sublabel: sp.name,
-            accent: d === null ? '#444' : a,
-            urgent: ov || urg,
-          };
-        });
-
-        // tasks carousel items (all descendants) — use deadline if set, else work date
         const ids = descendantIds(p.id);
-        const upcomingTasks = tasks
-          .filter(t => ids.includes(t.projectId ?? '') && t.deadline && !t.completed)
-          .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
-          .sort((a, b) => a.d - b.d);
-        const taskItems = upcomingTasks.map(t => {
-          const ov = t.d < 0; const urg = t.d >= 0 && t.d <= 3; const so = t.d > 3 && t.d <= 10;
-          const a = ov ? '#ef4444' : urg ? '#F27D26' : so ? '#eab308' : '#3B82F6';
-          const lbl = ov ? `${Math.abs(t.d)}d over` : t.d === 0 ? 'today' : `${t.d}d`;
-          const shifts = t.deadlineHistory?.length ?? 0;
-          return { label: lbl, sublabel: `${shifts > 0 ? `↻${shifts} ` : ''}${t.title}`, accent: a, urgent: ov || urg };
-        });
+        const openTasks = tasks.filter(t => ids.includes(t.projectId ?? '') && !t.completed).length;
+        const subs = projects.filter(sp => sp.parentId === p.id);
+
+        const dayLabel = noDeadline ? null : overdue ? `${Math.abs(days!)}d over` : days === 0 ? 'today' : `${days}d`;
 
         return (
           <button key={p.id} onClick={onOpenGoals}
-            className="flex items-stretch gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
-            style={{ background: `${p.color}12`, border: `1px solid ${noDeadline ? '#252525' : accent + '45'}` }}>
-
-            {/* Left urgency bar */}
-            <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
-
-            {/* Project deadline */}
-            <div className="flex flex-col justify-center gap-0.5 px-3 py-1 min-w-[110px]">
-              <span className="text-[13px] font-bold uppercase tracking-widest text-[#aaa]">Goal</span>
-              <span className="text-xs font-bold text-white truncate max-w-[110px]" title={p.name}>{p.name}</span>
-              <div className="flex items-baseline gap-1.5 mt-0.5">
-                {(overdue || urgent) && <AlertTriangle size={10} style={{ color: accent }} />}
-                <span className="text-2xl font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
-                  {noDeadline ? '—' : Math.abs(days!)}
-                </span>
-                <span className="text-[13px] font-mono uppercase" style={{ color: noDeadline ? '#333' : accent }}>
-                  {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
-                </span>
-              </div>
-            </div>
-
-            {/* Divider */}
-            <div className="w-px self-stretch bg-[#1E1E1E]" />
-
-            {/* Subprojects carousel */}
-            {subs.length > 0 && (
+            className="flex items-center gap-2 rounded-md shrink-0 hover:brightness-110 transition-all text-left px-2.5 py-1"
+            style={{ background: `${p.color}14`, border: `1px solid ${noDeadline ? '#252525' : accent + '55'}` }}>
+            {/* Color dot */}
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: noDeadline ? '#333' : accent }} />
+            {/* Name */}
+            <span className="text-[12px] font-bold text-white max-w-[120px] truncate" title={p.name}>{p.name}</span>
+            {/* Days */}
+            {dayLabel && (
               <>
-                <div className="flex flex-col justify-center px-3 py-1 min-w-[130px]">
-                  <span className="text-[13px] font-bold uppercase tracking-widest text-[#aaa] mb-1">Subprojects</span>
-                  <Carousel items={subItems} />
-                </div>
-                <div className="w-px self-stretch bg-[#1E1E1E]" />
+                <span className="w-px h-3 shrink-0" style={{ background: accent + '55' }} />
+                <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>
+                  {(overdue || urgent) && <AlertTriangle size={9} className="inline mr-0.5 mb-0.5" style={{ color: accent }} />}
+                  {dayLabel}
+                </span>
               </>
             )}
-
-            {/* Tasks carousel */}
-            <div className="flex flex-col justify-center px-3 py-1 min-w-[150px]">
-              <span className="text-[13px] font-bold uppercase tracking-widest text-[#aaa] mb-1">Tasks</span>
-              <Carousel items={taskItems} />
-            </div>
-
+            {/* Task count */}
+            {openTasks > 0 && (
+              <>
+                <span className="w-px h-3 shrink-0" style={{ background: '#333' }} />
+                <span className="text-[11px] font-mono text-[#666]">{openTasks} open</span>
+              </>
+            )}
+            {/* Subproject dots */}
+            {subs.length > 0 && (
+              <span className="flex gap-0.5 ml-0.5">
+                {subs.slice(0, 5).map(s => (
+                  <span key={s.id} className="w-1.5 h-1.5 rounded-full opacity-60" style={{ background: s.color }} title={s.name} />
+                ))}
+                {subs.length > 5 && <span className="text-[10px] text-[#555]">+{subs.length - 5}</span>}
+              </span>
+            )}
           </button>
         );
       })}
@@ -231,17 +158,14 @@ export function HorizonView() {
         <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5" style={{ filter: 'drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent))' }} />
 
         {/* Nav */}
-        <div className="flex items-center gap-0 mr-4">
-          <button onClick={() => navigate(-1)}
-            className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+        <div className="flex items-center gap-0 mr-3">
+          <button onClick={() => navigate(-1)} className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             <ChevronLeft size={14} />
           </button>
-          <button onClick={() => setBaseDate(today)}
-            className="h-6 px-2 text-[12px] font-mono tracking-widest uppercase text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+          <button onClick={() => setBaseDate(today)} className="h-6 px-2 text-[12px] font-mono tracking-widest uppercase text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             now
           </button>
-          <button onClick={() => navigate(1)}
-            className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+          <button onClick={() => navigate(1)} className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -251,88 +175,83 @@ export function HorizonView() {
           {format(columns[0].startDate, 'MMM d')} – {format(columns[columns.length - 1].endDate, 'MMM d, yyyy')}
         </span>
 
-        {/* View mode */}
-        <div className="flex items-center gap-0 mr-4">
+        {/* View mode + length — merged into one compact group */}
+        <div className="flex items-center gap-0 mr-3 bg-[#0A0A0A] rounded-md border border-[#222] px-1" style={{ height: 26 }}>
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
-              className={cn('w-7 h-6 text-[12px] font-mono uppercase tracking-widest transition-colors rounded',
-                viewMode === mode ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+              className={cn('w-6 h-5 text-[11px] font-mono uppercase tracking-widest transition-colors rounded',
+                viewMode === mode ? '' : 'text-[#666] hover:text-[#bbb]'
               )}
               style={viewMode === mode ? { color: 'var(--accent)' } : undefined}>
               {mode[0]}
             </button>
           ))}
-        </div>
-
-        {/* Length control */}
-        <div className="flex items-center gap-1 mr-4">
+          <span className="w-px h-3 bg-[#2A2A2A] mx-1" />
           <input type="number" value={horizonLengths[viewMode]}
             onChange={e => {
               const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
               setHorizonLengths(prev => ({ ...prev, [viewMode]: val }));
             }}
-            className="bg-transparent border-b border-[#333] text-[#888] text-[13px] font-mono w-8 text-center focus:outline-none focus:border-[#F27D26] transition-colors"
+            className="bg-transparent text-[#888] text-[11px] font-mono w-6 text-center focus:outline-none"
             min="1" max="365"
           />
-          <span className="text-[12px] text-[#888] font-mono">
-            {viewMode === 'daily' ? 'd' : viewMode === 'weekly' ? 'wk' : viewMode === 'monthly' ? 'mo' : 'yr'}
-          </span>
         </div>
 
-        {/* Hide done */}
-        <button onClick={toggleHideCompleted}
-          className={cn('w-6 h-6 flex items-center justify-center transition-colors mr-1',
-            hideCompleted ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
-          )}
-          style={hideCompleted ? { color: 'var(--accent)' } : undefined}
-          title={hideCompleted ? 'Show completed' : 'Hide completed'}>
-          {hideCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
-        </button>
-
-        {/* Projects toggle */}
-        <button onClick={() => setShowProjects(p => !p)}
-          className={cn('h-6 px-2 flex items-center gap-1.5 rounded text-[12px] font-mono uppercase tracking-widest transition-colors',
-            showProjects ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
-          )}
-          style={showProjects ? { color: 'var(--accent)' } : undefined}>
-          <LayoutGrid size={12} />
-          <span>goals</span>
-          {projects.filter(p => !p.parentId).length > 0 && (
-            <span className="font-mono">{projects.filter(p => !p.parentId).length}</span>
-          )}
-        </button>
-
-        {/* Eye rest timer */}
-        <button
-          onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
-          title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop eye rest timer' : 'Start 25m eye rest timer'}
-          className="w-6 h-6 flex items-center justify-center transition-colors ml-1"
-          style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? 'var(--accent)' : '#bbb' }}>
-          👁
-        </button>
-
-        {/* Widget toggle */}
-        <button
-          onClick={() => {
-            try { (window as any).chrome.webview.postMessage({ type: 'toggleWidget' }); } catch { }
-          }}
-          title="Toggle Widget"
-          className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors ml-1">
-          <AppWindow size={13} />
-        </button>
-
-        {/* Theme picker */}
-        <div className="relative ml-1">
-          <button
-            onClick={() => setShowTheme(p => !p)}
-            title="Theme"
-            className={cn('w-6 h-6 flex items-center justify-center transition-colors',
-              showTheme ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+        {/* Right icon cluster */}
+        <div className="flex items-center gap-0.5 ml-1">
+          {/* Hide done */}
+          <button onClick={toggleHideCompleted}
+            className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
+              hideCompleted ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
             )}
-            style={showTheme ? { color: 'var(--accent)' } : undefined}>
-            <Palette size={13} />
+            style={hideCompleted ? { color: 'var(--accent)' } : undefined}
+            title={hideCompleted ? 'Show completed' : 'Hide completed'}>
+            {hideCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
           </button>
-          {showTheme && <ThemePanel onClose={() => setShowTheme(false)} />}
+
+          {/* Goals */}
+          <button onClick={() => setShowProjects(p => !p)}
+            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
+              showProjects ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={showProjects ? { color: 'var(--accent)' } : undefined}
+            title="Goals">
+            <LayoutGrid size={12} />
+            {projects.filter(p => !p.parentId).length > 0 && (
+              <span className="text-[10px]">{projects.filter(p => !p.parentId).length}</span>
+            )}
+          </button>
+
+          <span className="w-px h-4 bg-[#222] mx-0.5" />
+
+          {/* Eye rest */}
+          <button
+            onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
+            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop eye rest' : '25m eye rest'}
+            className="w-7 h-7 flex items-center justify-center rounded transition-colors text-[13px]"
+            style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : '#555' }}>
+            👁
+          </button>
+
+          {/* Widget */}
+          <button
+            onClick={() => { try { (window as any).chrome.webview.postMessage({ type: 'toggleWidget' }); } catch { } }}
+            title="Toggle Widget"
+            className="w-7 h-7 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors rounded">
+            <AppWindow size={13} />
+          </button>
+
+          {/* Theme */}
+          <div className="relative">
+            <button onClick={() => setShowTheme(p => !p)} title="Theme"
+              className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
+                showTheme ? '' : 'text-[#555] hover:text-[#bbb]'
+              )}
+              style={showTheme ? { color: 'var(--accent)' } : undefined}>
+              <Palette size={13} />
+            </button>
+            {showTheme && <ThemePanel onClose={() => setShowTheme(false)} />}
+          </div>
         </div>
       </div>
 
@@ -508,12 +427,12 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
           const label = overdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'due today' : `due in ${daysLeft}d`;
           return (
             <div key={`ghost-${task.id}`}
-              className="relative flex items-center gap-2 px-2 py-1.5 rounded border border-dashed select-none opacity-50 pointer-events-none"
-              style={{ background: accent + '08', borderColor: accent + '40' }}>
+              className="relative flex items-center gap-2 px-2 py-1.5 rounded border border-dashed select-none pointer-events-none"
+              style={{ background: accent + '0A', borderColor: accent + '55' }}>
               {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
-              <span className="flex-1 text-sm text-[#888] truncate italic" title={task.title}>{task.title}</span>
-              <Flag size={9} style={{ color: accent }} />
-              <span className="text-[12px] font-mono" style={{ color: accent }}>{label}</span>
+              <Flag size={9} style={{ color: accent, flexShrink: 0 }} />
+              <span className="flex-1 text-[12px] truncate" style={{ color: accent + 'CC' }} title={task.title}>{task.title}</span>
+              <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>{label}</span>
             </div>
           );
         })}

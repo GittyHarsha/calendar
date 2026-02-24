@@ -284,24 +284,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
               )} title={task.title}>{task.title}</span>
           )}
 
-          {/* Badges (hidden on hover since popup handles it) */}
-          {task.description && (
-            <FileText size={10} className="shrink-0 text-[#888] group-hover:hidden" />
-          )}
-          {(task.deadlineHistory?.length ?? 0) > 0 && (
-            <span className="shrink-0 text-[13px] font-bold font-mono px-1 py-0.5 rounded group-hover:hidden"
-              style={{ background: '#ef444420', color: '#ef4444' }}>
-              ↻{task.deadlineHistory.length}
-            </span>
-          )}
-          {(() => { const t = getTaskTime(task.id); return t > 0
-            ? <span className="text-[11px] text-[#666] font-mono shrink-0 group-hover:hidden">⏱{fmtDuration(t)}</span>
-            : null; })()}
+          {/* Badges — only show the 2 most important inline; rest in popup */}
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
-            <span className="text-[11px] font-mono shrink-0 group-hover:hidden animate-pulse" style={{ color: '#F27D26' }}>▶</span>
+            <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: '#F27D26' }}>▶</span>
           )}
           {dl && (
-            <span className="text-[12px] font-mono group-hover:hidden" style={{ color: dl.color }}>
+            <span className="text-[12px] font-mono shrink-0 group-hover:hidden" style={{ color: dl.color }}>
               <Flag size={9} className="inline mr-0.5" style={{ color: dl.color }} />{dl.label}
             </span>
           )}

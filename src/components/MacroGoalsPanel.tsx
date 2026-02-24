@@ -44,28 +44,38 @@ function UpcomingTasks({ projectId, today }: { projectId: string; today: Date })
     .map(t => ({ ...t, days: differenceInDays(parseISO(t.deadline!), today) }))
     .sort((a, b) => a.days - b.days)
     .slice(0, 3);
+  const [expanded, setExpanded] = useState(false);
 
   if (relevant.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-[#1E1E1E]">
-      {relevant.map(t => {
-        const overdue = t.days < 0;
-        const isToday = t.days === 0;
-        const urgent = t.days > 0 && t.days <= 3;
-        const soon = t.days > 3 && t.days <= 10;
-        const accent = overdue ? '#ef4444' : isToday ? '#F27D26' : urgent ? '#f97316' : soon ? '#eab308' : '#555';
-        const label = overdue ? `${Math.abs(t.days)}d over` : isToday ? 'today' : t.days === 1 ? 'tmrw' : `${t.days}d`;
-        const shifts = t.deadlineHistory?.length ?? 0;
-        return (
-          <div key={t.id} className="flex items-center gap-2">
-            <span className="text-[13px] font-black font-mono shrink-0 w-10 text-right" style={{ color: accent }}>{label}</span>
-            <div className="w-px h-2.5 shrink-0 opacity-40" style={{ background: accent }} />
-            <span className="text-[12px] truncate" title={t.title} style={{ color: overdue || isToday || urgent ? '#C8C7C4' : '#bbb' }}>{t.title}</span>
-            {shifts > 0 && <span className="text-[13px] font-bold font-mono shrink-0" style={{ color: '#ef4444' }}>↻{shifts}</span>}
-          </div>
-        );
-      })}
+    <div className="mt-1 pt-1 border-t border-[#1E1E1E]">
+      <button onClick={() => setExpanded(e => !e)}
+        className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-[#666] hover:text-[#aaa] transition-colors">
+        {expanded ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
+        {relevant.length} task{relevant.length !== 1 ? 's' : ''} due soon
+      </button>
+      {expanded && (
+        <div className="flex flex-col gap-1 mt-1.5">
+          {relevant.map(t => {
+            const overdue = t.days < 0;
+            const isToday = t.days === 0;
+            const urgent = t.days > 0 && t.days <= 3;
+            const soon = t.days > 3 && t.days <= 10;
+            const accent = overdue ? '#ef4444' : isToday ? '#F27D26' : urgent ? '#f97316' : soon ? '#eab308' : '#555';
+            const label = overdue ? `${Math.abs(t.days)}d over` : isToday ? 'today' : t.days === 1 ? 'tmrw' : `${t.days}d`;
+            const shifts = t.deadlineHistory?.length ?? 0;
+            return (
+              <div key={t.id} className="flex items-center gap-2">
+                <span className="text-[13px] font-black font-mono shrink-0 w-10 text-right" style={{ color: accent }}>{label}</span>
+                <div className="w-px h-2.5 shrink-0 opacity-40" style={{ background: accent }} />
+                <span className="text-[12px] truncate" title={t.title} style={{ color: overdue || isToday || urgent ? '#C8C7C4' : '#bbb' }}>{t.title}</span>
+                {shifts > 0 && <span className="text-[13px] font-bold font-mono shrink-0" style={{ color: '#ef4444' }}>↻{shifts}</span>}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
