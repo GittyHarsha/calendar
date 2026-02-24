@@ -226,11 +226,11 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           <button onClick={() => setEditingDL(true)}
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
             {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} />}
-            <span className="text-base font-mono font-black leading-none" style={{ color: days === null ? '#bbb' : accent }}>
+            <span className="text-2xl font-mono font-black leading-none" style={{ color: days === null ? '#555' : accent }}>
               {days === null ? '—' : Math.abs(days)}
             </span>
-            <span className="text-[12px] uppercase tracking-wider font-semibold" style={{ color: days === null ? '#bbb' : accent }}>
-              {days === null ? 'no date' : overdue ? 'overdue' : 'days left'}
+            <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: days === null ? '#555' : accent }}>
+              {days === null ? 'no date' : overdue ? 'over' : 'd'}
             </span>
           </button>
           <div className="flex-1">
@@ -337,12 +337,12 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
 
         {/* Deadline row */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {icon}
-            <button onClick={() => setEditingDL(true)} className={cn('text-2xl font-mono font-bold leading-none', daysRemaining === null ? 'text-[#888]' : text)}>
+            <button onClick={() => setEditingDL(true)} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', daysRemaining === null ? 'text-[#555]' : text)}>
               {daysRemaining === null ? '—' : Math.abs(daysRemaining)}
             </button>
-            <span className="text-[12px] uppercase tracking-wider text-[#aaa] leading-none mt-1.5">
+            <span className={cn('text-[11px] uppercase tracking-wider leading-none mt-2', daysRemaining === null ? 'text-[#555]' : text)}>
               {daysRemaining === null ? 'no deadline' : daysRemaining < 0 ? 'overdue' : 'days left'}
             </span>
           </div>

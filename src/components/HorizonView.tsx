@@ -47,38 +47,37 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
 
         return (
           <button key={p.id} onClick={onOpenGoals}
-            className="flex items-center gap-2 rounded-md shrink-0 hover:brightness-110 transition-all text-left px-2.5 py-1"
-            style={{ background: `${p.color}14`, border: `1px solid ${noDeadline ? '#252525' : accent + '55'}` }}>
+            className="flex items-center gap-3 rounded-md shrink-0 hover:brightness-110 transition-all text-left px-3 py-1.5"
+            style={{ background: `${p.color}14`, border: `1px solid ${noDeadline ? '#252525' : accent + '66'}` }}>
             {/* Color dot */}
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: noDeadline ? '#333' : accent }} />
-            {/* Name */}
-            <span className="text-[12px] font-bold text-white max-w-[120px] truncate" title={p.name}>{p.name}</span>
-            {/* Days */}
+            <span className="w-2 h-2 rounded-full shrink-0 mt-0.5" style={{ background: noDeadline ? '#333' : accent }} />
+            {/* Days — hero number */}
             {dayLabel && (
-              <>
-                <span className="w-px h-3 shrink-0" style={{ background: accent + '55' }} />
-                <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>
-                  {(overdue || urgent) && <AlertTriangle size={9} className="inline mr-0.5 mb-0.5" style={{ color: accent }} />}
-                  {dayLabel}
+              <div className="flex flex-col items-center shrink-0 leading-none">
+                <span className="text-[22px] font-mono font-black leading-none" style={{ color: accent }}>
+                  {overdue ? Math.abs(days!) : days === 0 ? '!' : days}
                 </span>
-              </>
+                <span className="text-[9px] uppercase tracking-wider font-bold mt-0.5" style={{ color: accent + 'BB' }}>
+                  {overdue ? 'over' : days === 0 ? 'today' : 'd left'}
+                </span>
+              </div>
             )}
-            {/* Task count */}
-            {openTasks > 0 && (
-              <>
-                <span className="w-px h-3 shrink-0" style={{ background: '#333' }} />
-                <span className="text-[11px] font-mono text-[#666]">{openTasks} open</span>
-              </>
-            )}
-            {/* Subproject dots */}
-            {subs.length > 0 && (
-              <span className="flex gap-0.5 ml-0.5">
-                {subs.slice(0, 5).map(s => (
-                  <span key={s.id} className="w-1.5 h-1.5 rounded-full opacity-60" style={{ background: s.color }} title={s.name} />
-                ))}
-                {subs.length > 5 && <span className="text-[10px] text-[#555]">+{subs.length - 5}</span>}
-              </span>
-            )}
+            {!dayLabel && <span className="text-[22px] font-mono font-black text-[#333] shrink-0">—</span>}
+            {/* Name + meta */}
+            <div className="flex flex-col min-w-0">
+              <span className="text-[12px] font-semibold text-white max-w-[110px] truncate leading-tight" title={p.name}>{p.name}</span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {openTasks > 0 && <span className="text-[10px] font-mono text-[#666]">{openTasks} open</span>}
+                {subs.length > 0 && (
+                  <span className="flex gap-0.5">
+                    {subs.slice(0, 4).map(s => (
+                      <span key={s.id} className="w-1.5 h-1.5 rounded-full opacity-50" style={{ background: s.color }} title={s.name} />
+                    ))}
+                    {subs.length > 4 && <span className="text-[9px] text-[#555]">+{subs.length - 4}</span>}
+                  </span>
+                )}
+              </div>
+            </div>
           </button>
         );
       })}
