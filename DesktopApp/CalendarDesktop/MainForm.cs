@@ -114,7 +114,7 @@ public class MainForm : Form
     {
         if (_widget == null || _widget.IsDisposed)
         {
-            _widget = new WidgetForm(_sharedEnv!, () => { Show(); Activate(); WindowState = FormWindowState.Maximized; });
+            _widget = new WidgetForm(_sharedEnv!, ResolveDist(), () => { Show(); Activate(); WindowState = FormWindowState.Maximized; });
             _widget.Show();
         }
         else _widget.Show();

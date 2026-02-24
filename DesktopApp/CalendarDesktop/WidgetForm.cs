@@ -20,7 +20,7 @@ public class WidgetForm : Form
     [StructLayout(LayoutKind.Sequential)]
     private struct MARGINS { public int Left, Right, Top, Bottom; }
 
-    public WidgetForm(CoreWebView2Environment sharedEnv, Action onFocusMain)
+    public WidgetForm(CoreWebView2Environment sharedEnv, string distFolder, Action onFocusMain)
     {
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -54,6 +54,8 @@ public class WidgetForm : Form
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+            _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                VirtualHost, distFolder, CoreWebView2HostResourceAccessKind.Allow);
             _webView.CoreWebView2.WebMessageReceived += (_, e) =>
             {
                 try
