@@ -133,9 +133,16 @@ export function WidgetView() {
 
   const overdue   = active.filter(t => t.deadline && t.deadline < todayStr)
                           .sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
-  const dueToday  = active.filter(t => t.deadline === todayStr && t.date !== todayStr);
-  const workToday = active.filter(t => t.date === todayStr);
+  const overdueIds = new Set(overdue.map(t => t.id));
+
+  const dueToday  = active.filter(t => !overdueIds.has(t.id) && t.deadline === todayStr);
+  const dueTodayIds = new Set(dueToday.map(t => t.id));
+
+  const workToday = active.filter(t => !overdueIds.has(t.id) && !dueTodayIds.has(t.id) && t.date === todayStr);
+  const workTodayIds = new Set(workToday.map(t => t.id));
+
   const upNext    = active.filter(t => {
+    if (overdueIds.has(t.id) || dueTodayIds.has(t.id) || workTodayIds.has(t.id)) return false;
     if (!t.deadline || t.deadline <= todayStr) return false;
     return differenceInCalendarDays(parseISO(t.deadline), today) <= 7;
   }).sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? '')).slice(0, 5);
