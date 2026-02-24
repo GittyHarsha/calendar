@@ -5,7 +5,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag } from 'lucide-react';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -33,7 +33,7 @@ function Carousel({ items, accentFn }: {
             {item.label}
           </span>
         </div>
-        <span className="text-[10px] font-semibold text-[#C8C7C4] leading-tight truncate max-w-[150px]">{item.sublabel}</span>
+        <span className="text-[10px] font-semibold text-[#C8C7C4] leading-tight truncate max-w-[150px]" title={item.sublabel}>{item.sublabel}</span>
       </div>
       {/* Dot indicators */}
       {items.length > 1 && (
@@ -94,17 +94,18 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
           };
         });
 
-        // tasks carousel items (all descendants)
+        // tasks carousel items (all descendants) — use deadline if set, else work date
         const ids = descendantIds(p.id);
         const upcomingTasks = tasks
-          .filter(t => ids.includes(t.projectId ?? '') && t.date && !t.completed)
-          .map(t => ({ ...t, d: differenceInDays(parseISO(t.date!), today) }))
+          .filter(t => ids.includes(t.projectId ?? '') && t.deadline && !t.completed)
+          .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
           .sort((a, b) => a.d - b.d);
         const taskItems = upcomingTasks.map(t => {
           const ov = t.d < 0; const urg = t.d >= 0 && t.d <= 3; const so = t.d > 3 && t.d <= 10;
           const a = ov ? '#ef4444' : urg ? '#F27D26' : so ? '#eab308' : '#3B82F6';
-          const lbl = ov ? `${Math.abs(t.d)}d` : t.d === 0 ? '0d' : `${t.d}d`;
-          return { label: lbl, sublabel: t.title, accent: a, urgent: ov || urg };
+          const lbl = ov ? `${Math.abs(t.d)}d over` : t.d === 0 ? 'today' : `${t.d}d`;
+          const shifts = t.deadlineHistory?.length ?? 0;
+          return { label: lbl, sublabel: `${shifts > 0 ? `↻${shifts} ` : ''}${t.title}`, accent: a, urgent: ov || urg };
         });
 
         return (
@@ -118,7 +119,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
             {/* Project deadline */}
             <div className="flex flex-col justify-center gap-0.5 px-3 py-1 min-w-[110px]">
               <span className="text-[9px] font-bold uppercase tracking-widest text-[#555]">Goal</span>
-              <span className="text-xs font-bold text-white truncate max-w-[110px]">{p.name}</span>
+              <span className="text-xs font-bold text-white truncate max-w-[110px]" title={p.name}>{p.name}</span>
               <div className="flex items-baseline gap-1.5 mt-0.5">
                 {(overdue || urgent) && <AlertTriangle size={10} style={{ color: accent }} />}
                 <span className="text-2xl font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
@@ -223,34 +224,37 @@ export function HorizonView() {
   return (
     <div className="flex flex-col h-full w-full bg-[#141414]">
       {/* Toolbar */}
-      <div className="h-11 border-b border-[#1E1E1E] shrink-0 flex items-center gap-0 bg-[#0A0A0A] px-3">
+      <div className="h-10 border-b border-[#1E1E1E] shrink-0 flex items-center gap-0 bg-[#0D0D0D] px-4">
         {/* Logo */}
-        <img src="/logo.svg" alt="Horizon" className="w-6 h-6 shrink-0 mr-4" />
+        <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5 opacity-60" />
 
-        {/* Nav arrows + Today */}
-        <div className="flex items-center gap-0.5 mr-3">
-          <button onClick={() => navigate(-1)} className="w-7 h-7 flex items-center justify-center rounded text-[#555] hover:text-[#E4E3E0] hover:bg-[#1A1A1A] transition-colors">
-            <ChevronLeft size={15} />
+        {/* Nav */}
+        <div className="flex items-center gap-0 mr-4">
+          <button onClick={() => navigate(-1)}
+            className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors">
+            <ChevronLeft size={14} />
           </button>
-          <button onClick={() => setBaseDate(today)} className="h-7 px-2.5 rounded text-[10px] font-bold uppercase tracking-wider text-[#555] hover:text-[#E4E3E0] hover:bg-[#1A1A1A] transition-colors whitespace-nowrap">
-            Today
+          <button onClick={() => setBaseDate(today)}
+            className="h-6 px-2 text-[10px] font-mono tracking-widest uppercase text-[#555] hover:text-[#C8C7C4] transition-colors">
+            now
           </button>
-          <button onClick={() => navigate(1)} className="w-7 h-7 flex items-center justify-center rounded text-[#555] hover:text-[#E4E3E0] hover:bg-[#1A1A1A] transition-colors">
-            <ChevronRight size={15} />
+          <button onClick={() => navigate(1)}
+            className="w-6 h-6 flex items-center justify-center text-[#555] hover:text-[#C8C7C4] transition-colors">
+            <ChevronRight size={14} />
           </button>
         </div>
 
-        {/* Date range label */}
-        <span className="text-[11px] text-[#555] font-mono mr-auto">
-          {format(columns[0].startDate, 'MMM d')} — {format(columns[columns.length - 1].endDate, 'MMM d, yyyy')}
+        {/* Date range */}
+        <span className="text-[11px] text-[#444] font-mono mr-auto tracking-wider">
+          {format(columns[0].startDate, 'MMM d')} – {format(columns[columns.length - 1].endDate, 'MMM d, yyyy')}
         </span>
 
         {/* View mode */}
-        <div className="flex items-center gap-px bg-[#141414] border border-[#222] rounded-md p-0.5 mr-3">
+        <div className="flex items-center gap-0 mr-4">
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
-              className={cn('px-3 h-6 text-[10px] font-bold uppercase tracking-wider rounded transition-colors',
-                viewMode === mode ? 'bg-[#2A2A2A] text-white' : 'text-[#555] hover:text-[#E4E3E0]'
+              className={cn('w-7 h-6 text-[10px] font-mono uppercase tracking-widest transition-colors rounded',
+                viewMode === mode ? 'text-[#F27D26]' : 'text-[#555] hover:text-[#C8C7C4]'
               )}>
               {mode[0]}
             </button>
@@ -258,47 +262,38 @@ export function HorizonView() {
         </div>
 
         {/* Length control */}
-        <div className="flex items-center gap-1 mr-3">
-          <span className="text-[10px] text-[#444] uppercase tracking-wider">Show</span>
+        <div className="flex items-center gap-1 mr-4">
           <input type="number" value={horizonLengths[viewMode]}
             onChange={e => {
               const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
               setHorizonLengths(prev => ({ ...prev, [viewMode]: val }));
             }}
-            className="bg-[#1A1A1A] border border-[#222] text-white text-[11px] font-mono w-10 text-center rounded px-1 py-0.5 focus:outline-none focus:border-[#F27D26]"
+            className="bg-transparent border-b border-[#333] text-[#888] text-[11px] font-mono w-8 text-center focus:outline-none focus:border-[#F27D26] transition-colors"
             min="1" max="365"
           />
-          <span className="text-[10px] text-[#444] uppercase tracking-wider">
+          <span className="text-[10px] text-[#444] font-mono">
             {viewMode === 'daily' ? 'd' : viewMode === 'weekly' ? 'wk' : viewMode === 'monthly' ? 'mo' : 'yr'}
           </span>
         </div>
 
-        {/* Divider */}
-        <div className="w-px h-5 bg-[#222] mx-2" />
-
         {/* Hide done */}
         <button onClick={toggleHideCompleted}
-          className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
-            hideCompleted ? 'text-[#F27D26]' : 'text-[#444] hover:text-[#E4E3E0] hover:bg-[#1A1A1A]'
+          className={cn('w-6 h-6 flex items-center justify-center transition-colors mr-1',
+            hideCompleted ? 'text-[#F27D26]' : 'text-[#555] hover:text-[#C8C7C4]'
           )}
           title={hideCompleted ? 'Show completed' : 'Hide completed'}>
-          {hideCompleted ? <EyeOff size={14} /> : <Eye size={14} />}
+          {hideCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
         </button>
-
-        {/* Divider */}
-        <div className="w-px h-5 bg-[#222] mx-1" />
 
         {/* Projects toggle */}
         <button onClick={() => setShowProjects(p => !p)}
-          className={cn('h-7 px-2.5 flex items-center gap-1.5 rounded text-[10px] font-bold uppercase tracking-wider transition-colors',
-            showProjects ? 'bg-[#F27D26]/15 text-[#F27D26]' : 'text-[#444] hover:text-[#E4E3E0] hover:bg-[#1A1A1A]'
+          className={cn('h-6 px-2 flex items-center gap-1.5 rounded text-[10px] font-mono uppercase tracking-widest transition-colors',
+            showProjects ? 'text-[#F27D26]' : 'text-[#555] hover:text-[#C8C7C4]'
           )}>
-          <LayoutGrid size={13} />
-          <span>Goals</span>
+          <LayoutGrid size={12} />
+          <span>goals</span>
           {projects.filter(p => !p.parentId).length > 0 && (
-            <span className={cn('font-mono', showProjects ? 'text-[#F27D26]' : 'text-[#555]')}>
-              {projects.filter(p => !p.parentId).length}
-            </span>
+            <span className="font-mono">{projects.filter(p => !p.parentId).length}</span>
           )}
         </button>
       </div>
@@ -340,6 +335,12 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
   
   const allColumnTasks = tasks.filter(t => t.date && t.date >= startDateStr && t.date <= endDateStr);
   const columnTasks = hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks;
+  // Ghost tasks: deadline falls in this column, but work date is elsewhere
+  const ghostTasks = tasks.filter(t =>
+    t.deadline && t.deadline >= startDateStr && t.deadline <= endDateStr &&
+    !(t.date && t.date >= startDateStr && t.date <= endDateStr) &&
+    (!hideCompleted || !t.completed)
+  );
   const deadlineProjects = projects.filter(p => p.deadline && p.deadline >= startDateStr && p.deadline <= endDateStr);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -446,7 +447,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
               className="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-between"
               style={{ backgroundColor: `${p.color}20`, color: p.color, border: `1px solid ${p.color}40` }}
             >
-              <span className="truncate mr-2">{p.name}</span>
+              <span className="truncate mr-2" title={p.name}>{p.name}</span>
               <div className="flex items-center gap-2 shrink-0">
                 {mode !== 'daily' && (
                   <span className="text-[9px] opacity-80">{p.deadline ? format(parseISO(p.deadline), 'MMM d') : ''}</span>
@@ -463,7 +464,25 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         {columnTasks.map(task => (
           <DraggableTask key={task.id} task={task} showDate={mode !== 'daily'} />
         ))}
-        {columnTasks.length === 0 && (
+        {ghostTasks.map(task => {
+          const project = projects.find(p => p.id === task.projectId);
+          const daysLeft = differenceInDays(parseISO(task.deadline!), today);
+          const overdue = daysLeft < 0;
+          const urgent = daysLeft >= 0 && daysLeft <= 3;
+          const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : daysLeft <= 10 ? '#eab308' : '#555';
+          const label = overdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'due today' : `due in ${daysLeft}d`;
+          return (
+            <div key={`ghost-${task.id}`}
+              className="relative flex items-center gap-2 px-2 py-1.5 rounded border border-dashed select-none opacity-50 pointer-events-none"
+              style={{ background: accent + '08', borderColor: accent + '40' }}>
+              {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
+              <span className="flex-1 text-sm text-[#888] truncate italic" title={task.title}>{task.title}</span>
+              <Flag size={9} style={{ color: accent }} />
+              <span className="text-[10px] font-mono" style={{ color: accent }}>{label}</span>
+            </div>
+          );
+        })}
+        {columnTasks.length === 0 && ghostTasks.length === 0 && (
           <div className={cn(
             'flex-1 flex items-center justify-center text-[#333] text-xs italic select-none border border-dashed rounded transition-colors',
             isOver ? 'border-[#F27D26]/40 text-[#F27D26]/40' : 'border-[#222]'

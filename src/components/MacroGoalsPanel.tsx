@@ -40,8 +40,8 @@ function ProgressBar({ projectId }: { projectId: string }) {
 function UpcomingTasks({ projectId, today }: { projectId: string; today: Date }) {
   const { tasks } = useStore();
   const relevant = tasks
-    .filter(t => t.projectId === projectId && t.date && !t.completed)
-    .map(t => ({ ...t, days: differenceInDays(parseISO(t.date!), today) }))
+    .filter(t => t.projectId === projectId && t.deadline && !t.completed)
+    .map(t => ({ ...t, days: differenceInDays(parseISO(t.deadline!), today) }))
     .sort((a, b) => a.days - b.days)
     .slice(0, 3);
 
@@ -56,11 +56,13 @@ function UpcomingTasks({ projectId, today }: { projectId: string; today: Date })
         const soon = t.days > 3 && t.days <= 10;
         const accent = overdue ? '#ef4444' : isToday ? '#F27D26' : urgent ? '#f97316' : soon ? '#eab308' : '#555';
         const label = overdue ? `${Math.abs(t.days)}d over` : isToday ? 'today' : t.days === 1 ? 'tmrw' : `${t.days}d`;
+        const shifts = t.deadlineHistory?.length ?? 0;
         return (
           <div key={t.id} className="flex items-center gap-2">
             <span className="text-[9px] font-black font-mono shrink-0 w-10 text-right" style={{ color: accent }}>{label}</span>
             <div className="w-px h-2.5 shrink-0 opacity-40" style={{ background: accent }} />
-            <span className="text-[10px] truncate" style={{ color: overdue || isToday || urgent ? '#C8C7C4' : '#777' }}>{t.title}</span>
+            <span className="text-[10px] truncate" title={t.title} style={{ color: overdue || isToday || urgent ? '#C8C7C4' : '#777' }}>{t.title}</span>
+            {shifts > 0 && <span className="text-[9px] font-bold font-mono shrink-0" style={{ color: '#ef4444' }}>↻{shifts}</span>}
           </div>
         );
       })}
@@ -185,6 +187,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
               className="flex-1 text-sm font-semibold text-white bg-[#0A0A0A] border border-[#F27D26] rounded px-2 py-0.5 focus:outline-none" />
           ) : (
             <span className="flex-1 text-sm font-semibold text-[#C8C7C4] truncate cursor-pointer hover:text-white"
+              title={project.name}
               onClick={() => setEditingName(true)}>{project.name}</span>
           )}
           {/* Hover actions */}
@@ -301,6 +304,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
                 className="text-base font-bold text-white bg-[#0A0A0A] border border-[#F27D26] rounded px-2 py-0.5 focus:outline-none flex-1 min-w-0" />
             ) : (
               <h3 className="text-base font-bold text-white truncate cursor-pointer hover:underline flex-1 min-w-0"
+                title={project.name}
                 onClick={() => setEditingName(true)}>{project.name}</h3>
             )}
           </div>

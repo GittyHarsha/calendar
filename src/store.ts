@@ -20,7 +20,9 @@ export type Task = {
   id: string;
   projectId: string | null;
   title: string;
-  date: string | null; // ISO date string if scheduled, null if in Think Pad
+  date: string | null;      // work date — which day it appears on the calendar
+  deadline: string | null;  // due date — when it must be done by (optional)
+  deadlineHistory: string[]; // previous deadlines, oldest first — tracks procrastination
   completed: boolean;
   startedAt?: string | null;
   priority?: Priority;
@@ -73,11 +75,11 @@ const initialProjects: Project[] = [
 ];
 
 const initialTasks: Task[] = [
-  { id: 't1', projectId: 'p1', title: 'DB schema design', date: format(addDays(today, 1), 'yyyy-MM-dd'), completed: false, startedAt: null },
-  { id: 't2', projectId: 'p1', title: 'Auth implementation', date: format(addDays(today, 3), 'yyyy-MM-dd'), completed: false, startedAt: null },
-  { id: 't3', projectId: 'p1', title: 'UI design', date: null, completed: false, startedAt: null },
-  { id: 't4', projectId: 'p2', title: 'Literature review', date: format(addDays(today, 5), 'yyyy-MM-dd'), completed: false, startedAt: null },
-  { id: 't5', projectId: null, title: 'Buy groceries', date: format(today, 'yyyy-MM-dd'), completed: false, startedAt: null },
+  { id: 't1', projectId: 'p1', title: 'DB schema design', date: format(addDays(today, 1), 'yyyy-MM-dd'), deadline: format(addDays(today, 10), 'yyyy-MM-dd'), deadlineHistory: [], completed: false, startedAt: null },
+  { id: 't2', projectId: 'p1', title: 'Auth implementation', date: format(addDays(today, 3), 'yyyy-MM-dd'), deadline: format(addDays(today, 14), 'yyyy-MM-dd'), deadlineHistory: [], completed: false, startedAt: null },
+  { id: 't3', projectId: 'p1', title: 'UI design', date: null, deadline: null, deadlineHistory: [], completed: false, startedAt: null },
+  { id: 't4', projectId: 'p2', title: 'Literature review', date: format(addDays(today, 5), 'yyyy-MM-dd'), deadline: format(addDays(today, 20), 'yyyy-MM-dd'), deadlineHistory: [], completed: false, startedAt: null },
+  { id: 't5', projectId: null, title: 'Buy groceries', date: format(today, 'yyyy-MM-dd'), deadline: null, deadlineHistory: [], completed: false, startedAt: null },
 ];
 
 export const useStore = create<EpochState>()(
@@ -112,7 +114,7 @@ export const useStore = create<EpochState>()(
   }),
   
   addTask: (task, recurrence = 'none', startDate) => set((state) => {
-    const baseTask = { ...task, startedAt: task.startedAt || null };
+    const baseTask = { ...task, startedAt: task.startedAt || null, deadlineHistory: task.deadlineHistory ?? [] };
     if (recurrence === 'none' || !startDate) {
       return { tasks: [...state.tasks, { ...baseTask, id: crypto.randomUUID(), completed: false }] };
     }
@@ -144,7 +146,17 @@ export const useStore = create<EpochState>()(
   }),
   
   updateTask: (id, updates) => set((state) => ({
-    tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
+    tasks: state.tasks.map(t => {
+      if (t.id !== id) return t;
+      // Track deadline shift: if deadline is being changed to a later date, record old one
+      if (updates.deadline !== undefined && updates.deadline !== t.deadline && t.deadline) {
+        const isShiftingLater = updates.deadline && new Date(updates.deadline) > new Date(t.deadline);
+        if (isShiftingLater) {
+          return { ...t, ...updates, deadlineHistory: [...(t.deadlineHistory ?? []), t.deadline] };
+        }
+      }
+      return { ...t, ...updates };
+    })
   })),
   
   deleteTask: (id) => set((state) => ({

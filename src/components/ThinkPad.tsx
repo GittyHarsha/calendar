@@ -40,7 +40,9 @@ export function ThinkPad() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [newTaskDate, setNewTaskDate] = useState('');
+  const [newTaskDeadline, setNewTaskDeadline] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [newTaskRecurrence, setNewTaskRecurrence] = useState<Recurrence>('none');
   const [selectedPriority, setSelectedPriority] = useState<Priority>('Medium');
   const [scratchpadFullscreen, setScratchpadFullscreen] = useState(false);
@@ -63,11 +65,14 @@ export function ThinkPad() {
       title: newTaskTitle.trim(),
       projectId: selectedProjectId || null,
       date: newTaskDate || null,
+      deadline: newTaskDeadline || null,
+      deadlineHistory: [],
       priority: selectedPriority,
     }, newTaskRecurrence, newTaskDate || undefined);
     
     setNewTaskTitle('');
     setNewTaskDate('');
+    setNewTaskDeadline('');
     setNewTaskRecurrence('none');
     setSelectedPriority('Medium');
   };
@@ -160,11 +165,22 @@ export function ThinkPad() {
               <button type="button"
                 onClick={() => setShowDatePicker(p => !p)}
                 className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
-                {newTaskDate ? format(new Date(newTaskDate + 'T00:00:00'), 'MMM d, yyyy') : 'Pick date…'}
+                {newTaskDate ? format(new Date(newTaskDate + 'T00:00:00'), 'MMM d, yyyy') : '📅 Work date…'}
               </button>
               {showDatePicker && (
                 <DatePickerPopover value={newTaskDate || null} onChange={d => { setNewTaskDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />
               )}
+              <button type="button"
+                onClick={() => setShowDeadlinePicker(p => !p)}
+                className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs hover:border-[#ef4444] transition-colors focus:outline-none"
+                style={{ color: newTaskDeadline ? '#ef4444' : '#555' }}>
+                {newTaskDeadline ? `🚩 ${format(new Date(newTaskDeadline + 'T00:00:00'), 'MMM d')}` : '🚩 Due date…'}
+              </button>
+              {showDeadlinePicker && (
+                <DatePickerPopover value={newTaskDeadline || null} onChange={d => { setNewTaskDeadline(d ?? ''); setShowDeadlinePicker(false); }} onClose={() => setShowDeadlinePicker(false)} clearable />
+              )}
+            </div>
+            <div className="flex gap-2">
               <select
                 value={newTaskRecurrence}
                 onChange={(e) => setNewTaskRecurrence(e.target.value as Recurrence)}
