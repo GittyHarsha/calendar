@@ -28,43 +28,115 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
   isActive: boolean; onComplete: () => void; onFocus: () => void;
 }) {
   const proj = projects.find(p => p.id === task.projectId);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
+  const [popupTop, setPopupTop] = useState(0);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showPopup() {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    if (rowRef.current) {
+      const r = rowRef.current.getBoundingClientRect();
+      // position popup below the row, clamped inside viewport
+      const top = Math.min(r.bottom + 4, window.innerHeight - 130);
+      setPopupTop(top);
+    }
+    setHovered(true);
+  }
+  function hidePopup() {
+    leaveTimer.current = setTimeout(() => setHovered(false), 120);
+  }
+  function keepPopup() {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+  }
+
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px',
-      opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
-      borderBottom: '1px solid var(--border-1)',
-      background: isActive ? `${accent}0D` : 'transparent',
-    }}>
-      <button onClick={onComplete} style={{
-        width: 15, height: 15, borderRadius: '50%', border: '1.5px solid var(--border-1)',
-        background: 'none', cursor: 'pointer', flexShrink: 0, padding: 0,
-        transition: 'border-color 0.15s',
-      }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = accent)}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
-      />
-      {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />}
-      <span style={{ flex: 1, fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {task.title}
-      </span>
-      {task.deadline && (
-        <span style={{ fontSize: 10, fontWeight: 700, color: daysColor(task.deadline), flexShrink: 0 }}>
-          {daysLabel(task.deadline)}
+    <>
+      <div ref={rowRef}
+        onMouseEnter={showPopup} onMouseLeave={hidePopup}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px',
+          opacity: fading ? 0 : 1, transition: 'opacity 0.25s',
+          borderBottom: '1px solid var(--border-1)',
+          background: hovered ? `${accent}10` : isActive ? `${accent}0D` : 'transparent',
+        }}>
+        <button onClick={onComplete} style={{
+          width: 15, height: 15, borderRadius: '50%', border: '1.5px solid var(--border-1)',
+          background: 'none', cursor: 'pointer', flexShrink: 0, padding: 0,
+          transition: 'border-color 0.15s',
+        }}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = accent)}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
+        />
+        {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />}
+        <span style={{ flex: 1, fontSize: 11, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {task.title}
         </span>
+        {task.deadline && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: daysColor(task.deadline), flexShrink: 0 }}>
+            {daysLabel(task.deadline)}
+          </span>
+        )}
+        {isActive && <span style={{ fontSize: 9, color: accent, flexShrink: 0 }}>▶</span>}
+      </div>
+
+      {/* Hover popup — stays inside 320px widget */}
+      {hovered && (
+        <div
+          onMouseEnter={keepPopup} onMouseLeave={hidePopup}
+          style={{
+            position: 'fixed', left: 8, width: 304, zIndex: 9999,
+            top: popupTop,
+            background: 'var(--bg-1)', border: `1px solid ${accent}44`,
+            borderRadius: 10, padding: '10px 12px',
+            boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 1px ${accent}22`,
+            fontFamily: 'Consolas, monospace',
+          }}>
+          {/* Task title */}
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1)', marginBottom: 6, lineHeight: 1.3 }}>
+            {task.title}
+          </div>
+
+          {/* Meta row */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            {proj && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-2)' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, display: 'inline-block' }} />
+                {proj.name}
+              </span>
+            )}
+            {task.deadline && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: daysColor(task.deadline) }}>
+                ⏰ {daysLabel(task.deadline)}
+              </span>
+            )}
+            {task.date && (
+              <span style={{ fontSize: 10, color: 'var(--text-2)' }}>
+                📅 {format(parseISO(task.date), 'MMM d')}
+              </span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => { onFocus(); setHovered(false); }} style={{
+              flex: 1, padding: '5px 0', borderRadius: 6, border: `1px solid ${accent}55`,
+              background: `${accent}15`, color: accent, fontSize: 11, cursor: 'pointer',
+              fontFamily: 'Consolas, monospace', fontWeight: 600,
+            }}>
+              {isActive ? '▶ Focusing…' : '⏱ Focus 25m'}
+            </button>
+            <button onClick={() => { onComplete(); setHovered(false); }} style={{
+              flex: 1, padding: '5px 0', borderRadius: 6, border: '1px solid var(--border-1)',
+              background: 'var(--bg-2)', color: 'var(--text-2)', fontSize: 11, cursor: 'pointer',
+              fontFamily: 'Consolas, monospace',
+            }}>
+              ✓ Done
+            </button>
+          </div>
+        </div>
       )}
-      {/* Focus button */}
-      <button onClick={onFocus} title={isActive ? 'Focusing…' : 'Focus 25m'} style={{
-        flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer',
-        fontSize: 10, padding: '1px 3px', borderRadius: 4,
-        color: isActive ? accent : 'var(--border-1)',
-        transition: 'color 0.15s',
-      }}
-        onMouseEnter={e => (e.currentTarget.style.color = accent)}
-        onMouseLeave={e => { if (!isActive) (e.currentTarget.style.color = 'var(--border-1)'); }}
-      >
-        {isActive ? '▶' : '⏱'}
-      </button>
-    </div>
+    </>
   );
 }
 

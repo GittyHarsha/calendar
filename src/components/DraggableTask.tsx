@@ -50,15 +50,31 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   const deadlineDays = task.deadline ? differenceInDays(parseISO(task.deadline), today) : null;
   const dl = deadlineAccent(deadlineDays);
 
-  // Position popup below/above the anchor card
+  // Position popup to the RIGHT of the card (fallback: left side)
   const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
   useEffect(() => {
     if (!anchorRef.current) return;
     const r = anchorRef.current.getBoundingClientRect();
-    const popH = 230;
-    const spaceBelow = window.innerHeight - r.bottom;
-    const top = spaceBelow < popH + 2 ? r.top - popH - 2 : r.bottom + 2;
-    const left = Math.min(r.left, window.innerWidth - 240);
+    const popW = 224; // w-56
+    const popH = 280;
+    const gap = 6;
+
+    // Try right side first
+    let left = r.right + gap;
+    if (left + popW > window.innerWidth - 8) {
+      // Not enough room on right → go left
+      left = r.left - popW - gap;
+    }
+    // Clamp left within viewport
+    left = Math.max(8, left);
+
+    // Vertical: align top with card, clamp so popup doesn't go off bottom
+    let top = r.top;
+    if (top + popH > window.innerHeight - 8) {
+      top = window.innerHeight - popH - 8;
+    }
+    top = Math.max(8, top);
+
     setPos({ top, left, ready: true });
   }, [anchorRef]);
 
