@@ -9,11 +9,12 @@ public class WidgetForm : Form
     private readonly WebView2 _webView;
     private const string VirtualHost = "calendar.app";
     private bool _closeHover;
+    private readonly Action<string, string> _notify;
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
-    public WidgetForm(string distFolder, Action onFocusMain)
+    public WidgetForm(string distFolder, Action onFocusMain, Action<string, string> notify)
     {
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
@@ -85,6 +86,7 @@ public class WidgetForm : Form
 
         // ── WebView2 fills remaining space ──
         _webView = new WebView2 { Dock = DockStyle.Fill };
+        _notify = notify;
 
         // z-order: WebView2 first (bottom), header second (on top)
         Controls.Add(_webView);
@@ -106,6 +108,17 @@ public class WidgetForm : Form
                     var msg = System.Text.Json.JsonDocument.Parse(e.WebMessageAsJson);
                     var type = msg.RootElement.GetProperty("type").GetString();
                     if (type == "focusMain") Invoke(onFocusMain);
+                    else if (type == "pomodoroComplete")
+                    {
+                        var isEyeRest = msg.RootElement.TryGetProperty("isEyeRest", out var er) && er.GetBoolean();
+                        var taskTitle = msg.RootElement.TryGetProperty("taskTitle", out var tt) && tt.ValueKind == System.Text.Json.JsonValueKind.String ? tt.GetString() : null;
+                        var sessions = msg.RootElement.TryGetProperty("sessionsCompleted", out var sc) ? sc.GetInt32() : 1;
+                        var title = isEyeRest ? "👁 Eye Rest Done" : $"🍅 Session {sessions} Complete!";
+                        var body = isEyeRest ? "Time to get back to work." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a 5-min break ☕" : "Take a 5-min break ☕");
+                        Invoke(() => _notify(title, body));
+                    }
+                    else if (type == "breakComplete")
+                        Invoke(() => _notify("☕ Break Over", "Back to work — start your next session!"));
                 }
                 catch { }
             };

@@ -101,6 +101,25 @@ export function PomodoroBar() {
         completeWorkSession();
         setShowBreakModal(true);
         if (intervalRef.current) clearInterval(intervalRef.current);
+        // Fire Windows balloon tip via WebView2 message channel
+        try {
+          const taskTitle = tasks.find(t => t.id === pomodoro.taskId)?.title ?? null;
+          (window as any).chrome?.webview?.postMessage({
+            type: 'pomodoroComplete',
+            isEyeRest: pomodoro.taskId === null,
+            taskTitle,
+            sessionsCompleted: pomodoro.sessionsCompleted + 1,
+          });
+        } catch { /* not in desktop app */ }
+      }
+
+      if (pomodoro.phase === 'break' && e >= BREAK_DURATION) {
+        skipBreak();
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        // Notify break over
+        try {
+          (window as any).chrome?.webview?.postMessage({ type: 'breakComplete' });
+        } catch { /* not in desktop app */ }
       }
     };
     tick();

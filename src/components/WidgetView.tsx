@@ -100,7 +100,8 @@ function Section({ label, color, children }: { label: string; color: string; chi
 
 export function WidgetView() {
   const { tasks, projects, updateTask, addTask, theme, pomodoro,
-          startPomodoro, pausePomodoro, stopPomodoro, getTaskTime } = useStore();
+          startPomodoro, pausePomodoro, stopPomodoro, getTaskTime,
+          completeWorkSession, skipBreak } = useStore();
   const [fading, setFading] = useState<Set<string>>(new Set());
   const [quickAdd, setQuickAdd] = useState('');
   const [elapsed, setElapsed] = useState(0);
@@ -122,13 +123,36 @@ export function WidgetView() {
     r.setAttribute('data-theme', theme);
   }, [theme]);
 
-  // Pomodoro countdown tick
+  // Pomodoro countdown tick — handles completion in widget context too
   useEffect(() => {
     if (pomodoro.phase === 'idle' || !pomodoro.sessionStart) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setElapsed(0); return;
     }
-    const tick = () => setElapsed(Date.now() - new Date(pomodoro.sessionStart!).getTime());
+    const tick = () => {
+      const e = Date.now() - new Date(pomodoro.sessionStart!).getTime();
+      setElapsed(e);
+
+      if (pomodoro.phase === 'work' && e >= WORK_DURATION) {
+        completeWorkSession();
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        try {
+          const taskTitle = tasks.find(t => t.id === pomodoro.taskId)?.title ?? null;
+          (window as any).chrome?.webview?.postMessage({
+            type: 'pomodoroComplete',
+            isEyeRest: pomodoro.taskId === null,
+            taskTitle,
+            sessionsCompleted: pomodoro.sessionsCompleted + 1,
+          });
+        } catch { /* not in desktop */ }
+      }
+
+      if (pomodoro.phase === 'break' && e >= BREAK_DURATION) {
+        skipBreak();
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        try { (window as any).chrome?.webview?.postMessage({ type: 'breakComplete' }); } catch { /* not in desktop */ }
+      }
+    };
     tick();
     intervalRef.current = setInterval(tick, 500);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };

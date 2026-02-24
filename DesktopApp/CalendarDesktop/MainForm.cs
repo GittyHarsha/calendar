@@ -80,7 +80,7 @@ public class MainForm : Form
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
-            // Handle messages from the main app (e.g. widget toggle button)
+            // Handle messages from the main app (e.g. widget toggle, pomodoro notifications)
             _webView.CoreWebView2.WebMessageReceived += (_, e) =>
             {
                 try
@@ -88,6 +88,26 @@ public class MainForm : Form
                     var msg = System.Text.Json.JsonDocument.Parse(e.WebMessageAsJson);
                     var type = msg.RootElement.GetProperty("type").GetString();
                     if (type == "toggleWidget") Invoke(ToggleWidget);
+                    else if (type == "pomodoroComplete")
+                    {
+                        var isEyeRest = msg.RootElement.TryGetProperty("isEyeRest", out var er) && er.GetBoolean();
+                        var taskTitle = msg.RootElement.TryGetProperty("taskTitle", out var tt) && tt.ValueKind == System.Text.Json.JsonValueKind.String
+                            ? tt.GetString() : null;
+                        var sessions = msg.RootElement.TryGetProperty("sessionsCompleted", out var sc) ? sc.GetInt32() : 1;
+                        Invoke(() =>
+                        {
+                            var title = isEyeRest ? "👁 Eye Rest Done" : $"🍅 Session {sessions} Complete!";
+                            var body = isEyeRest ? "Time to get back to work." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a 5-min break ☕" : "Take a 5-min break ☕");
+                            TrayIcon.ShowBalloonTip(8000, title, body, ToolTipIcon.Info);
+                            // Bring window to front so modal is visible
+                            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                            Show(); Activate();
+                        });
+                    }
+                    else if (type == "breakComplete")
+                    {
+                        Invoke(() => TrayIcon.ShowBalloonTip(5000, "☕ Break Over", "Back to work — start your next session!", ToolTipIcon.Info));
+                    }
                 }
                 catch { }
             };
@@ -114,7 +134,9 @@ public class MainForm : Form
     {
         if (_widget == null || _widget.IsDisposed)
         {
-            _widget = new WidgetForm(ResolveDist(), () => { Show(); Activate(); WindowState = FormWindowState.Maximized; });
+            _widget = new WidgetForm(ResolveDist(),
+                () => { Show(); Activate(); WindowState = FormWindowState.Maximized; },
+                (title, body) => TrayIcon.ShowBalloonTip(8000, title, body, ToolTipIcon.Info));
             _widget.Show();
         }
         else _widget.Show();
