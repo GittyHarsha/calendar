@@ -6,7 +6,7 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag, AppWindow, Palette } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Clock, Flag, AppWindow, Palette, Timer } from 'lucide-react';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -160,7 +160,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
 }
 
 export function HorizonView() {
-  const { projects, tasks, hideCompleted, toggleHideCompleted } = useStore();
+  const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro } = useStore();
   const today = startOfToday();
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [baseDate, setBaseDate] = useState<Date>(today);
@@ -300,6 +300,15 @@ export function HorizonView() {
           {projects.filter(p => !p.parentId).length > 0 && (
             <span className="font-mono">{projects.filter(p => !p.parentId).length}</span>
           )}
+        </button>
+
+        {/* Eye rest timer */}
+        <button
+          onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
+          title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop eye rest timer' : 'Start 25m eye rest timer'}
+          className="w-6 h-6 flex items-center justify-center transition-colors ml-1"
+          style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? 'var(--accent)' : '#bbb' }}>
+          👁
         </button>
 
         {/* Widget toggle */}

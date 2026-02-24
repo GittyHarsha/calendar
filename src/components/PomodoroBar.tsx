@@ -111,12 +111,13 @@ export function PomodoroBar() {
   if (pomodoro.phase === 'idle' && !showBreakModal) return null;
 
   const task = tasks.find(t => t.id === pomodoro.taskId);
+  const isEyeRest = pomodoro.taskId === null;
   const project = task ? projects.find(p => p.id === task.projectId) : null;
   const isWork = pomodoro.phase === 'work';
   const duration = isWork ? WORK_DURATION : BREAK_DURATION;
   const remaining = Math.max(0, duration - elapsed);
   const pct = Math.min(1, elapsed / duration);
-  const accent = isWork ? '#F27D26' : '#22c55e';
+  const accent = isWork ? (isEyeRest ? '#22d3ee' : '#F27D26') : '#22c55e';
 
   return (
     <>
@@ -147,14 +148,19 @@ export function PomodoroBar() {
           {/* Task info */}
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: 10, color: '#555', marginBottom: 1 }}>
-              {isWork ? 'FOCUS' : 'BREAK'} · {TOMATO.repeat(Math.min(pomodoro.sessionsCompleted, 6))}
+              {isEyeRest ? 'EYE REST' : isWork ? 'FOCUS' : 'BREAK'} · {TOMATO.repeat(Math.min(pomodoro.sessionsCompleted, 6))}
               {pomodoro.sessionsCompleted > 6 ? `+${pomodoro.sessionsCompleted - 6}` : ''}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {project && <span style={{ width: 7, height: 7, borderRadius: '50%', background: project.color, display: 'inline-block', flexShrink: 0 }} />}
-              <span style={{ fontSize: 13, color: '#D4D3D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {task?.title ?? '—'}
-              </span>
+              {isEyeRest
+                ? <span style={{ fontSize: 13, color: '#22d3ee' }}>👁 Eye Rest — look away from screen</span>
+                : <>
+                    {project && <span style={{ width: 7, height: 7, borderRadius: '50%', background: project.color, display: 'inline-block', flexShrink: 0 }} />}
+                    <span style={{ fontSize: 13, color: '#D4D3D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {task?.title ?? '—'}
+                    </span>
+                  </>
+              }
             </div>
           </div>
 
@@ -177,10 +183,10 @@ export function PomodoroBar() {
       )}
 
       {/* Break modal */}
-      {showBreakModal && task && (
+      {showBreakModal && (
         <BreakModal
           sessionsCompleted={pomodoro.sessionsCompleted}
-          taskTitle={task.title}
+          taskTitle={isEyeRest ? '👁 Eye Rest' : (task?.title ?? '—')}
           onStartBreak={() => { startBreak(); setShowBreakModal(false); }}
           onSkipBreak={() => { skipBreak(); setShowBreakModal(false); }}
           onStop={() => { stopPomodoro(); setShowBreakModal(false); }}

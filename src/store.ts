@@ -94,7 +94,7 @@ type EpochState = {
   deleteTask: (id: string) => void;
 
   // Pomodoro + time tracking
-  startPomodoro: (taskId: string) => void;
+  startPomodoro: (taskId: string | null) => void;
   pausePomodoro: () => void;
   stopPomodoro: () => void;
   completeWorkSession: () => void;
