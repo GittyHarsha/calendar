@@ -195,13 +195,13 @@ export function HorizonView() {
 
         {/* Nav */}
         <div className="flex items-center gap-0 mr-3">
-          <button onClick={() => navigate(-1)} className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+          <button onClick={() => navigate(-1)} aria-label="Previous period" className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             <ChevronLeft size={14} />
           </button>
           <button onClick={() => setBaseDate(today)} className="h-6 px-2 text-[12px] font-mono tracking-widest uppercase text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             now
           </button>
-          <button onClick={() => navigate(1)} className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+          <button onClick={() => navigate(1)} aria-label="Next period" className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -215,6 +215,7 @@ export function HorizonView() {
         <div className="flex items-center gap-0 mr-3 bg-[#0A0A0A] rounded-md border border-[#222] px-1" style={{ height: 26 }}>
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => (
             <button key={mode} onClick={() => setViewMode(mode)}
+              aria-label={`${mode.charAt(0).toUpperCase() + mode.slice(1)} view`}
               className={cn('w-6 h-5 text-[11px] font-mono uppercase tracking-widest transition-colors rounded',
                 viewMode === mode ? '' : 'text-[#666] hover:text-[#bbb]'
               )}
@@ -389,10 +390,8 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         )}
         {mode === 'weekly' && (
           <>
-            <div className={cn(
-              "text-sm font-bold uppercase tracking-wider",
-              isCurrent ? "text-[#F27D26]" : "text-[#8E9299]"
-            )}>
+            <div className="text-sm font-bold uppercase tracking-wider"
+              style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
               Week of {format(startDate, 'MMM d')}
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
@@ -402,10 +401,8 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         )}
         {mode === 'monthly' && (
           <>
-            <div className={cn(
-              "text-lg font-bold uppercase tracking-wider",
-              isCurrent ? "text-[#F27D26]" : "text-[#8E9299]"
-            )}>
+            <div className="text-lg font-bold uppercase tracking-wider"
+              style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
               {format(startDate, 'MMMM')}
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
@@ -415,14 +412,12 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         )}
         {mode === 'yearly' && (
           <>
-            <div className={cn(
-              "text-lg font-bold uppercase tracking-wider",
-              isCurrent ? "text-[#F27D26]" : "text-[#8E9299]"
-            )}>
+            <div className="text-lg font-bold uppercase tracking-wider"
+              style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
               {format(startDate, 'yyyy')}
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
-              {format(startDate, 'yyyy')}
+              Jan – Dec
             </div>
           </>
         )}

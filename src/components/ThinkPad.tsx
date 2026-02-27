@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useStore, Recurrence, Priority } from '../store';
 import { useDroppable } from '@dnd-kit/core';
@@ -28,7 +28,7 @@ function ScratchpadModal({ value, onChange, onClose }: { value: string; onChange
         onChange={e => onChange(e.target.value)}
         className="flex-1 bg-transparent text-[#E4E3E0] font-mono text-sm p-8 focus:outline-none resize-none leading-relaxed"
         placeholder="Dump your thoughts here..."
-        style={{ caretColor: '#F27D26' }}
+        style={{ caretColor: 'var(--accent)' }}
       />
     </div>,
     document.body
@@ -46,16 +46,30 @@ export function ThinkPad() {
   const [newTaskRecurrence, setNewTaskRecurrence] = useState<Recurrence>('none');
   const [selectedPriority, setSelectedPriority] = useState<Priority>('Medium');
   const [scratchpadFullscreen, setScratchpadFullscreen] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const today = format(startOfToday(), 'yyyy-MM-dd');
   // Tasks with no date (inbox)
   const inboxTasks = tasks.filter(t => t.date === null && (!hideCompleted || !t.completed));
+  const filteredInbox = inboxTasks.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
   // Overdue: has a date in the past, not completed
   const overdueTasks = tasks.filter(t => t.date !== null && t.date < today && !t.completed);
 
   const { setNodeRef, isOver } = useDroppable({
     id: 'think-pad',
   });
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +89,7 @@ export function ThinkPad() {
     setNewTaskDeadline('');
     setNewTaskRecurrence('none');
     setSelectedPriority('Medium');
+    setSelectedProjectId('');
   };
 
   return (
@@ -124,6 +139,22 @@ export function ThinkPad() {
         <div className="flex flex-col gap-2 flex-1">
           <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Inbox Tasks</label>
           
+          <div className="relative mb-2">
+            <input
+              ref={searchRef}
+              type="text"
+              placeholder="Search tasks…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-[#111] border border-[#222] rounded px-2 py-1 text-xs text-[#ccc] placeholder-[#555] focus:outline-none focus:border-[#444] pr-6"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#555] hover:text-[#aaa] transition-colors">
+                ×
+              </button>
+            )}
+          </div>
+          
           <form onSubmit={handleAddTask} className="flex flex-col gap-2 mb-2 bg-[#141414] p-3 rounded-md border border-[#2A2A2A]">
             <input
               id="new-task-input"
@@ -164,7 +195,7 @@ export function ThinkPad() {
               </div>
               {/* Recurrence pills */}
               <div className="flex gap-1 ml-auto">
-                {([['none', '·'], ['daily', 'D'], ['weekly', 'W'], ['monthly', 'M']] as const).map(([val, label]) => (
+                {([['none', '·'], ['daily', 'D'], ['weekly', 'W'], ['monthly', 'Mo']] as const).map(([val, label]) => (
                   <button key={val} type="button" onClick={() => setNewTaskRecurrence(val as Recurrence)}
                     className="w-7 h-7 rounded text-[11px] font-bold transition-all"
                     style={{ background: newTaskRecurrence === val ? 'var(--accent-muted, #F27D2622)' : '#0A0A0A', color: newTaskRecurrence === val ? 'var(--accent)' : '#555', border: `1px solid ${newTaskRecurrence === val ? 'var(--accent)' : '#2A2A2A'}` }}
@@ -184,7 +215,7 @@ export function ThinkPad() {
                 <DatePickerPopover value={newTaskDate || null} onChange={d => { setNewTaskDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />
               )}
               <button type="button"
-                onClick={() => setShowDeadlinePicker(p => !p)}
+                onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
                 className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs hover:border-[#ef4444] transition-colors focus:outline-none"
                 style={{ color: newTaskDeadline ? '#ef4444' : '#555' }}>
                 {newTaskDeadline ? `🚩 ${format(new Date(newTaskDeadline + 'T00:00:00'), 'MMM d')}` : '🚩 Due date…'}
@@ -204,12 +235,12 @@ export function ThinkPad() {
             ref={setNodeRef} 
             className={`flex-1 flex flex-col gap-2 rounded-md transition-colors ${isOver ? 'bg-[#1A1A1A]' : ''}`}
           >
-            {inboxTasks.length === 0 ? (
+            {filteredInbox.length === 0 ? (
               <div className="text-xs text-[#aaa] italic p-4 text-center border border-dashed border-[#2A2A2A] rounded-md">
                 No tasks in inbox.
               </div>
             ) : (
-              inboxTasks.map(task => (
+              filteredInbox.map(task => (
                 <DraggableTask key={task.id} task={task} />
               ))
             )}

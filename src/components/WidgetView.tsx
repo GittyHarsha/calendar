@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { differenceInCalendarDays, format, parseISO, startOfToday } from 'date-fns';
 import { useStore, Task, Project, THEMES, WORK_DURATION, BREAK_DURATION, fmtDuration } from '../store';
 
-const today = startOfToday();
-const todayStr = format(today, 'yyyy-MM-dd');
-
 function pad(n: number) { return String(n).padStart(2, '0'); }
 function fmtCountdown(ms: number) {
   const s = Math.max(0, Math.ceil(ms / 1000));
@@ -12,11 +9,13 @@ function fmtCountdown(ms: number) {
 }
 
 function daysLabel(dl: string) {
-  const d = differenceInCalendarDays(parseISO(dl), today);
+  const now = startOfToday();
+  const d = differenceInCalendarDays(parseISO(dl), now);
   return d < 0 ? `${Math.abs(d)}d over` : d === 0 ? 'today' : d === 1 ? 'tmrw' : `${d}d`;
 }
 function daysColor(dl: string) {
-  const d = differenceInCalendarDays(parseISO(dl), today);
+  const now = startOfToday();
+  const d = differenceInCalendarDays(parseISO(dl), now);
   if (d < 0)  return '#ef4444';
   if (d === 0) return '#F27D26';
   if (d <= 3)  return '#f97316';
@@ -106,6 +105,9 @@ export function WidgetView() {
   const [quickAdd, setQuickAdd] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const today = startOfToday();
+  const todayStr = format(today, 'yyyy-MM-dd');
 
   const thm = THEMES[theme] ?? THEMES.void;
   const accent = thm.accent;
@@ -266,7 +268,7 @@ export function WidgetView() {
             {isWork ? (
               <button onClick={pausePomodoro} title="Pause" style={miniBtn('var(--bg-2)')}>⏸</button>
             ) : (
-              <button onClick={() => startPomodoro(pomodoro.taskId!)} title="Skip break" style={miniBtn('var(--bg-2)')}>▶</button>
+              <button onClick={() => skipBreak()} title="Skip break" style={miniBtn('var(--bg-2)')}>▶</button>
             )}
             <button onClick={stopPomodoro} title="Stop" style={miniBtn('#200')} >✕</button>
           </div>

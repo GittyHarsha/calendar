@@ -82,7 +82,7 @@ export default function App() {
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-full font-sans overflow-hidden" style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }}>
         {/* Left Sidebar: Think Pad */}
-        <div className="w-80 border-r border-[#2A2A2A] flex flex-col shrink-0" style={{ background: 'var(--bg-0)' }}>
+        <div className="w-80 flex flex-col shrink-0" style={{ background: 'var(--bg-0)', borderRight: '1px solid var(--border-1)' }}>
           <ThinkPad />
         </div>
 
@@ -94,7 +94,7 @@ export default function App() {
 
       <DragOverlay>
         {activeTask ? (
-          <div className="bg-[#2A2A2A] border border-[#444] p-3 rounded-md shadow-xl text-sm opacity-90 cursor-grabbing">
+          <div className="p-3 rounded-md shadow-xl text-sm opacity-90 cursor-grabbing" style={{ background: 'var(--bg-2)', border: '1px solid var(--border-1)', color: 'var(--text-1)' }}>
             {activeTask.title}
           </div>
         ) : null}

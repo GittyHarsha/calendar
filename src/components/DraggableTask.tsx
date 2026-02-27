@@ -38,6 +38,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   const { projects, updateTask, deleteTask, startPomodoro, getTaskTime, pomodoro } = useStore();
   const [editingDate, setEditingDate] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const pickerOpen = editingDate || editingDeadline;
 
   // Cancel close whenever a picker is open
@@ -175,15 +176,23 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
         {/* Notes + Delete */}
         <div className="flex items-center justify-between">
           <button onClick={() => { onOpenNotes(); onClose(); }}
-            className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEb] transition-colors">
+            className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
             <AlignLeft size={13} />
             {task.description ? 'Edit notes' : 'Add notes'}
           </button>
-          <button onClick={() => { deleteTask(task.id); onClose(); }}
-            className="flex items-center gap-1 text-xs text-[#aaa] hover:text-red-400 transition-colors">
-            <Trash2 size={13} />
-            Delete
-          </button>
+          {confirmDelete ? (
+            <span className="flex items-center gap-1 text-xs">
+              <button onClick={() => { deleteTask(task.id); onClose(); }} className="text-red-400 hover:text-red-300 font-bold">Yes</button>
+              <span className="text-[#555]">/</span>
+              <button onClick={() => setConfirmDelete(false)} className="text-[#aaa] hover:text-white">No</button>
+            </span>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1 text-xs text-[#aaa] hover:text-red-400 transition-colors">
+              <Trash2 size={13} />
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -267,6 +276,9 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
 
           {/* Check */}
           <button onClick={() => updateTask(task.id, { completed: !task.completed })}
+            role="checkbox"
+            aria-checked={task.completed}
+            aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
             className={cn('shrink-0 w-3.5 h-3.5 rounded-full border transition-colors',
               task.completed ? 'bg-[#F27D26] border-[#F27D26]' : 'border-[#444] hover:border-[#F27D26]'
             )} />

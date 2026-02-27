@@ -58,7 +58,7 @@ export function TaskNotesModal({ task, onClose }: Props) {
           value={notes}
           onChange={e => setNotes(e.target.value)}
           placeholder="Write anything…"
-          className="flex-1 w-full bg-transparent text-[#C8C7C4] placeholder-[#333] text-base leading-relaxed px-8 py-6 focus:outline-none resize-none font-mono"
+          className="flex-1 w-full bg-transparent text-[#C8C7C4] placeholder-[#333] text-base leading-relaxed px-8 py-6 focus:outline-none resize-none font-sans"
         />
 
         {/* Footer */}

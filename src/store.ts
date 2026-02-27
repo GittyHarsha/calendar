@@ -226,9 +226,9 @@ export const useStore = create<EpochState>()(
   })),
 
   // ── Pomodoro ─────────────────────────────────────────────────────────────
-  startPomodoro: (taskId) => set({
-    pomodoro: { taskId, phase: 'work', sessionStart: new Date().toISOString(), sessionsCompleted: 0 }
-  }),
+  startPomodoro: (taskId) => set((state) => ({
+    pomodoro: { taskId, phase: 'work', sessionStart: new Date().toISOString(), sessionsCompleted: state.pomodoro.sessionsCompleted }
+  })),
 
   pausePomodoro: () => set((state) => {
     const { pomodoro } = state;
@@ -250,7 +250,7 @@ export const useStore = create<EpochState>()(
       const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
       if (duration >= 5000) entries.push({ id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration });
     }
-    return { pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0 }, timeEntries: entries };
+    return { pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted }, timeEntries: entries };
   }),
 
   completeWorkSession: () => set((state) => {
