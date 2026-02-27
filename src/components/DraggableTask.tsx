@@ -14,6 +14,11 @@ const PRIORITY_BORDER: Record<Priority, string> = {
   Medium: 'border-l-yellow-400',
   Low: 'border-l-[#2A2A2A]',
 };
+const PRIORITY_BG: Record<Priority, string> = {
+  High: 'rgba(239,68,68,0.04)',
+  Medium: 'rgba(234,179,8,0.03)',
+  Low: 'transparent',
+};
 const PRIORITY_LABEL: Record<Priority, string> = { High: 'High', Medium: 'Medium', Low: 'Low' };
 const PRIORITY_COLOR: Record<Priority, string> = { High: '#ef4444', Medium: '#eab308', Low: '#666' };
 
@@ -219,6 +224,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   const [titleVal, setTitleVal] = useState(task.title);
   const [showPopup, setShowPopup] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [checkAnim, setCheckAnim] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -227,6 +233,11 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   };
   const cancelClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
+  };
+
+  const handleToggleComplete = () => {
+    if (!task.completed) { setCheckAnim(true); setTimeout(() => setCheckAnim(false), 300); }
+    updateTask(task.id, { completed: !task.completed });
   };
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
@@ -255,12 +266,16 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
         onMouseEnter={() => { cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true); }}
         onMouseLeave={() => { setHoveredProjectId(null); scheduleClose(); }}
         className={cn(
-          'relative group flex flex-col bg-[#141414] border border-[#222] border-l-2 rounded transition-all overflow-hidden cursor-default',
+          'relative group flex flex-col border border-[#222] border-l-2 rounded transition-all overflow-hidden cursor-default',
+          'hover:-translate-y-px',
           PRIORITY_BORDER[priority],
-          isDragging ? 'opacity-40' : '',
+          isDragging ? 'opacity-40 scale-[0.98]' : '',
           task.completed && 'opacity-40'
         )}
-        style={showPopup && !isDragging ? { boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)' } : undefined}
+        style={{
+          background: task.completed ? '#141414' : PRIORITY_BG[priority] || '#141414',
+          ...(showPopup && !isDragging ? { boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)' } : { boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }),
+        }}
       >
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div {...attributes} {...listeners}
@@ -270,35 +285,39 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
 
           {/* Project color dot */}
           {project && (
-            <div className="shrink-0 w-1.5 h-1.5 rounded-full opacity-70 group-hover:opacity-100"
+            <div className="shrink-0 w-1.5 h-1.5 rounded-full opacity-70 group-hover:opacity-100 transition-opacity"
               style={{ backgroundColor: project.color }} title={projectLabel} />
           )}
 
           {/* Check */}
-          <button onClick={() => updateTask(task.id, { completed: !task.completed })}
+          <button onClick={handleToggleComplete}
             role="checkbox"
             aria-checked={task.completed}
             aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
-            className={cn('shrink-0 w-3.5 h-3.5 rounded-full border transition-colors',
-              task.completed ? 'bg-[#F27D26] border-[#F27D26]' : 'border-[#444] hover:border-[#F27D26]'
-            )} />
+            className={cn(
+              'shrink-0 w-3.5 h-3.5 rounded-full border transition-all',
+              checkAnim && 'animate-check',
+              task.completed ? 'border-[var(--accent)]' : 'border-[#444] hover:border-[var(--accent)]'
+            )}
+            style={task.completed ? { background: 'var(--accent)' } : undefined}
+          />
 
           {/* Title */}
           {editingTitle ? (
             <input autoFocus value={titleVal} onChange={e => setTitleVal(e.target.value)}
               onBlur={saveTitle}
               onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleVal(task.title); setEditingTitle(false); } }}
-              className="flex-1 text-sm text-white bg-transparent border-b border-[#F27D26] focus:outline-none" />
+              className="flex-1 text-sm text-white bg-transparent border-b focus:outline-none" style={{ borderColor: 'var(--accent)' }} />
           ) : (
             <span onClick={() => setEditingTitle(true)}
-              className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate',
-                task.completed ? 'line-through text-[#aaa]' : 'text-[#C8C7C4]'
+              className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate transition-colors',
+                task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
               )} title={task.title}>{task.title}</span>
           )}
 
           {/* Badges — only show the 2 most important inline; rest in popup */}
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
-            <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: '#F27D26' }}>▶</span>
+            <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: 'var(--accent)' }}>▶</span>
           )}
           {dl && (
             <span className="text-[12px] font-mono shrink-0 group-hover:hidden" style={{ color: dl.color }}>

@@ -124,9 +124,10 @@ export function ThinkPad() {
 
         {/* Overdue Tasks */}
         {overdueTasks.length > 0 && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 p-2 rounded-lg border border-red-500/20"
+            style={{ background: 'color-mix(in srgb, #ef4444 5%, transparent)', boxShadow: '0 0 12px color-mix(in srgb, #ef4444 12%, transparent)' }}>
             <label className="text-xs font-semibold uppercase tracking-wider text-red-500/80 flex items-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               Overdue · {overdueTasks.length}
             </label>
             {overdueTasks.map(task => (

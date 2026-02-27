@@ -1,17 +1,37 @@
+import { useRef, useEffect } from 'react';
 import { useStore, THEMES, ThemeKey } from '../store';
 
 export function ThemePanel({ onClose }: { onClose: () => void }) {
   const { theme, setTheme } = useStore();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   return (
     <div
+      ref={panelRef}
       style={{
         position: 'absolute', top: 42, right: 8, zIndex: 999,
         background: 'var(--bg-0)', border: '1px solid var(--border-1)', borderRadius: 12,
         padding: '14px 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         fontFamily: 'Consolas, monospace', minWidth: 200,
       }}
-      onMouseLeave={onClose}
     >
       <div style={{ fontSize: 9, letterSpacing: '0.12em', color: 'var(--text-2)', textTransform: 'uppercase', marginBottom: 12 }}>
         Theme

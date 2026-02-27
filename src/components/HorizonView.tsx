@@ -294,7 +294,7 @@ export function HorizonView() {
 
       {/* Goals overlay panel — floats over calendar, doesn't push it */}
       {showProjects && (
-        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl" style={{ background: 'var(--bg-0)' }}>
+        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
           <MacroGoalsPanel />
         </div>
       )}
@@ -364,9 +364,17 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
       <div className="p-3 border-b border-[#2A2A2A] shrink-0 relative"
         style={isCurrent ? { background: 'color-mix(in srgb, var(--accent) 10%, transparent)' } : undefined}>
         {isCurrent && (
-          <div className="absolute top-0 right-0 text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider"
+          <div className="absolute top-0 right-0 text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1.5"
             style={{ background: 'var(--accent)' }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse inline-block" />
             {format(today, 'MMM d, yyyy')}
+          </div>
+        )}
+        {/* Task count badge */}
+        {columnTasks.length > 0 && (
+          <div className="absolute bottom-2 right-2 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
+            {columnTasks.length}
           </div>
         )}
         {mode === 'daily' && (
@@ -461,7 +469,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
               className="relative flex items-center gap-2 px-2 py-1.5 rounded border border-dashed select-none pointer-events-none"
               style={{ background: accent + '0A', borderColor: accent + '55' }}>
               {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
-              <Flag size={9} style={{ color: accent, flexShrink: 0 }} />
+              <Flag size={9} style={{ color: accent, flexShrink: 0 }} className={overdue || urgent ? 'animate-pulse' : ''} />
               <span className="flex-1 text-[12px] truncate" style={{ color: accent + 'CC' }} title={task.title}>{task.title}</span>
               <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>{label}</span>
             </div>
@@ -469,10 +477,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: 
         })}
         {columnTasks.length === 0 && ghostTasks.length === 0 && (
           <div className={cn(
-            'flex-1 flex items-center justify-center text-[#777] text-xs italic select-none border border-dashed rounded transition-colors',
-            isOver ? 'border-[#F27D26]/40 text-[#F27D26]/40' : 'border-[#222]'
+            'flex-1 flex flex-col items-center justify-center gap-1 select-none border border-dashed rounded transition-all duration-200 min-h-[60px]',
+            isOver
+              ? 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
+              : 'border-[#222] text-[#444]'
           )}>
-            {isOver ? 'Drop here' : '+ task'}
+            <span className="text-base">{isOver ? '↓' : '+'}</span>
+            <span className="text-[11px] font-mono">{isOver ? 'drop here' : 'empty'}</span>
           </div>
         )}
       </div>

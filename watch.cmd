@@ -1,0 +1,1 @@
+while ($true) { Clear-Host; Get-Content C:\projects\calendar\COLLAB.md; Start-Sleep 3 }
