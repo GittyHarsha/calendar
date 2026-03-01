@@ -137,6 +137,11 @@ export function WidgetView() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setElapsed(0); return;
     }
+    if (pomodoro.paused) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setElapsed(pomodoro.pausedElapsed);
+      return;
+    }
     const tick = () => {
       const e = Date.now() - new Date(pomodoro.sessionStart!).getTime();
       setElapsed(e);
@@ -164,7 +169,7 @@ export function WidgetView() {
     tick();
     intervalRef.current = setInterval(tick, 500);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [pomodoro.phase, pomodoro.sessionStart]);
+  }, [pomodoro.phase, pomodoro.sessionStart, pomodoro.paused]);
 
   // Auto-resize the OS window based on session phase
   useEffect(() => {
