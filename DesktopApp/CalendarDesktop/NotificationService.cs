@@ -6,6 +6,9 @@ namespace CalendarDesktop;
 /// <summary>Reads task data from the WebView's localStorage and fires Windows toast notifications.</summary>
 public class NotificationService : IDisposable
 {
+    // Lead time for "due soon" warnings (hours before deadline)
+    private const int LeadTimeHours = 24;
+
     private readonly WebView2 _webView;
     private readonly System.Threading.Timer _timer;
     private readonly HashSet<string> _shownToday = new();
@@ -96,13 +99,12 @@ public class NotificationService : IDisposable
                         ShowToast("Horizon", "You're clear for today 👌");
                 }
 
-                // Per-task overdue alerts (once per task per day)
+                // Per-task overdue / due-today / due-tomorrow alerts (once per task per day)
                 foreach (var task in tasks.EnumerateArray())
                 {
                     if (task.GetProperty("completed").GetBoolean()) continue;
                     var id = task.GetProperty("id").GetString() ?? "";
                     var title = task.GetProperty("title").GetString() ?? "";
-                    if (_shownToday.Contains(id)) continue;
 
                     string? deadline = null;
                     if (task.TryGetProperty("deadline", out var dl) && dl.ValueKind == JsonValueKind.String)
@@ -111,15 +113,20 @@ public class NotificationService : IDisposable
                     if (deadline != null && DateTime.TryParse(deadline, out var deadlineDate))
                     {
                         var diff = (deadlineDate.Date - today).Days;
-                        if (diff < 0)
+                        if (diff < 0 && !_shownToday.Contains(id))
                         {
                             _shownToday.Add(id);
                             ShowToast("⚠ Overdue", $"{title} — {Math.Abs(diff)}d past deadline");
                         }
-                        else if (diff == 0 && now.Hour >= 9)
+                        else if (diff == 0 && now.Hour >= 9 && !_shownToday.Contains(id))
                         {
                             _shownToday.Add(id);
                             ShowToast("🚩 Due Today", title);
+                        }
+                        else if (diff == 1 && now.Hour >= 9 && !_shownToday.Contains("tomorrow_" + id))
+                        {
+                            _shownToday.Add("tomorrow_" + id);
+                            ShowToast("⏰ Due Tomorrow", title);
                         }
                     }
                 }
@@ -137,9 +144,26 @@ public class NotificationService : IDisposable
                     _eveningNudgeSent = true;
                     ShowToast("Horizon · Evening", $"{incompleteTodayCount} task{(incompleteTodayCount > 1 ? "s" : "")} still open today");
                 }
+
+                UpdateTrayTooltip(todayTasks.Count, overdueTasks.Count);
             }
             catch { /* non-fatal */ }
         });
+    }
+
+    private static void UpdateTrayTooltip(int dueToday, int overdue)
+    {
+        try
+        {
+            var tray = Application.OpenForms.OfType<MainForm>().FirstOrDefault()?.TrayIcon;
+            if (tray == null) return;
+            string text = dueToday > 0
+                ? $"Horizon · {dueToday} due today" + (overdue > 0 ? $" · {overdue} overdue" : "")
+                : "Horizon";
+            if (text.Length > 63) text = text[..63];
+            tray.Text = text;
+        }
+        catch { }
     }
 
     private static void ShowToast(string title, string message)
