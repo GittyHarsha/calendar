@@ -121,6 +121,7 @@ type EpochState = {
   thinkPadNotes: string;
   hoveredProjectId: string | null;
   hideCompleted: boolean;
+  focusGoalMinutes: number;
   
   // Actions
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
@@ -151,6 +152,7 @@ type EpochState = {
   setThinkPadNotes: (notes: string) => void;
   setHoveredProjectId: (id: string | null) => void;
   toggleHideCompleted: () => void;
+  setFocusGoal: (minutes: number) => void;
 };
 
 const today = startOfToday();
@@ -198,6 +200,7 @@ export const useStore = create<EpochState>()(
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
   hideCompleted: false,
+  focusGoalMinutes: 240,
   
   addProject: (project) => set((state) => ({
     projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
@@ -411,6 +414,7 @@ export const useStore = create<EpochState>()(
       setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
+      setFocusGoal: (minutes) => set({ focusGoalMinutes: minutes }),
     }),
     {
       name: 'calendar-storage',
@@ -422,6 +426,7 @@ export const useStore = create<EpochState>()(
         customAccent: state.customAccent,
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
+        focusGoalMinutes: state.focusGoalMinutes,
         pomodoro: state.pomodoro,
       }),
     }

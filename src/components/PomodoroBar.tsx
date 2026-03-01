@@ -79,7 +79,7 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
 
 export function PomodoroBar() {
   const { tasks, projects, pomodoro, timeEntries, startPomodoro, pausePomodoro, stopPomodoro,
-          completeWorkSession, startBreak, skipBreak } = useStore();
+          completeWorkSession, startBreak, skipBreak, focusGoalMinutes } = useStore();
 
   const [elapsed, setElapsed] = useState(0);
   const [showBreakModal, setShowBreakModal] = useState(false);
@@ -139,6 +139,10 @@ export function PomodoroBar() {
     const todayEntries = timeEntries.filter(e => e.startedAt.slice(0, 10) === todayStr);
     const todaySessions = todayEntries.length;
     const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
+    const todayFocusMin = Math.floor(todayMs / 60000);
+    const goalPct = focusGoalMinutes > 0 ? Math.min(1, todayFocusMin / focusGoalMinutes) : 0;
+    const ringColor = goalPct >= 1 ? '#22c55e' : 'var(--accent)';
+    const C = 2 * Math.PI * 10;
     const statsLabel = todaySessions > 0
       ? `🍅 ${todaySessions} · ${fmtDuration(todayMs)} today`
       : '🍅 Focus';
@@ -156,6 +160,19 @@ export function PomodoroBar() {
           fontSize: 13, cursor: 'pointer', userSelect: 'none',
         }}
       >
+        {focusGoalMinutes > 0 && (
+          <svg width={24} height={24} style={{ flexShrink: 0 }}>
+            <circle cx={12} cy={12} r={10} fill="none" stroke="var(--bg-2)" strokeWidth={2.5} />
+            <circle cx={12} cy={12} r={10} fill="none" stroke={ringColor} strokeWidth={2.5}
+              strokeDasharray={C}
+              strokeDashoffset={C * (1 - goalPct)}
+              strokeLinecap="round"
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '12px 12px', transition: 'stroke-dashoffset 0.5s' }} />
+            {goalPct >= 1 && (
+              <text x={12} y={16} textAnchor="middle" fill={ringColor} fontSize={8} fontFamily="Consolas">✓</text>
+            )}
+          </svg>
+        )}
         <span>{statsLabel}</span>
       </button>
     );
