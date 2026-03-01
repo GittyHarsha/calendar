@@ -51,6 +51,17 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
   const tasksCompletedThisWeek = tasks.filter(t => t.completed && t.date && t.date >= format(weekStart, 'yyyy-MM-dd') && t.date <= format(weekEnd, 'yyyy-MM-dd')).length;
   const sessionsCompleted = pomodoro.sessionsCompleted + weekEntries.length;
 
+  // ── Today's focus (must come before any useMemo that references todayEntries) ─
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const todayEntries = useMemo(
+    () => timeEntries.filter(e => e.startedAt.startsWith(todayStr)),
+    [timeEntries, todayStr]
+  );
+  const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
+  const todayTasksDone = tasks.filter(t => t.completed && t.date === todayStr).length;
+  const todaySessions = todayEntries.length;
+  const allTimeTasksDone = tasks.filter(t => t.completed).length;
+
   // ── Time per Project ────────────────────────────────────────────────────────
   const projectTimes = useMemo(() => {
     return projects
@@ -155,17 +166,6 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     }).filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms).slice(0, 5);
     return taskTimes;
   }, [tasks, timeEntries]);
-
-  // ── Today's focus ───────────────────────────────────────────────────────────
-  const todayStr = format(today, 'yyyy-MM-dd');
-  const todayEntries = useMemo(
-    () => timeEntries.filter(e => e.startedAt.startsWith(todayStr)),
-    [timeEntries, todayStr]
-  );
-  const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
-  const todayTasksDone = tasks.filter(t => t.completed && t.date === todayStr).length;
-  const todaySessions = todayEntries.length;
-  const allTimeTasksDone = tasks.filter(t => t.completed).length;
 
   // ── Last-week entries ───────────────────────────────────────────────────────
   const lastWeekStart = subWeeks(weekStart, 1);
