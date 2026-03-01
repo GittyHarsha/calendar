@@ -9,18 +9,18 @@ import { HorizonView } from './components/HorizonView';
 import { ThinkPad } from './components/ThinkPad';
 import { PomodoroBar } from './components/PomodoroBar';
 import { Task } from './store';
-import { useStore, THEMES } from './store';
+import { useStore, THEMES, deriveThemeFromAccent } from './store';
 import { newProjectTrigger } from './components/MacroGoalsPanel';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 
 export default function App() {
-  const { tasks, updateTask, theme } = useStore();
+  const { tasks, updateTask, theme, customAccent } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Apply theme CSS vars to root
   useEffect(() => {
-    const t = THEMES[theme] ?? THEMES.void;
+    const t = customAccent ? deriveThemeFromAccent(customAccent) : (THEMES[theme] ?? THEMES.void);
     const r = document.documentElement;
     r.style.setProperty('--accent', t.accent);
     r.style.setProperty('--bg-0', t.bg0);
@@ -29,8 +29,8 @@ export default function App() {
     r.style.setProperty('--border-1', t.border);
     r.style.setProperty('--text-1', t.text1);
     r.style.setProperty('--text-2', t.text2);
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', customAccent ? 'custom' : theme);
+  }, [theme, customAccent]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

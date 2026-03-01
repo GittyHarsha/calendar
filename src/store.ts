@@ -61,6 +61,35 @@ export type ThemeConfig = {
   text1: string; text2: string;
 };
 
+/** Derive a full dark theme config from any hex accent color */
+export function deriveThemeFromAccent(hex: string): ThemeConfig {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0;
+  if (max !== min) {
+    const d = max - min;
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+      case g: h = ((b - r) / d + 2) / 6; break;
+      case b: h = ((r - g) / d + 4) / 6; break;
+    }
+  }
+  const hd = Math.round(h * 360);
+  const hsl = (hue: number, s: number, l: number) => `hsl(${hue},${s}%,${l}%)`;
+  return {
+    name: 'Custom',
+    accent: hex,
+    bg0: hsl(hd, 15, 4),
+    bg1: hsl(hd, 12, 6),
+    bg2: hsl(hd, 10, 10),
+    border: hsl(hd, 15, 14),
+    text1: hsl(hd, 10, 94),
+    text2: hsl(hd, 8, 42),
+  };
+}
+
 export const THEMES: Record<ThemeKey, ThemeConfig> = {
   void:   { name: 'Void',  accent: '#FF7B2F', bg0: '#080808', bg1: '#0F0F0F', bg2: '#191919', border: '#252525', text1: '#F0EDEA', text2: '#686868' },
   dusk:   { name: 'Dusk',  accent: '#A78BFA', bg0: '#080B1C', bg1: '#0F1328', bg2: '#171C3C', border: '#242854', text1: '#DDDEFF', text2: '#6870B0' },
@@ -82,6 +111,7 @@ type EpochState = {
   timeEntries: TimeEntry[];
   pomodoro: PomodoroState;
   theme: ThemeKey;
+  customAccent: string | null;
   thinkPadNotes: string;
   hoveredProjectId: string | null;
   hideCompleted: boolean;
@@ -106,6 +136,7 @@ type EpochState = {
   getProjectTime: (projectId: string) => number;
 
   setTheme: (theme: ThemeKey) => void;
+  setCustomAccent: (hex: string | null) => void;
   setThinkPadNotes: (notes: string) => void;
   setHoveredProjectId: (id: string | null) => void;
   toggleHideCompleted: () => void;
@@ -151,6 +182,7 @@ export const useStore = create<EpochState>()(
   timeEntries: [],
   pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0, paused: false, pausedElapsed: 0 },
   theme: 'void' as ThemeKey,
+  customAccent: null,
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
   hideCompleted: false,
@@ -298,7 +330,8 @@ export const useStore = create<EpochState>()(
     return get().timeEntries.filter(e => taskIds.includes(e.taskId)).reduce((s, e) => s + e.duration, 0);
   },
 
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => set({ theme, customAccent: null }),
+      setCustomAccent: (hex) => set({ customAccent: hex }),
       setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
@@ -310,6 +343,7 @@ export const useStore = create<EpochState>()(
         tasks: state.tasks,
         timeEntries: state.timeEntries,
         theme: state.theme,
+        customAccent: state.customAccent,
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
         pomodoro: state.pomodoro,

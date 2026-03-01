@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { differenceInCalendarDays, format, parseISO, startOfToday } from 'date-fns';
-import { useStore, Task, Project, THEMES, WORK_DURATION, BREAK_DURATION, fmtDuration } from '../store';
+import { useStore, Task, Project, THEMES, WORK_DURATION, BREAK_DURATION, fmtDuration, deriveThemeFromAccent } from '../store';
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 function fmtCountdown(ms: number) {
@@ -100,7 +100,7 @@ function Section({ label, color, children }: { label: string; color: string; chi
 }
 
 export function WidgetView() {
-  const { tasks, projects, updateTask, addTask, theme, pomodoro,
+  const { tasks, projects, updateTask, addTask, theme, customAccent, pomodoro,
           startPomodoro, pausePomodoro, stopPomodoro, getTaskTime,
           completeWorkSession, skipBreak } = useStore();
   const [fading, setFading] = useState<Set<string>>(new Set());
@@ -115,7 +115,7 @@ export function WidgetView() {
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
 
-  const thm = THEMES[theme] ?? THEMES.void;
+  const thm = customAccent ? deriveThemeFromAccent(customAccent) : (THEMES[theme] ?? THEMES.void);
   const accent = thm.accent;
 
   // Apply CSS vars + data-theme to widget document (no App.tsx here)
@@ -128,8 +128,8 @@ export function WidgetView() {
     r.style.setProperty('--border-1', thm.border);
     r.style.setProperty('--text-1', thm.text1);
     r.style.setProperty('--text-2', thm.text2);
-    r.setAttribute('data-theme', theme);
-  }, [theme]);
+    r.setAttribute('data-theme', customAccent ? 'custom' : theme);
+  }, [theme, customAccent]);
 
   // Pomodoro countdown tick — handles completion in widget context too
   useEffect(() => {
