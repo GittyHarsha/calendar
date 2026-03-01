@@ -176,8 +176,11 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
 
   return (
     <>
-      <div className="group flex flex-col gap-1 px-3 py-2 rounded-md mx-2 mb-1 hover:bg-[#141414] transition-colors border border-transparent hover:border-[#222]"
+      <div className="group flex flex-col gap-1 px-3 py-2 rounded-md mx-2 mb-1 hover:bg-[#141414] transition-colors border border-transparent hover:border-[#222] relative"
         style={{ marginLeft: 8 + depth * 16 }}>
+        {depth > 0 && (
+          <div className="absolute top-0 bottom-0 w-px bg-[#2A2A2A]" style={{ left: -8 }} />
+        )}
         {/* Top row: name + actions */}
         <div className="flex items-center gap-2">
           {/* Expand */}

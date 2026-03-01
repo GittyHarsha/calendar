@@ -5,6 +5,7 @@ interface Props {
 }
 
 const SHORTCUTS = [
+  { key: 'Ctrl+Z', desc: 'Undo' },
   { key: 'N', desc: 'New task' },
   { key: 'P', desc: 'New project' },
   { key: '/', desc: 'Search inbox' },

@@ -12,9 +12,10 @@ import { Task } from './store';
 import { useStore, THEMES, deriveThemeFromAccent } from './store';
 import { newProjectTrigger } from './components/MacroGoalsPanel';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { CommandPalette } from './components/CommandPalette';
 
 export default function App() {
-  const { tasks, updateTask, theme, customAccent } = useStore();
+  const { tasks, updateTask, theme, customAccent, undo } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -34,6 +35,11 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
       const target = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if (e.key === 'n' || e.key === 'N') {
@@ -46,7 +52,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [undo]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -105,6 +111,7 @@ export default function App() {
       </DragOverlay>
 
       <PomodoroBar />
+      <CommandPalette />
       {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
     </DndContext>
   );

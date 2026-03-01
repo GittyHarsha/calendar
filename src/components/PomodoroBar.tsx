@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore, WORK_DURATION, BREAK_DURATION, fmtDuration } from '../store';
+import { startOfToday } from 'date-fns';
 
 const TOMATO = '🍅';
 
@@ -77,7 +78,7 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
 }
 
 export function PomodoroBar() {
-  const { tasks, projects, pomodoro, startPomodoro, pausePomodoro, stopPomodoro,
+  const { tasks, projects, pomodoro, timeEntries, startPomodoro, pausePomodoro, stopPomodoro,
           completeWorkSession, startBreak, skipBreak } = useStore();
 
   const [elapsed, setElapsed] = useState(0);
@@ -134,6 +135,13 @@ export function PomodoroBar() {
   }, [pomodoro.phase, pomodoro.sessionStart, pomodoro.paused]);
 
   if (pomodoro.phase === 'idle' && !showBreakModal) {
+    const todayStr = startOfToday().toISOString().slice(0, 10);
+    const todayEntries = timeEntries.filter(e => e.startedAt.slice(0, 10) === todayStr);
+    const todaySessions = todayEntries.length;
+    const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
+    const statsLabel = todaySessions > 0
+      ? `🍅 ${todaySessions} · ${fmtDuration(todayMs)} today`
+      : '🍅 Focus';
     return (
       <button
         onClick={() => startPomodoro(null)}
@@ -148,7 +156,7 @@ export function PomodoroBar() {
           fontSize: 13, cursor: 'pointer', userSelect: 'none',
         }}
       >
-        🍅 <span>Focus</span>
+        <span>{statsLabel}</span>
       </button>
     );
   }

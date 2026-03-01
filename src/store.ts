@@ -5,6 +5,8 @@ import { addDays, format, startOfToday, parseISO, addMonths } from 'date-fns';
 export type Priority = 'High' | 'Medium' | 'Low';
 export type Recurrence = 'none' | 'daily' | 'weekly' | 'monthly';
 
+export type Subtask = { id: string; title: string; done: boolean };
+
 export type Project = {
   id: string;
   name: string;
@@ -27,6 +29,9 @@ export type Task = {
   startedAt?: string | null;
   priority?: Priority;
   description?: string;
+  subtasks?: Subtask[];
+  recurrence?: Recurrence;
+  recurrenceGroupId?: string;
 };
 
 export type TimeEntry = {
@@ -108,6 +113,7 @@ export function fmtDuration(ms: number): string {
 type EpochState = {
   projects: Project[];
   tasks: Task[];
+  taskHistory: Task[][];
   timeEntries: TimeEntry[];
   pomodoro: PomodoroState;
   theme: ThemeKey;
@@ -123,7 +129,12 @@ type EpochState = {
   
   addTask: (task: Omit<Task, 'id' | 'completed'>, recurrence?: Recurrence, startDate?: string) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
+  updateRecurringTask: (taskId: string, updates: Partial<Task>, scope: 'one' | 'all') => void;
   deleteTask: (id: string) => void;
+  undo: () => void;
+  addSubtask: (taskId: string, title: string) => void;
+  updateSubtask: (taskId: string, subtaskId: string, done: boolean) => void;
+  deleteSubtask: (taskId: string, subtaskId: string) => void;
 
   // Pomodoro + time tracking
   startPomodoro: (taskId: string | null) => void;
@@ -179,6 +190,7 @@ export const useStore = create<EpochState>()(
     (set, get) => ({
   projects: initialProjects,
   tasks: initialTasks,
+  taskHistory: [],
   timeEntries: [],
   pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0, paused: false, pausedElapsed: 0 },
   theme: 'void' as ThemeKey,
@@ -212,12 +224,16 @@ export const useStore = create<EpochState>()(
   addTask: (task, recurrence = 'none', startDate) => set((state) => {
     const baseTask = { ...task, startedAt: task.startedAt || null, deadlineHistory: task.deadlineHistory ?? [] };
     if (recurrence === 'none' || !startDate) {
-      return { tasks: [...state.tasks, { ...baseTask, id: crypto.randomUUID(), completed: false }] };
+      return {
+        taskHistory: [...state.taskHistory.slice(-20), state.tasks],
+        tasks: [...state.tasks, { ...baseTask, id: crypto.randomUUID(), completed: false }],
+      };
     }
     
     const newTasks: Task[] = [];
     let currentDate = parseISO(startDate);
     const endDate = addDays(startOfToday(), 90);
+    const recurrenceGroupId = crypto.randomUUID();
     
     let count = 0;
     while (currentDate <= endDate && count < 100) {
@@ -226,6 +242,8 @@ export const useStore = create<EpochState>()(
         id: crypto.randomUUID(),
         date: format(currentDate, 'yyyy-MM-dd'),
         completed: false,
+        recurrence,
+        recurrenceGroupId,
       });
       
       if (recurrence === 'daily') {
@@ -238,10 +256,14 @@ export const useStore = create<EpochState>()(
       count++;
     }
     
-    return { tasks: [...state.tasks, ...newTasks] };
+    return {
+      taskHistory: [...state.taskHistory.slice(-20), state.tasks],
+      tasks: [...state.tasks, ...newTasks],
+    };
   }),
   
   updateTask: (id, updates) => set((state) => ({
+    taskHistory: [...state.taskHistory.slice(-20), state.tasks],
     tasks: state.tasks.map(t => {
       if (t.id !== id) return t;
       // Track deadline shift: if deadline is being changed to a later date, record old one
@@ -254,9 +276,63 @@ export const useStore = create<EpochState>()(
       return { ...t, ...updates };
     })
   })),
-  
+
+  updateRecurringTask: (taskId, updates, scope) => set((state) => {
+    if (scope === 'one') {
+      return {
+        taskHistory: [...state.taskHistory.slice(-20), state.tasks],
+        tasks: state.tasks.map(t => {
+          if (t.id !== taskId) return t;
+          if (updates.deadline !== undefined && updates.deadline !== t.deadline && t.deadline) {
+            const isShiftingLater = updates.deadline && new Date(updates.deadline) > new Date(t.deadline);
+            if (isShiftingLater) {
+              return { ...t, ...updates, deadlineHistory: [...(t.deadlineHistory ?? []), t.deadline] };
+            }
+          }
+          return { ...t, ...updates };
+        })
+      };
+    }
+    // scope === 'all': update all tasks sharing the same recurrenceGroupId
+    const task = state.tasks.find(t => t.id === taskId);
+    if (!task?.recurrenceGroupId) {
+      return { tasks: state.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t) };
+    }
+    const groupId = task.recurrenceGroupId;
+    return {
+      taskHistory: [...state.taskHistory.slice(-20), state.tasks],
+      tasks: state.tasks.map(t => t.recurrenceGroupId === groupId ? { ...t, ...updates } : t)
+    };
+  }),
+
   deleteTask: (id) => set((state) => ({
+    taskHistory: [...state.taskHistory.slice(-20), state.tasks],
     tasks: state.tasks.filter(t => t.id !== id)
+  })),
+
+  undo: () => set((state) => {
+    if (state.taskHistory.length === 0) return {};
+    const history = [...state.taskHistory];
+    const prev = history.pop()!;
+    return { tasks: prev, taskHistory: history };
+  }),
+
+  addSubtask: (taskId, title) => set((state) => ({
+    tasks: state.tasks.map(t => t.id !== taskId ? t : {
+      ...t, subtasks: [...(t.subtasks ?? []), { id: crypto.randomUUID(), title, done: false }]
+    })
+  })),
+
+  updateSubtask: (taskId, subtaskId, done) => set((state) => ({
+    tasks: state.tasks.map(t => t.id !== taskId ? t : {
+      ...t, subtasks: (t.subtasks ?? []).map(s => s.id === subtaskId ? { ...s, done } : s)
+    })
+  })),
+
+  deleteSubtask: (taskId, subtaskId) => set((state) => ({
+    tasks: state.tasks.map(t => t.id !== taskId ? t : {
+      ...t, subtasks: (t.subtasks ?? []).filter(s => s.id !== subtaskId)
+    })
   })),
 
   // ── Pomodoro ─────────────────────────────────────────────────────────────

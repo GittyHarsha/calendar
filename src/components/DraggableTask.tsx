@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useDraggable } from '@dnd-kit/core';
-import { Task, Priority, useStore, fmtDuration } from '../store';
-import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer } from 'lucide-react';
+import { Task, Priority, useStore, fmtDuration, Subtask } from '../store';
+import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday, differenceInDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
 import { DatePickerPopover } from './DatePickerPopover';
+import { exportTimeLogCSV } from '../utils/exportTimeLogs';
 
 const PRIORITY_NEXT: Record<Priority, Priority> = { High: 'Medium', Medium: 'Low', Low: 'High' };
 const PRIORITY_BORDER: Record<Priority, string> = {
@@ -40,11 +41,15 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   onMouseEnter: () => void;
   onMouseLeave: () => void;
 }) {
-  const { projects, updateTask, deleteTask, startPomodoro, getTaskTime, pomodoro } = useStore();
+  const { projects, tasks, timeEntries, updateTask, updateRecurringTask, deleteTask, startPomodoro, getTaskTime, pomodoro, addSubtask, updateSubtask, deleteSubtask } = useStore();
   const [editingDate, setEditingDate] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showTimeLog, setShowTimeLog] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [hoveredSubtaskId, setHoveredSubtaskId] = useState<string | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<{ field: 'date' | 'deadline'; value: string | null } | null>(null);
   const pickerOpen = editingDate || editingDeadline;
 
   // Cancel close whenever a picker is open
@@ -161,6 +166,25 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           </button>
         </div>
 
+        {/* Recurring task scope prompt */}
+        {pendingUpdate && (
+          <div className="flex flex-col gap-1.5 p-2 rounded bg-[#1A1A1A] border border-[#2A2A2A]">
+            <span className="text-[11px] text-[#888]">Update this or all?</span>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => { updateRecurringTask(task.id, { [pendingUpdate.field]: pendingUpdate.value }, 'one'); setPendingUpdate(null); onClose(); }}
+                className="flex-1 text-[11px] py-1 rounded bg-[#252525] hover:bg-[#303030] text-[#ccc] transition-colors">
+                Just this
+              </button>
+              <button
+                onClick={() => { updateRecurringTask(task.id, { [pendingUpdate.field]: pendingUpdate.value }, 'all'); setPendingUpdate(null); onClose(); }}
+                className="flex-1 text-[11px] py-1 rounded bg-[#252525] hover:bg-[#303030] text-[#ccc] transition-colors">
+                All future
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Priority */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-[#999]">Priority</span>
@@ -192,6 +216,54 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
         <div className="border-t border-[#1E1E1E]" />
 
+        {/* Time Log */}
+        {(() => {
+          const taskEntries = timeEntries.filter(e => e.taskId === task.id);
+          const totalTime = getTaskTime(task.id);
+          const visible = taskEntries.slice(0, 5);
+          const overflow = taskEntries.length - 5;
+          return (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowTimeLog(v => !v)}
+                  className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
+                  <span>⏱ Time Log</span>
+                  {totalTime > 0 && (
+                    <span className="font-mono text-[#666]">{fmtDuration(totalTime)}</span>
+                  )}
+                </button>
+                {taskEntries.length > 0 && (
+                  <button
+                    onClick={() => exportTimeLogCSV(tasks, timeEntries, projects)}
+                    title="Export CSV"
+                    className="text-[#555] hover:text-[#aaa] transition-colors">
+                    <Download size={12} />
+                  </button>
+                )}
+              </div>
+              {showTimeLog && taskEntries.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {visible.map(e => (
+                    <div key={e.id} className="flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-[#666]">{format(parseISO(e.startedAt), 'MMM d')}</span>
+                      <span className="text-[#555]">{fmtDuration(e.duration)}</span>
+                    </div>
+                  ))}
+                  {overflow > 0 && (
+                    <div className="text-[11px] text-[#555] font-mono">+{overflow} more</div>
+                  )}
+                </div>
+              )}
+              {showTimeLog && taskEntries.length === 0 && (
+                <div className="text-[11px] text-[#555] font-mono">No sessions yet</div>
+              )}
+            </div>
+          );
+        })()}
+
+        <div className="border-t border-[#1E1E1E]" />
+
         {/* Notes (inline expandable) */}
         <div className="flex flex-col gap-1.5">
           <button onClick={() => setShowNotes(v => !v)}
@@ -209,15 +281,77 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
             />
           )}
         </div>
+
+        <div className="border-t border-[#1E1E1E]" />
+
+        {/* Subtasks */}
+        {(() => {
+          const subtasks = task.subtasks ?? [];
+          const doneCount = subtasks.filter(s => s.done).length;
+          return (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-[#aaa]" style={{ fontFamily: 'Consolas, monospace' }}>Subtasks</span>
+                {subtasks.length > 0 && (
+                  <span className="text-[11px] font-mono px-1 py-0.5 rounded"
+                    style={{ background: '#ffffff10', color: '#888' }}>
+                    {doneCount}/{subtasks.length}
+                  </span>
+                )}
+              </div>
+              {subtasks.map((s: Subtask) => (
+                <div key={s.id}
+                  onMouseEnter={() => setHoveredSubtaskId(s.id)}
+                  onMouseLeave={() => setHoveredSubtaskId(null)}
+                  className="flex items-center gap-1.5 group/sub">
+                  <input type="checkbox" checked={s.done}
+                    onChange={e => updateSubtask(task.id, s.id, e.target.checked)}
+                    style={{ accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }} />
+                  <span className="flex-1 text-xs"
+                    style={{
+                      color: s.done ? '#555' : '#C8C7C4',
+                      textDecoration: s.done ? 'line-through' : 'none',
+                      fontFamily: 'Consolas, monospace',
+                    }}>
+                    {s.title}
+                  </span>
+                  {hoveredSubtaskId === s.id && (
+                    <button onClick={() => deleteSubtask(task.id, s.id)}
+                      style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 13 }}
+                      title="Remove subtask">×</button>
+                  )}
+                </div>
+              ))}
+              <input
+                type="text"
+                value={newSubtaskTitle}
+                onChange={e => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newSubtaskTitle.trim()) {
+                    addSubtask(task.id, newSubtaskTitle.trim());
+                    setNewSubtaskTitle('');
+                  }
+                }}
+                placeholder="+ add subtask"
+                className="w-full bg-[#1A1A1A] text-xs placeholder-[#444] rounded p-1.5 focus:outline-none border border-[#2A2A2A] focus:border-[#444]"
+                style={{ color: '#C8C7C4', fontFamily: 'Consolas, monospace' }}
+              />
+            </div>
+          );
+        })()}
       </div>
 
       {editingDate && (
-        <DatePickerPopover value={task.date} onChange={date => { updateTask(task.id, { date }); setEditingDate(false); }}
-          onClose={() => setEditingDate(false)} clearable anchorRef={dateButtonRef} />
+        <DatePickerPopover value={task.date} onChange={date => {
+          if (task.recurrenceGroupId) { setPendingUpdate({ field: 'date', value: date }); setEditingDate(false); }
+          else { updateTask(task.id, { date }); setEditingDate(false); }
+        }} onClose={() => setEditingDate(false)} clearable anchorRef={dateButtonRef} />
       )}
       {editingDeadline && (
-        <DatePickerPopover value={task.deadline} onChange={deadline => { updateTask(task.id, { deadline }); setEditingDeadline(false); }}
-          onClose={() => setEditingDeadline(false)} clearable anchorRef={deadlineButtonRef} />
+        <DatePickerPopover value={task.deadline} onChange={deadline => {
+          if (task.recurrenceGroupId) { setPendingUpdate({ field: 'deadline', value: deadline }); setEditingDeadline(false); }
+          else { updateTask(task.id, { deadline }); setEditingDeadline(false); }
+        }} onClose={() => setEditingDeadline(false)} clearable anchorRef={deadlineButtonRef} />
       )}
     </>,
     document.body
@@ -340,6 +474,24 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             </span>
           )}
         </div>
+        {/* Subtask progress badge on card */}
+        {(task.subtasks?.length ?? 0) > 0 && !task.completed && (() => {
+          const total = task.subtasks!.length;
+          const done = task.subtasks!.filter(s => s.done).length;
+          return (
+            <div className="px-2 pb-1" style={{ marginTop: -4 }}>
+              <span className="text-[11px] font-mono" style={{ color: '#555', fontFamily: 'Consolas, monospace' }}>
+                ◻ {done}/{total}
+              </span>
+            </div>
+          );
+        })()}
+        {/* Recurrence badge */}
+        {task.recurrence && task.recurrence !== 'none' && !task.completed && (
+          <div className="px-2 pb-1" style={{ marginTop: -4 }}>
+            <span className="text-[11px] font-mono" style={{ color: '#555' }}>↻ {task.recurrence}</span>
+          </div>
+        )}
       </div>
 
       {showPopup && !isDragging && !editingTitle && (

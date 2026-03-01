@@ -6,7 +6,8 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2 } from 'lucide-react';
+import { AnalyticsPanel } from './AnalyticsPanel';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -45,7 +46,7 @@ function TaskCarousel({ items }: { items: { label: string; sublabel: string; acc
   );
 }
 
-function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
+function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }: { onOpenGoals: () => void; filterProjectId: string | null; onFilterProject: (id: string | null) => void }) {
   const { projects, tasks } = useStore();
   const today = startOfToday();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,6 +70,15 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
     <div className="relative group border-b border-[#1E1E1E] shrink-0" style={{ background: 'var(--bg-0)' }}>
       {/* "Projects" label on far left */}
       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase tracking-widest text-[#3A3A3A] z-10 pointer-events-none select-none">Projects</span>
+      {/* Clear filter button */}
+      {filterProjectId && (
+        <button
+          className="absolute left-2 bottom-0.5 z-10 text-[10px] font-mono text-[#F27D26] hover:text-white flex items-center gap-0.5 transition-colors"
+          onClick={() => onFilterProject(null)}
+          title="Clear filter">
+          × clear
+        </button>
+      )}
       {/* Left scroll arrow */}
       <button
         className="absolute left-0 top-0 bottom-0 z-10 w-8 flex items-center justify-center text-[#666] hover:text-[#bbb] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -94,6 +104,7 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
           const soon = days !== null && days > 7 && days <= 30;
           const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? '#eab308' : '#3B82F6';
           const noDeadline = days === null;
+          const isFiltered = filterProjectId === p.id;
 
           const ids = descendantIds(p.id);
           const upcomingTasks = tasks
@@ -110,9 +121,14 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
           });
 
           return (
-            <button key={p.id} onClick={onOpenGoals}
+            <button key={p.id}
+              onClick={() => onFilterProject(isFiltered ? null : p.id)}
               className="flex items-stretch gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
-              style={{ background: `${p.color}12`, border: `1px solid ${noDeadline ? '#252525' : accent + '50'}` }}>
+              style={{
+                background: `${p.color}12`,
+                border: isFiltered ? `2px solid ${p.color}` : `1px solid ${noDeadline ? '#252525' : accent + '50'}`,
+                boxShadow: isFiltered ? `0 0 8px ${p.color}40` : undefined,
+              }}>
               {/* Left accent bar */}
               <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
               {/* Project deadline */}
@@ -144,13 +160,19 @@ function ProjectDeadlinesStrip({ onOpenGoals }: { onOpenGoals: () => void }) {
   );
 }
 
+export const baseDateTrigger = { setDate: (_d: Date) => {} };
+
 export function HorizonView() {
   const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro } = useStore();
   const today = startOfToday();
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [baseDate, setBaseDate] = useState<Date>(today);
+
+  React.useEffect(() => { baseDateTrigger.setDate = setBaseDate; }, []);
   const [showProjects, setShowProjects] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
   const [horizonLengths, setHorizonLengths] = useState<Record<ViewMode, number | ''>>({
     daily: 90,
     weekly: 14,
@@ -329,6 +351,17 @@ export function HorizonView() {
             <AppWindow size={13} />
           </button>
 
+          {/* Analytics */}
+          <button
+            onClick={() => setShowAnalytics(p => !p)}
+            title="Time Analytics"
+            className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
+              showAnalytics ? '' : 'text-[#555] hover:text-[#bbb]'
+            )}
+            style={showAnalytics ? { color: 'var(--accent)' } : undefined}>
+            <BarChart2 size={13} />
+          </button>
+
           {/* Theme */}
           <div className="relative">
             <button onClick={() => setShowTheme(p => !p)} title="Theme"
@@ -351,7 +384,7 @@ export function HorizonView() {
       )}
 
       {/* Always-visible project deadlines strip */}
-      <ProjectDeadlinesStrip onOpenGoals={() => setShowProjects(true)} />
+      <ProjectDeadlinesStrip onOpenGoals={() => setShowProjects(true)} filterProjectId={filterProjectId} onFilterProject={setFilterProjectId} />
 
       {/* Timeline Scroll Container */}
       <div className="flex-1 overflow-x-auto flex relative min-h-0">
@@ -364,27 +397,41 @@ export function HorizonView() {
               mode={viewMode}
               index={index}
               hideCompleted={hideCompleted}
+              filterProjectId={filterProjectId}
             />
           ))}
         </div>
       </div>
+      {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} />}
     </div>
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null }) {
   const { tasks, projects } = useStore();
   const today = startOfToday();
   const startDateStr = format(startDate, 'yyyy-MM-dd');
   const endDateStr = format(endDate, 'yyyy-MM-dd');
-  
-  const allColumnTasks = tasks.filter(t => t.date && t.date >= startDateStr && t.date <= endDateStr);
+
+  // Compute all descendant project IDs for the active filter
+  const getDescendantIds = (id: string): string[] => {
+    const kids = projects.filter(p => p.parentId === id);
+    return [id, ...kids.flatMap(k => getDescendantIds(k.id))];
+  };
+  const filterProjectIds = filterProjectId ? getDescendantIds(filterProjectId) : null;
+
+  const allColumnTasks = tasks.filter(t => {
+    if (!t.date || t.date < startDateStr || t.date > endDateStr) return false;
+    if (filterProjectIds && !filterProjectIds.includes(t.projectId ?? '')) return false;
+    return true;
+  });
   const columnTasks = hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks;
   // Ghost tasks: deadline falls in this column, but work date is elsewhere
   const ghostTasks = tasks.filter(t =>
     t.deadline && t.deadline >= startDateStr && t.deadline <= endDateStr &&
     !(t.date && t.date >= startDateStr && t.date <= endDateStr) &&
-    (!hideCompleted || !t.completed)
+    (!hideCompleted || !t.completed) &&
+    (!filterProjectIds || filterProjectIds.includes(t.projectId ?? ''))
   );
   const deadlineProjects = projects.filter(p => p.deadline && p.deadline >= startDateStr && p.deadline <= endDateStr);
 

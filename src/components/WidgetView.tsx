@@ -105,9 +105,14 @@ export function WidgetView() {
           completeWorkSession, skipBreak } = useStore();
   const [fading, setFading] = useState<Set<string>>(new Set());
   const [quickAdd, setQuickAdd] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
+  const [atQuery, setAtQuery] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [showDone, setShowDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Focus mode is AUTOMATIC — derived from session state, no manual toggle
   const focusMode = pomodoro.phase === 'work';
@@ -223,11 +228,67 @@ export function WidgetView() {
     setTimeout(() => updateTask(id, { completed: true }), 260);
   }
 
+  function handleQuickAddChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const val = e.target.value;
+    setQuickAdd(val);
+    const atMatch = val.match(/@([^\s@]*)$/);
+    if (atMatch) {
+      setAtQuery(atMatch[1]);
+      setShowProjectDropdown(true);
+    } else {
+      setShowProjectDropdown(false);
+      setAtQuery('');
+    }
+  }
+
+  function selectProject(project: Project) {
+    setQuickAdd(prev => prev.replace(/@[^\s@]*$/, ''));
+    setSelectedProjectId(project.id);
+    setShowProjectDropdown(false);
+    setAtQuery('');
+    inputRef.current?.focus();
+  }
+
+  function clearProject() {
+    setSelectedProjectId(null);
+    inputRef.current?.focus();
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!showProjectDropdown) return;
+    function handler(e: MouseEvent) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current && !inputRef.current.contains(e.target as Node)
+      ) {
+        setShowProjectDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showProjectDropdown]);
+
   function submitQuickAdd(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      if (showProjectDropdown) { setShowProjectDropdown(false); return; }
+    }
     if (e.key !== 'Enter' || !quickAdd.trim()) return;
+    let title = quickAdd.trim();
+    let projectId: string | null = selectedProjectId;
+    if (!projectId) {
+      const atMatch = title.match(/@([^\s@]+)/);
+      if (atMatch) {
+        const proj = projects.find(p => p.name.toLowerCase().startsWith(atMatch[1].toLowerCase()));
+        if (proj) projectId = proj.id;
+        title = title.replace(/@[^\s@]+/, '').trim();
+      }
+    } else {
+      title = title.replace(/@[^\s@]*/, '').trim();
+    }
     addTask({
-      projectId: projects[0]?.id ?? null,
-      title: quickAdd.trim(),
+      projectId: projectId ?? (projects[0]?.id ?? null),
+      title,
       date: todayStr,
       deadline: null,
       deadlineHistory: [],
@@ -235,6 +296,7 @@ export function WidgetView() {
       description: '',
     });
     setQuickAdd('');
+    setSelectedProjectId(null);
   }
 
   const rowProps = (t: Task) => ({
@@ -429,12 +491,33 @@ export function WidgetView() {
       </div>
 
       {/* Quick add */}
-      <div style={{ borderTop: '1px solid var(--border-1)', padding: '6px 12px' }}>
+      <div style={{ borderTop: '1px solid var(--border-1)', padding: '6px 12px', position: 'relative' }}>
+        {selectedProjectId && (() => {
+          const proj = projects.find(p => p.id === selectedProjectId);
+          return proj ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: `${proj.color}22`, border: `1px solid ${proj.color}55`,
+                borderRadius: 4, padding: '1px 6px', fontSize: 11, color: proj.color,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0 }} />
+                {proj.name}
+                <button
+                  onClick={clearProject}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: proj.color, padding: 0, fontSize: 12, lineHeight: 1, marginLeft: 2 }}
+                  aria-label="Clear project"
+                >×</button>
+              </span>
+            </div>
+          ) : null;
+        })()}
         <input
+          ref={inputRef}
           value={quickAdd}
-          onChange={e => setQuickAdd(e.target.value)}
+          onChange={handleQuickAddChange}
           onKeyDown={submitQuickAdd}
-          placeholder="+ add task for today…"
+          placeholder="+ add task… (type @ for project)"
           style={{
             width: '100%', background: 'transparent', border: 'none',
             borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 13,
@@ -443,6 +526,41 @@ export function WidgetView() {
           onFocus={e => (e.target.style.borderBottomColor = accent)}
           onBlur={e => (e.target.style.borderBottomColor = 'var(--border-1)')}
         />
+        {showProjectDropdown && (() => {
+          const filtered = projects.filter(p =>
+            p.name.toLowerCase().includes(atQuery.toLowerCase())
+          );
+          return filtered.length > 0 ? (
+            <div
+              ref={dropdownRef}
+              style={{
+                position: 'absolute', bottom: '100%', left: 0, right: 0,
+                background: 'var(--bg-0)', border: '1px solid var(--border-1)',
+                borderRadius: 6, marginBottom: 4, zIndex: 100,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                maxHeight: 160, overflowY: 'auto',
+              }}
+            >
+              {filtered.map(p => (
+                <button
+                  key={p.id}
+                  onMouseDown={e => { e.preventDefault(); selectProject(p); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    width: '100%', background: 'none', border: 'none',
+                    padding: '6px 10px', cursor: 'pointer', color: 'var(--text-1)',
+                    fontSize: 12, fontFamily: 'Consolas, monospace', textAlign: 'left',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = `${p.color}18`)}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          ) : null;
+        })()}
       </div>
       </>)}
     </div>
