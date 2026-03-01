@@ -340,9 +340,9 @@ export function WidgetView() {
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px' }} />
             </svg>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸ PAUSED' : (isEyeRest ? 'EYE REST' : isWork ? 'FOCUS' : 'BREAK')} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸ PAUSED' : (isEyeRest ? 'MISC' : isWork ? 'FOCUS' : 'BREAK')} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
               <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {isEyeRest ? '👁 look away from screen' : (task?.title ?? '—') + (tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : '')}
+                {isEyeRest ? '⏱ Misc' : (task?.title ?? '—') + (tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : '')}
               </div>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: isPaused ? `${pColor}80` : pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>

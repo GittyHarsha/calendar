@@ -191,12 +191,12 @@ export function PomodoroBar() {
           {/* Task info */}
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: 10, color: '#555', marginBottom: 1 }}>
-              {isEyeRest ? 'EYE REST' : isWork ? 'FOCUS' : 'BREAK'} · {TOMATO.repeat(Math.min(pomodoro.sessionsCompleted, 6))}
+              {isEyeRest ? 'MISC' : isWork ? 'FOCUS' : 'BREAK'} · {TOMATO.repeat(Math.min(pomodoro.sessionsCompleted, 6))}
               {pomodoro.sessionsCompleted > 6 ? `+${pomodoro.sessionsCompleted - 6}` : ''}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {isEyeRest
-                ? <span style={{ fontSize: 13, color: '#22d3ee', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>👁 Eye Rest</span>
+                ? <span style={{ fontSize: 13, color: '#22d3ee', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>⏱ Misc</span>
                 : <>
                     {project && <span style={{ width: 7, height: 7, borderRadius: '50%', background: project.color, display: 'inline-block', flexShrink: 0 }} />}
                     <span style={{ fontSize: 13, color: '#D4D3D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>
@@ -229,7 +229,7 @@ export function PomodoroBar() {
       {showBreakModal && (
         <BreakModal
           sessionsCompleted={pomodoro.sessionsCompleted}
-          taskTitle={isEyeRest ? '👁 Eye Rest' : (task?.title ?? '—')}
+          taskTitle={isEyeRest ? '⏱ Misc' : (task?.title ?? '—')}
           onStartBreak={() => { startBreak(); setShowBreakModal(false); }}
           onSkipBreak={() => { skipBreak(); setShowBreakModal(false); }}
           onStop={() => { stopPomodoro(); setShowBreakModal(false); }}

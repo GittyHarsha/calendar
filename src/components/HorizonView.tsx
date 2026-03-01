@@ -311,13 +311,13 @@ export function HorizonView() {
           {/* Eye rest / break timer */}
           <button
             onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
-            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop break timer' : 'Start 25m break timer'}
+            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop misc timer' : 'Start misc (untracked) timer'}
             className={cn('h-7 px-2 flex items-center gap-1.5 rounded transition-colors text-[11px]')}
             style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : '#555' }}>
             <Timer size={13} />
             <span className="font-mono uppercase tracking-widest text-[10px]"
               style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : undefined }}>
-              {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? 'Stop' : 'Rest'}
+              {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? 'Stop' : 'Misc'}
             </span>
           </button>
 
