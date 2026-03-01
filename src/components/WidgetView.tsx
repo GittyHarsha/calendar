@@ -28,6 +28,8 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
 }) {
   const proj = projects.find(p => p.id === task.projectId);
   const [hovered, setHovered] = useState(false);
+  const PRIORITY_COLOR: Record<string, string> = { High: '#ef4444', Medium: accent, Low: '#555' };
+  const pColor = PRIORITY_COLOR[task.priority] ?? '#555';
 
   return (
     <div
@@ -35,7 +37,7 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
       onMouseLeave={() => setHovered(false)}
       style={{
         borderBottom: '1px solid var(--border-1)',
-        borderLeft: hovered ? `3px solid ${accent}` : '3px solid transparent',
+        borderLeft: hovered ? `3px solid ${accent}` : `3px solid ${pColor}55`,
         opacity: fading ? 0 : 1, transition: 'opacity 0.25s, border-left-color 0.15s',
         background: isActive ? `${accent}10` : hovered ? `${accent}08` : 'transparent',
       }}>
@@ -104,7 +106,11 @@ export function WidgetView() {
   const [fading, setFading] = useState<Set<string>>(new Set());
   const [quickAdd, setQuickAdd] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [showDone, setShowDone] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Focus mode is AUTOMATIC — derived from session state, no manual toggle
+  const focusMode = pomodoro.phase === 'work';
 
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -160,6 +166,12 @@ export function WidgetView() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [pomodoro.phase, pomodoro.sessionStart]);
 
+  // Auto-resize the OS window based on session phase
+  useEffect(() => {
+    const height = pomodoro.phase === 'work' ? 130 : 500;
+    try { (window as any).chrome?.webview?.postMessage({ type: 'resize', width: 320, height }); } catch {}
+  }, [pomodoro.phase]);
+
   const active = tasks.filter(t => !t.completed && !fading.has(t.id));
 
   const overdue   = active.filter(t => t.deadline && t.deadline < todayStr)
@@ -172,14 +184,31 @@ export function WidgetView() {
   const workToday = active.filter(t => !overdueIds.has(t.id) && !dueTodayIds.has(t.id) && t.date === todayStr);
   const workTodayIds = new Set(workToday.map(t => t.id));
 
-  const upNextAll = active.filter(t => {
-    if (overdueIds.has(t.id) || dueTodayIds.has(t.id) || workTodayIds.has(t.id)) return false;
-    if (!t.deadline || t.deadline <= todayStr) return false;
-    return differenceInCalendarDays(parseISO(t.deadline), today) <= 7;
-  }).sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
+  const upNextAll = (() => {
+    const byDeadline = active.filter(t => {
+      if (overdueIds.has(t.id) || dueTodayIds.has(t.id) || workTodayIds.has(t.id)) return false;
+      if (!t.deadline || t.deadline <= todayStr) return false;
+      return differenceInCalendarDays(parseISO(t.deadline), today) <= 7;
+    });
+    const byDeadlineIds = new Set(byDeadline.map(t => t.id));
+    const byDate = active.filter(t => {
+      if (overdueIds.has(t.id) || dueTodayIds.has(t.id) || workTodayIds.has(t.id)) return false;
+      if (byDeadlineIds.has(t.id)) return false;
+      if (!t.date || t.date <= todayStr) return false;
+      return differenceInCalendarDays(parseISO(t.date), today) <= 7;
+    });
+    return [...byDeadline, ...byDate].sort((a, b) => {
+      const aKey = a.deadline ?? a.date ?? '';
+      const bKey = b.deadline ?? b.date ?? '';
+      return aKey.localeCompare(bKey);
+    });
+  })();
   const upNextLimit = 5;
   const upNext = upNextAll.slice(0, upNextLimit);
   const upNextMore = Math.max(0, upNextAll.length - upNextLimit);
+
+  const inbox = active.filter(t => !t.date && !t.deadline && !overdueIds.has(t.id) && !dueTodayIds.has(t.id) && !workTodayIds.has(t.id)).slice(0, 3);
+  const inboxMore = active.filter(t => !t.date && !t.deadline).length - inbox.length;
 
   const doneToday = tasks.filter(t => t.completed && t.date === todayStr).length;
   const topProjects = projects.filter(p => !p.parentId);
@@ -209,12 +238,12 @@ export function WidgetView() {
     onComplete: () => complete(t.id),
     onFocus: () => startPomodoro(t.id),
   });
-  const empty = overdue.length + dueToday.length + workToday.length + upNext.length === 0;
+  const empty = overdue.length + dueToday.length + workToday.length + upNext.length + inbox.length === 0;
 
   return (
     <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13 }}>
-      {/* Stats bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
+      {/* Stats bar — hidden during focus session */}
+      {!focusMode && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
         <span>{format(today, 'EEE, MMM d')}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
@@ -222,32 +251,81 @@ export function WidgetView() {
             title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop eye rest' : 'Start 25m eye rest timer'}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: '1px 5px',
-              borderRadius: 4, fontSize: 13,
+              borderRadius: 4, fontSize: 11,
               color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : 'var(--text-2)',
               outline: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '1px solid #22d3ee55' : 'none',
             }}>
-            👁
+            {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '⏱ Stop' : '⏱ Rest'}
           </button>
-          <span style={{ color: doneToday > 0 ? '#4ade80' : 'var(--border-1)' }}>✓ {doneToday} done</span>
+          <button onClick={() => setShowDone(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: doneToday > 0 ? '#4ade80' : 'var(--border-1)', fontSize: 12, fontFamily: 'Consolas, monospace' }}>✓ {doneToday} done</button>
         </div>
-      </div>
+      </div>}
 
-      {/* Pomodoro mini-bar */}
+      {!focusMode && showDone&& doneToday > 0 && (
+        <div style={{ borderBottom: '1px solid var(--border-1)', background: 'var(--bg-1)', padding: '4px 12px', maxHeight: 100, overflowY: 'auto', scrollbarWidth: 'none' }}>
+          {tasks.filter(t => t.completed && t.date === todayStr).map(t => (
+            <div key={t.id} style={{ fontSize: 11, color: 'var(--text-2)', textDecoration: 'line-through', padding: '2px 0' }}>{t.title}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Pomodoro bar */}
       {pomodoro.phase !== 'idle' && (() => {
         const isWork = pomodoro.phase === 'work';
         const isEyeRest = pomodoro.taskId === null;
+        const isPaused = (pomodoro as any).paused === true;
         const dur = isWork ? WORK_DURATION : BREAK_DURATION;
         const rem = Math.max(0, dur - elapsed);
         const pct = Math.min(1, elapsed / dur);
         const task = tasks.find(t => t.id === pomodoro.taskId);
         const pColor = isWork ? (isEyeRest ? '#22d3ee' : accent) : '#22c55e';
         const tracked = pomodoro.taskId ? getTaskTime(pomodoro.taskId) : 0;
+
+        if (focusMode) {
+          return (
+            <div style={{
+              height: '100%', boxSizing: 'border-box',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: `${pColor}08`,
+              position: 'relative',
+            }}>
+              {/* Thin progress bar along the top */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--bg-2)' }}>
+                <div style={{ height: '100%', width: `${pct * 100}%`, background: pColor, transition: 'width 0.5s linear' }} />
+              </div>
+
+              {/* Timer only */}
+              <div style={{
+                fontSize: 38, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                letterSpacing: 2, color: isPaused ? `${pColor}55` : pColor,
+                lineHeight: 1, fontFamily: 'Consolas, monospace',
+              }}>
+                {fmtCountdown(rem)}
+              </div>
+
+              {/* Hover controls */}
+              <div style={{
+                position: 'absolute', bottom: 6, right: 8,
+                display: 'flex', gap: 4,
+              }}>
+                {isWork ? (
+                  <button onClick={pausePomodoro} title={isPaused ? 'Resume' : 'Pause'}
+                    style={{ ...miniBtn('var(--bg-2)'), opacity: 0.5 }}>{isPaused ? '▶' : '⏸'}</button>
+                ) : (
+                  <button onClick={() => skipBreak()} title="Skip break"
+                    style={{ ...miniBtn('var(--bg-2)'), opacity: 0.5 }}>▶</button>
+                )}
+                <button onClick={stopPomodoro} title="Stop" style={{ ...miniBtn('var(--bg-2)'), opacity: 0.5 }}>✕</button>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
             borderBottom: `1px solid ${pColor}33`, background: `${pColor}0D`,
           }}>
-            {/* Mini ring */}
             <svg width={22} height={22} style={{ flexShrink: 0 }}>
               <circle cx={11} cy={11} r={9} fill="none" stroke="var(--bg-2)" strokeWidth={2.5} />
               <circle cx={11} cy={11} r={9} fill="none" stroke={pColor} strokeWidth={2.5}
@@ -257,16 +335,16 @@ export function WidgetView() {
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px' }} />
             </svg>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isEyeRest ? 'EYE REST' : isWork ? 'FOCUS' : 'BREAK'} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸ PAUSED' : (isEyeRest ? 'EYE REST' : isWork ? 'FOCUS' : 'BREAK')} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
               <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {isEyeRest ? '👁 look away from screen' : (task?.title ?? '—') + (tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : '')}
               </div>
             </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: isPaused ? `${pColor}80` : pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
               {fmtCountdown(rem)}
             </div>
             {isWork ? (
-              <button onClick={pausePomodoro} title="Pause" style={miniBtn('var(--bg-2)')}>⏸</button>
+              <button onClick={pausePomodoro} title={isPaused ? 'Resume' : 'Pause'} style={miniBtn('var(--bg-2)')}>{isPaused ? '▶' : '⏸'}</button>
             ) : (
               <button onClick={() => skipBreak()} title="Skip break" style={miniBtn('var(--bg-2)')}>▶</button>
             )}
@@ -275,6 +353,7 @@ export function WidgetView() {
         );
       })()}
 
+      {!focusMode && (<>
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
         {overdue.length > 0 && (
@@ -288,7 +367,7 @@ export function WidgetView() {
           </Section>
         )}
         {workToday.length > 0 && (
-          <Section label={`Today's work · ${workToday.length}`} color="#555">
+          <Section label={`Today's work · ${workToday.length}`} color="#888">
             {workToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
           </Section>
         )}
@@ -297,6 +376,14 @@ export function WidgetView() {
             {upNext.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
             {upNextMore > 0 && (
               <div style={{ padding: '3px 12px 6px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>+{upNextMore} more</div>
+            )}
+          </Section>
+        )}
+        {inbox.length > 0 && (
+          <Section label={`Inbox · ${inbox.length}`} color="#666">
+            {inbox.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
+            {inboxMore > 0 && (
+              <div style={{ padding: '3px 12px 6px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>+{inboxMore} more</div>
             )}
           </Section>
         )}
@@ -323,7 +410,8 @@ export function WidgetView() {
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: pAccent, flexShrink: 0 }} />
                     <span style={{ flex: 1, fontSize: 12, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
                     <span style={{ fontSize: 11, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{done}/{total}</span>
-                    <div style={{ width: 40, height: 2, background: 'var(--bg-2)', borderRadius: 2, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-2)', flexShrink: 0 }}>{Math.round(pct)}%</span>
+                    <div style={{ width: 60, height: 5, background: 'var(--bg-2)', borderRadius: 2, flexShrink: 0 }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: pAccent, borderRadius: 2 }} />
                     </div>
                   </div>
@@ -351,6 +439,7 @@ export function WidgetView() {
           onBlur={e => (e.target.style.borderBottomColor = 'var(--border-1)')}
         />
       </div>
+      </>)}
     </div>
   );
 }

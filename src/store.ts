@@ -42,8 +42,10 @@ export type PomodoroPhase = 'idle' | 'work' | 'break';
 export type PomodoroState = {
   taskId: string | null;
   phase: PomodoroPhase;
-  sessionStart: string | null; // ISO — when current work/break phase started
+  sessionStart: string | null; // ISO — when current work/break phase started (adjusted for pauses)
   sessionsCompleted: number;   // total 🍅 this app session
+  paused: boolean;
+  pausedElapsed: number;       // ms elapsed before current pause
 };
 
 export const WORK_DURATION  = 25 * 60 * 1000;
@@ -147,7 +149,7 @@ export const useStore = create<EpochState>()(
   projects: initialProjects,
   tasks: initialTasks,
   timeEntries: [],
-  pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0 },
+  pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: 0, paused: false, pausedElapsed: 0 },
   theme: 'void' as ThemeKey,
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
@@ -227,19 +229,25 @@ export const useStore = create<EpochState>()(
 
   // ── Pomodoro ─────────────────────────────────────────────────────────────
   startPomodoro: (taskId) => set((state) => ({
-    pomodoro: { taskId, phase: 'work', sessionStart: new Date().toISOString(), sessionsCompleted: state.pomodoro.sessionsCompleted }
+    pomodoro: { taskId, phase: 'work', sessionStart: new Date().toISOString(), sessionsCompleted: state.pomodoro.sessionsCompleted, paused: false, pausedElapsed: 0 }
   })),
 
   pausePomodoro: () => set((state) => {
     const { pomodoro } = state;
-    if (pomodoro.phase !== 'work' || !pomodoro.sessionStart) return {};
-    const endedAt = new Date().toISOString();
-    const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
-    if (!pomodoro.taskId || duration < 5000) return { pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null } };
-    return {
-      pomodoro: { ...pomodoro, phase: 'idle', sessionStart: null },
-      timeEntries: [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }],
-    };
+    if (pomodoro.phase === 'idle') return {};
+    if (pomodoro.paused) {
+      // Resume: shift sessionStart forward by the time we were paused
+      // so elapsed = Date.now() - sessionStart stays correct
+      const elapsed = pomodoro.pausedElapsed;
+      const newStart = new Date(Date.now() - elapsed).toISOString();
+      return { pomodoro: { ...pomodoro, paused: false, sessionStart: newStart } };
+    } else {
+      // Pause: record how many ms have elapsed so far
+      const elapsed = pomodoro.sessionStart
+        ? Date.now() - new Date(pomodoro.sessionStart).getTime()
+        : 0;
+      return { pomodoro: { ...pomodoro, paused: true, pausedElapsed: elapsed } };
+    }
   }),
 
   stopPomodoro: () => set((state) => {
@@ -250,7 +258,7 @@ export const useStore = create<EpochState>()(
       const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
       if (duration >= 5000) entries.push({ id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration });
     }
-    return { pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted }, timeEntries: entries };
+    return { pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted, paused: false, pausedElapsed: 0 }, timeEntries: entries };
   }),
 
   completeWorkSession: () => set((state) => {
@@ -304,6 +312,7 @@ export const useStore = create<EpochState>()(
         theme: state.theme,
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
+        pomodoro: state.pomodoro,
       }),
     }
   )

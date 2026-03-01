@@ -67,6 +67,30 @@ body {
   animation: task-complete 0.25s ease;
 }
 
+/* ── Focus-visible accessibility outlines ── */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent, #FF7B2F);
+  outline-offset: 2px;
+}
+
+/* ── Reduced-motion: disable all keyframe animations ── */
+@media (prefers-reduced-motion: reduce) {
+  .accent-glow   { animation: none; }
+  .animate-fade  { animation: none; opacity: 1; }
+  .animate-slide-down { animation: none; opacity: 1; }
+  .animate-check { animation: none; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ── Dawn (light) theme overrides ── */
 [data-theme="dawn"] {
   color-scheme: light;

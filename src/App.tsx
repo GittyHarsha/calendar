@@ -11,10 +11,12 @@ import { PomodoroBar } from './components/PomodoroBar';
 import { Task } from './store';
 import { useStore, THEMES } from './store';
 import { newProjectTrigger } from './components/MacroGoalsPanel';
+import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 
 export default function App() {
   const { tasks, updateTask, theme } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Apply theme CSS vars to root
   useEffect(() => {
@@ -38,6 +40,8 @@ export default function App() {
         document.getElementById('new-task-input')?.focus();
       } else if (e.key === 'p' || e.key === 'P') {
         newProjectTrigger.open();
+      } else if (e.key === '?') {
+        setShowShortcuts(prev => !prev);
       }
     };
     document.addEventListener('keydown', handler);
@@ -101,6 +105,7 @@ export default function App() {
       </DragOverlay>
 
       <PomodoroBar />
+      {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
     </DndContext>
   );
 }

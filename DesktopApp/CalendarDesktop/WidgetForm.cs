@@ -10,6 +10,7 @@ public class WidgetForm : Form
     private const string VirtualHost = "calendar.app";
     private bool _closeHover;
     private readonly Action<string, string> _notify;
+    private Point _savedLocation = Point.Empty; // saved before focus-mode collapse
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
@@ -119,6 +120,30 @@ public class WidgetForm : Form
                     }
                     else if (type == "breakComplete")
                         Invoke(() => _notify("☕ Break Over", "Back to work — start your next session!"));
+                    else if (type == "resize")
+                    {
+                        var width = msg.RootElement.GetProperty("width").GetInt32();
+                        var height = msg.RootElement.GetProperty("height").GetInt32();
+                        Invoke(() =>
+                        {
+                            if (height < Height)
+                            {
+                                // Collapsing: save current position, shrink in place (top-left stays fixed)
+                                _savedLocation = Location;
+                                Bounds = new Rectangle(Location.X, Location.Y, width, height);
+                            }
+                            else
+                            {
+                                // Expanding: restore to where user had the widget before collapsing
+                                var loc = _savedLocation != Point.Empty
+                                    ? _savedLocation
+                                    : new Point(
+                                        (Screen.PrimaryScreen?.WorkingArea.Right ?? 1920) - width - 16,
+                                        (Screen.PrimaryScreen?.WorkingArea.Bottom ?? 1080) - height - 16);
+                                Bounds = new Rectangle(loc.X, loc.Y, width, height);
+                            }
+                        });
+                    }
                 }
                 catch { }
             };

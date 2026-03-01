@@ -47,6 +47,8 @@ export function ThinkPad() {
   const [selectedPriority, setSelectedPriority] = useState<Priority>('Medium');
   const [scratchpadFullscreen, setScratchpadFullscreen] = useState(false);
   const [search, setSearch] = useState('');
+  const [titleError, setTitleError] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const today = format(startOfToday(), 'yyyy-MM-dd');
@@ -73,7 +75,10 @@ export function ThinkPad() {
 
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTaskTitle.trim()) return;
+    if (!newTaskTitle.trim()) {
+      setTitleError(true);
+      return;
+    }
     
     addTask({
       title: newTaskTitle.trim(),
@@ -90,6 +95,8 @@ export function ThinkPad() {
     setNewTaskRecurrence('none');
     setSelectedPriority('Medium');
     setSelectedProjectId('');
+    setTitleError(false);
+    setShowAdvanced(false);
   };
 
   return (
@@ -105,7 +112,7 @@ export function ThinkPad() {
         {/* Notes Area */}
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Scratchpad</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">📝 Scratchpad</label>
             <button onClick={() => setScratchpadFullscreen(true)} className="text-[#888] hover:text-[#8E9299] transition-colors" title="Fullscreen">
               <Maximize2 size={12} />
             </button>
@@ -122,23 +129,12 @@ export function ThinkPad() {
           <ScratchpadModal value={thinkPadNotes} onChange={setThinkPadNotes} onClose={() => setScratchpadFullscreen(false)} />
         )}
 
-        {/* Overdue Tasks */}
-        {overdueTasks.length > 0 && (
-          <div className="flex flex-col gap-2 p-2 rounded-lg border border-red-500/20"
-            style={{ background: 'color-mix(in srgb, #ef4444 5%, transparent)', boxShadow: '0 0 12px color-mix(in srgb, #ef4444 12%, transparent)' }}>
-            <label className="text-xs font-semibold uppercase tracking-wider text-red-500/80 flex items-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              Overdue · {overdueTasks.length}
-            </label>
-            {overdueTasks.map(task => (
-              <DraggableTask key={task.id} task={task} showDate />
-            ))}
-          </div>
-        )}
-
         {/* Inbox Tasks */}
         <div className="flex flex-col gap-2 flex-1">
-          <label className="text-xs font-semibold uppercase tracking-wider text-[#8E9299]">Inbox Tasks</label>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2,#8E9299)]">Inbox</span>
+            <span className="text-[10px] font-bold bg-[#2A2A2A] text-[#8E9299] px-1.5 py-0.5 rounded-full">{inboxTasks.length}</span>
+          </div>
           
           <div className="relative mb-2">
             <input
@@ -155,76 +151,107 @@ export function ThinkPad() {
               </button>
             )}
           </div>
+
+          {/* Overdue Tasks — shown above add form so urgent items are seen immediately */}
+          {overdueTasks.length > 0 && (
+            <div className="flex flex-col gap-2 p-2 rounded-lg border border-red-500/20 mb-1"
+              style={{ background: 'color-mix(in srgb, #ef4444 5%, transparent)', boxShadow: '0 0 12px color-mix(in srgb, #ef4444 12%, transparent)' }}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-red-500/80 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  Overdue
+                </span>
+                <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">{overdueTasks.length}</span>
+              </div>
+              {overdueTasks.map(task => (
+                <DraggableTask key={task.id} task={task} showDate />
+              ))}
+            </div>
+          )}
           
           <form onSubmit={handleAddTask} className="flex flex-col gap-2 mb-2 bg-[#141414] p-3 rounded-md border border-[#2A2A2A]">
-            <input
-              id="new-task-input"
-              type="text"
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              placeholder="Add a new task..."
-              className="w-full bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-[#F27D26]"
-            />
-            <div className="flex gap-2">
-              <select
-                value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-                className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
-              >
-                <option value="">No Project</option>
-                {projects.filter(p => !p.parentId).map(p => (
-                  <React.Fragment key={p.id}>
-                    <option value={p.id}>{p.name}</option>
-                    {projects.filter(sp => sp.parentId === p.id).map(sp => (
-                      <option key={sp.id} value={sp.id}>{'  ↳ ' + sp.name}</option>
+            <div className="flex flex-col gap-1">
+              <input
+                id="new-task-input"
+                type="text"
+                value={newTaskTitle}
+                onChange={(e) => { setNewTaskTitle(e.target.value); if (titleError) setTitleError(false); }}
+                placeholder="Add a new task..."
+                className={`w-full bg-[#0A0A0A] rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-[#F27D26] border ${titleError ? 'border-red-500' : 'border-[#2A2A2A]'}`}
+              />
+              {titleError && <span className="text-[11px] text-red-500">Title is required</span>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(p => !p)}
+              className="text-[11px] text-[#555] hover:text-[#888] transition-colors text-left self-start"
+            >
+              {showAdvanced ? '− Less options' : '＋ More options'}
+            </button>
+            {showAdvanced && (
+              <>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                    className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
+                  >
+                    <option value="">No Project</option>
+                    {projects.filter(p => !p.parentId).map(p => (
+                      <React.Fragment key={p.id}>
+                        <option value={p.id}>{p.name}</option>
+                        {projects.filter(sp => sp.parentId === p.id).map(sp => (
+                          <option key={sp.id} value={sp.id}>{'  ↳ ' + sp.name}</option>
+                        ))}
+                      </React.Fragment>
                     ))}
-                  </React.Fragment>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-2 items-center">
-              {/* Priority pills */}
-              <div className="flex gap-1">
-                {([['High', 'H', '#ef4444'], ['Medium', 'M', '#eab308'], ['Low', 'L', '#3B82F6']] as const).map(([val, label, color]) => (
-                  <button key={val} type="button" onClick={() => setSelectedPriority(val as Priority)}
-                    className="w-7 h-7 rounded text-[11px] font-bold transition-all"
-                    style={{ background: selectedPriority === val ? color + '33' : '#0A0A0A', color: selectedPriority === val ? color : '#555', border: `1px solid ${selectedPriority === val ? color + '66' : '#2A2A2A'}` }}
-                    title={val + ' Priority'}>
-                    {label}
+                  </select>
+                </div>
+                <div className="flex gap-2 items-center">
+                  {/* Priority pills */}
+                  <div className="flex gap-1">
+                    {([['High', 'H', '#ef4444'], ['Medium', 'M', '#eab308'], ['Low', 'L', '#3B82F6']] as const).map(([val, label, color]) => (
+                      <button key={val} type="button" onClick={() => setSelectedPriority(val as Priority)}
+                        className="w-7 h-7 rounded text-[11px] font-bold transition-all"
+                        style={{ background: selectedPriority === val ? color + '33' : '#0A0A0A', color: selectedPriority === val ? color : '#555', border: `1px solid ${selectedPriority === val ? color + '66' : '#2A2A2A'}` }}
+                        title={val + ' Priority'}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Recurrence pills */}
+                  <div className="flex gap-1 ml-auto">
+                    {([['none', '·'], ['daily', 'D'], ['weekly', 'W'], ['monthly', 'Mo']] as const).map(([val, label]) => (
+                      <button key={val} type="button" onClick={() => setNewTaskRecurrence(val as Recurrence)}
+                        className="w-7 h-7 rounded text-[11px] font-bold transition-all"
+                        style={{ background: newTaskRecurrence === val ? 'var(--accent-muted, #F27D2622)' : '#0A0A0A', color: newTaskRecurrence === val ? 'var(--accent)' : '#555', border: `1px solid ${newTaskRecurrence === val ? 'var(--accent)' : '#2A2A2A'}` }}
+                        title={{ none: 'Once', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }[val]}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="relative flex gap-2">
+                  <button type="button"
+                    onClick={() => setShowDatePicker(p => !p)}
+                    className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
+                    {newTaskDate ? format(new Date(newTaskDate + 'T00:00:00'), 'MMM d, yyyy') : '📅 Work date…'}
                   </button>
-                ))}
-              </div>
-              {/* Recurrence pills */}
-              <div className="flex gap-1 ml-auto">
-                {([['none', '·'], ['daily', 'D'], ['weekly', 'W'], ['monthly', 'Mo']] as const).map(([val, label]) => (
-                  <button key={val} type="button" onClick={() => setNewTaskRecurrence(val as Recurrence)}
-                    className="w-7 h-7 rounded text-[11px] font-bold transition-all"
-                    style={{ background: newTaskRecurrence === val ? 'var(--accent-muted, #F27D2622)' : '#0A0A0A', color: newTaskRecurrence === val ? 'var(--accent)' : '#555', border: `1px solid ${newTaskRecurrence === val ? 'var(--accent)' : '#2A2A2A'}` }}
-                    title={{ none: 'Once', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }[val]}>
-                    {label}
+                  {showDatePicker && (
+                    <DatePickerPopover value={newTaskDate || null} onChange={d => { setNewTaskDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />
+                  )}
+                  <button type="button"
+                    onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
+                    className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs hover:border-[#ef4444] transition-colors focus:outline-none"
+                    style={{ color: newTaskDeadline ? '#ef4444' : '#555' }}>
+                    {newTaskDeadline ? `🚩 ${format(new Date(newTaskDeadline + 'T00:00:00'), 'MMM d')}` : '🚩 Due date…'}
                   </button>
-                ))}
-              </div>
-            </div>
-            <div className="relative flex gap-2">
-              <button type="button"
-                onClick={() => setShowDatePicker(p => !p)}
-                className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
-                {newTaskDate ? format(new Date(newTaskDate + 'T00:00:00'), 'MMM d, yyyy') : '📅 Work date…'}
-              </button>
-              {showDatePicker && (
-                <DatePickerPopover value={newTaskDate || null} onChange={d => { setNewTaskDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />
-              )}
-              <button type="button"
-                onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
-                className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs hover:border-[#ef4444] transition-colors focus:outline-none"
-                style={{ color: newTaskDeadline ? '#ef4444' : '#555' }}>
-                {newTaskDeadline ? `🚩 ${format(new Date(newTaskDeadline + 'T00:00:00'), 'MMM d')}` : '🚩 Due date…'}
-              </button>
-              {showDeadlinePicker && (
-                <DatePickerPopover value={newTaskDeadline || null} onChange={d => { setNewTaskDeadline(d ?? ''); setShowDeadlinePicker(false); }} onClose={() => setShowDeadlinePicker(false)} clearable />
-              )}
-            </div>
+                  {showDeadlinePicker && (
+                    <DatePickerPopover value={newTaskDeadline || null} onChange={d => { setNewTaskDeadline(d ?? ''); setShowDeadlinePicker(false); }} onClose={() => setShowDeadlinePicker(false)} clearable />
+                  )}
+                </div>
+              </>
+            )}
             <div className="flex gap-2">
               <button type="submit" className="flex-1 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white px-3 py-2 rounded-md transition-colors flex items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wider">
                 <Plus size={13} /> Add Task

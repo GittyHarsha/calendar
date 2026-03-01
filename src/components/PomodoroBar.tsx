@@ -91,6 +91,12 @@ export function PomodoroBar() {
       setElapsed(0);
       return;
     }
+    if (pomodoro.paused) {
+      // Frozen — show the paused elapsed time, don't tick
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setElapsed(pomodoro.pausedElapsed);
+      return;
+    }
     if (!pomodoro.sessionStart) return;
 
     const tick = () => {
@@ -125,9 +131,27 @@ export function PomodoroBar() {
     tick();
     intervalRef.current = setInterval(tick, 500);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [pomodoro.phase, pomodoro.sessionStart]);
+  }, [pomodoro.phase, pomodoro.sessionStart, pomodoro.paused]);
 
-  if (pomodoro.phase === 'idle' && !showBreakModal) return null;
+  if (pomodoro.phase === 'idle' && !showBreakModal) {
+    return (
+      <button
+        onClick={() => startPomodoro(null)}
+        title="Start a focus session"
+        style={{
+          position: 'fixed', bottom: 20, right: 20, zIndex: 9990,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'var(--bg-0)', border: '1px solid var(--border-1)',
+          borderRadius: 40, padding: '8px 16px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          fontFamily: 'Consolas, monospace', color: 'var(--text-2)',
+          fontSize: 13, cursor: 'pointer', userSelect: 'none',
+        }}
+      >
+        🍅 <span>Focus</span>
+      </button>
+    );
+  }
 
   const task = tasks.find(t => t.id === pomodoro.taskId);
   const isEyeRest = pomodoro.taskId === null;
@@ -149,7 +173,7 @@ export function PomodoroBar() {
           borderRadius: 40, padding: '10px 20px',
           boxShadow: `0 4px 32px rgba(0,0,0,0.7), 0 0 0 1px ${accent}22`,
           fontFamily: 'Consolas, monospace', userSelect: 'none',
-          minWidth: 360,
+          minWidth: 360, maxWidth: 520,
         }}>
           {/* Progress ring */}
           <svg width={38} height={38} style={{ flexShrink: 0 }}>
@@ -172,10 +196,10 @@ export function PomodoroBar() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {isEyeRest
-                ? <span style={{ fontSize: 13, color: '#22d3ee' }}>👁 Eye Rest — look away from screen</span>
+                ? <span style={{ fontSize: 13, color: '#22d3ee', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>👁 Eye Rest</span>
                 : <>
                     {project && <span style={{ width: 7, height: 7, borderRadius: '50%', background: project.color, display: 'inline-block', flexShrink: 0 }} />}
-                    <span style={{ fontSize: 13, color: '#D4D3D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 13, color: '#D4D3D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>
                       {task?.title ?? '—'}
                     </span>
                   </>
@@ -184,14 +208,14 @@ export function PomodoroBar() {
           </div>
 
           {/* Countdown */}
-          <div style={{ fontSize: 26, fontWeight: 700, color: accent, letterSpacing: 2, flexShrink: 0, minWidth: 72, textAlign: 'center' }}>
+          <div style={{ fontSize: 26, fontWeight: 700, color: pomodoro.paused ? '#555' : accent, letterSpacing: 2, flexShrink: 0, minWidth: 72, textAlign: 'center', opacity: pomodoro.paused ? 0.6 : 1 }}>
             {fmtCountdown(remaining)}
           </div>
 
           {/* Controls */}
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             {isWork && (
-              <button onClick={pausePomodoro} title="Pause" style={btnStyle('#444')}>⏸</button>
+              <button onClick={pausePomodoro} title={pomodoro.paused ? 'Resume' : 'Pause'} style={btnStyle('#444')}>{pomodoro.paused ? '▶' : '⏸'}</button>
             )}
             {!isWork && (
               <button onClick={skipBreak} title="Skip break" style={btnStyle('#444')}>▶</button>

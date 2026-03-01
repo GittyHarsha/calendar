@@ -44,6 +44,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   const [editingDate, setEditingDate] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const pickerOpen = editingDate || editingDeadline;
 
   // Cancel close whenever a picker is open
@@ -61,8 +62,8 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   useEffect(() => {
     if (!anchorRef.current) return;
     const r = anchorRef.current.getBoundingClientRect();
-    const popW = 224; // w-56
-    const popH = 280;
+    const popW = 288; // w-72
+    const popH = 300;
     const gap = 6;
 
     // Try right side first
@@ -89,11 +90,24 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
       <div ref={popupRef}
         onMouseEnter={onMouseEnter}
         onMouseLeave={pickerOpen ? undefined : onMouseLeave}
-        className="fixed z-[9999] w-56 rounded-xl border border-[#2A2A2A] shadow-2xl p-3 flex flex-col gap-3"
+        className="fixed z-[9999] w-72 rounded-xl border border-[#2A2A2A] shadow-2xl p-3 flex flex-col gap-3"
         style={{ top: pos.top, left: pos.left, opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? 'auto' : 'none', background: 'var(--bg-0)' }}>
 
-        {/* Title row */}
-        <div className="text-sm font-semibold text-white leading-snug">{task.title}</div>
+        {/* Title row with delete icon */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-white leading-snug flex-1 min-w-0 truncate">{task.title}</div>
+          {confirmDelete ? (
+            <span className="flex items-center gap-1 text-xs shrink-0">
+              <button onClick={() => { deleteTask(task.id); onClose(); }} className="text-red-400 hover:text-red-300 font-bold">Yes</button>
+              <span className="text-[#555]">/</span>
+              <button onClick={() => setConfirmDelete(false)} className="text-[#aaa] hover:text-white">No</button>
+            </span>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)} className="shrink-0 text-[#555] hover:text-red-400 transition-colors">
+              <Trash2 size={13} />
+            </button>
+          )}
+        </div>
 
         {/* Project label */}
         {task.projectId && (() => {
@@ -178,25 +192,21 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
         <div className="border-t border-[#1E1E1E]" />
 
-        {/* Notes + Delete */}
-        <div className="flex items-center justify-between">
-          <button onClick={() => { onOpenNotes(); onClose(); }}
+        {/* Notes (inline expandable) */}
+        <div className="flex flex-col gap-1.5">
+          <button onClick={() => setShowNotes(v => !v)}
             className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
             <AlignLeft size={13} />
             {task.description ? 'Edit notes' : 'Add notes'}
           </button>
-          {confirmDelete ? (
-            <span className="flex items-center gap-1 text-xs">
-              <button onClick={() => { deleteTask(task.id); onClose(); }} className="text-red-400 hover:text-red-300 font-bold">Yes</button>
-              <span className="text-[#555]">/</span>
-              <button onClick={() => setConfirmDelete(false)} className="text-[#aaa] hover:text-white">No</button>
-            </span>
-          ) : (
-            <button onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-1 text-xs text-[#aaa] hover:text-red-400 transition-colors">
-              <Trash2 size={13} />
-              Delete
-            </button>
+          {showNotes && (
+            <textarea
+              defaultValue={task.description ?? ''}
+              onChange={e => updateTask(task.id, { description: e.target.value })}
+              placeholder="Write anything…"
+              rows={3}
+              className="w-full bg-[#1A1A1A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-1.5 resize-none focus:outline-none border border-[#2A2A2A] focus:border-[#444]"
+            />
           )}
         </div>
       </div>
@@ -266,9 +276,9 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
         onMouseEnter={() => { cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true); }}
         onMouseLeave={() => { setHoveredProjectId(null); scheduleClose(); }}
         className={cn(
-          'relative group flex flex-col border border-[#222] border-l-2 rounded transition-all overflow-hidden cursor-default',
+          'relative group flex flex-col border border-[#222] border-l-2 rounded transition-all overflow-hidden cursor-grab',
           'hover:-translate-y-px',
-          PRIORITY_BORDER[priority],
+          task.completed ? 'border-l-[#333]' : PRIORITY_BORDER[priority],
           isDragging ? 'opacity-40 scale-[0.98]' : '',
           task.completed && 'opacity-40'
         )}
@@ -277,9 +287,9 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
           ...(showPopup && !isDragging ? { boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)' } : { boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }),
         }}
       >
-        <div className="flex items-center gap-2 px-2 py-1.5">
+        <div className={cn('flex items-center gap-2 px-2', task.completed ? 'py-0.5' : 'py-1.5')}>
           <div {...attributes} {...listeners}
-            className="opacity-0 group-hover:opacity-100 cursor-grab text-[#888] hover:text-[#777] shrink-0 -ml-1 pointer-events-none group-hover:pointer-events-auto">
+            className="opacity-30 group-hover:opacity-60 cursor-grab text-[#888] shrink-0 -ml-1">
             <GripVertical size={13} />
           </div>
 
