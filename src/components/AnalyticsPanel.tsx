@@ -227,67 +227,62 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
 
   const panel: React.CSSProperties = {
     position: 'fixed',
-    top: 0,
-    right: 0,
-    width: 360,
-    height: '100%',
+    inset: 0,
     background: 'var(--bg-0)',
-    borderLeft: '1px solid var(--border-1, #252525)',
     display: 'flex',
     flexDirection: 'column',
     zIndex: 50,
     fontFamily: 'Consolas, monospace',
     overflowY: 'auto',
-    boxShadow: '-8px 0 32px rgba(0,0,0,0.5)',
   };
 
   const header: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 16px',
+    padding: '20px 40px',
     borderBottom: '1px solid var(--border-1, #252525)',
     flexShrink: 0,
   };
 
   const sectionTitle: React.CSSProperties = {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 700,
-    letterSpacing: '0.12em',
+    letterSpacing: '0.14em',
     textTransform: 'uppercase',
     color: 'var(--text-2, #686868)',
-    marginBottom: 10,
+    marginBottom: 14,
   };
 
   const section: React.CSSProperties = {
-    padding: '14px 16px',
+    padding: '28px 40px',
     borderBottom: '1px solid var(--border-1, #252525)',
   };
 
   const statRow: React.CSSProperties = {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr 1fr',
-    gap: 8,
+    gap: 16,
   };
 
   const statBox: React.CSSProperties = {
     background: 'var(--bg-1, #0F0F0F)',
-    borderRadius: 6,
-    padding: '8px 10px',
+    borderRadius: 10,
+    padding: '20px 24px',
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
+    gap: 6,
   };
 
   const statValue: React.CSSProperties = {
-    fontSize: 18,
+    fontSize: 36,
     fontWeight: 900,
     color: 'var(--accent)',
     lineHeight: 1,
   };
 
   const statLabel: React.CSSProperties = {
-    fontSize: 9,
+    fontSize: 12,
     color: 'var(--text-2, #686868)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
@@ -298,13 +293,13 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    padding: '5px 8px',
-    fontSize: 10,
+    gap: 6,
+    padding: '10px 16px',
+    fontSize: 12,
     fontWeight: 700,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    borderRadius: 5,
+    borderRadius: 6,
     border: '1px solid var(--border-1, #252525)',
     background: 'var(--bg-1, #0F0F0F)',
     color: 'var(--text-2, #686868)',
@@ -322,27 +317,27 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     <div style={panel}>
       {/* Header */}
       <div style={header}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-1, #F0EDEA)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-1, #F0EDEA)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Time Analytics
         </span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2, #686868)', padding: 2, display: 'flex', alignItems: 'center' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2, #686868)', padding: 6, display: 'flex', alignItems: 'center' }}
           title="Close">
-          <X size={14} />
+          <X size={22} />
         </button>
       </div>
 
       {/* Tab Switcher */}
-      <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid var(--border-1, #252525)', flexShrink: 0, position: 'sticky', top: 0, background: 'var(--bg-0)', zIndex: 1 }}>
+      <div style={{ display: 'flex', gap: 8, padding: '16px 40px', borderBottom: '1px solid var(--border-1, #252525)', flexShrink: 0, position: 'sticky', top: 0, background: 'var(--bg-0)', zIndex: 1 }}>
         {(['daily', 'weekly', 'alltime'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             style={{
               flex: 1,
-              padding: '5px 8px',
-              fontSize: 10,
+              padding: '10px 16px',
+              fontSize: 13,
               fontWeight: 700,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
@@ -359,15 +354,18 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         ))}
       </div>
 
+      {/* Main content — 2-column grid */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gridAutoRows: 'min-content', overflow: 'auto' }}>
+
       {/* Stats Summary */}
-      <div key={tab} style={section}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <div key={tab} style={{ ...section, gridColumn: '1 / -1' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <span style={{ ...sectionTitle, marginBottom: 0 }}>
             {tab === 'daily' ? 'Today' : tab === 'weekly' ? 'This Week' : 'All Time'}
           </span>
           {tab === 'weekly' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 10, color: 'var(--text-2)' }}>Goal:</span>
+              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Goal:</span>
               {editingGoal ? (
                 <input
                   type="number"
@@ -377,18 +375,18 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
                   autoFocus
                   onBlur={(e) => { setFocusGoal(Math.round(parseFloat(e.target.value || '0') * 60)); setEditingGoal(false); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingGoal(false); }}
-                  style={{ width: 44, fontSize: 10, fontFamily: 'Consolas, monospace', background: 'var(--bg-2)', border: '1px solid var(--border-1)', borderRadius: 4, color: 'var(--text-1)', padding: '1px 4px', outline: 'none' }}
+                  style={{ width: 60, fontSize: 13, fontFamily: 'Consolas, monospace', background: 'var(--bg-2)', border: '1px solid var(--border-1)', borderRadius: 4, color: 'var(--text-1)', padding: '2px 6px', outline: 'none' }}
                 />
               ) : (
                 <span
                   onClick={() => setEditingGoal(true)}
                   title="Click to edit daily focus goal"
-                  style={{ fontSize: 10, color: 'var(--accent)', cursor: 'pointer', borderBottom: '1px dashed var(--accent)' }}
+                  style={{ fontSize: 13, color: 'var(--accent)', cursor: 'pointer', borderBottom: '1px dashed var(--accent)' }}
                 >
                   {focusGoalMinutes > 0 ? `${focusGoalMinutes / 60}h` : 'set'}
                 </span>
               )}
-              <span style={{ fontSize: 10, color: 'var(--text-2)' }}>/day</span>
+              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>/day</span>
             </div>
           )}
         </div>
@@ -415,12 +413,12 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
           </div>
         </div>
         {tab === 'weekly' && focusGoalMinutes > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-2)', marginBottom: 3 }}>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-2)', marginBottom: 6 }}>
               <span>Today: {todayMs > 0 ? fmtDuration(todayMs) : '—'}</span>
               <span>{fmtDuration(focusGoalMinutes * 60000)} goal</span>
             </div>
-            <div style={{ height: 3, borderRadius: 2, background: 'var(--bg-2)', overflow: 'hidden' }}>
+            <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-2)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', borderRadius: 2,
                 background: todayMs >= focusGoalMinutes * 60000 ? '#22c55e' : 'var(--accent)',
@@ -433,13 +431,13 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         {tab === 'alltime' && (
           <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div style={statBox}>
-              <span style={{ ...statValue, fontSize: 14 }}>
+              <span style={{ ...statValue, fontSize: 22 }}>
                 {allTimeStats.mostProductiveDay ? format(parseISO(allTimeStats.mostProductiveDay[0]), 'EEE d') : '—'}
               </span>
               <span style={statLabel}>Best day</span>
             </div>
             <div style={statBox}>
-              <span style={{ ...statValue, fontSize: 14 }}>{allTimeStats.longestStreak > 0 ? `${allTimeStats.longestStreak}d` : '—'}</span>
+              <span style={{ ...statValue, fontSize: 22 }}>{allTimeStats.longestStreak > 0 ? `${allTimeStats.longestStreak}d` : '—'}</span>
               <span style={statLabel}>Best streak</span>
             </div>
           </div>
@@ -450,33 +448,33 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
       <div style={section}>
         <div style={sectionTitle}>Time per Project</div>
         {(tab === 'daily' ? dailyProjectTimes : projectTimes).length === 0 ? (
-          <span style={{ fontSize: 11, color: 'var(--text-2, #686868)', fontStyle: 'italic' }}>No tracked time yet</span>
+          <span style={{ fontSize: 14, color: 'var(--text-2, #686868)', fontStyle: 'italic' }}>No tracked time yet</span>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(tab === 'daily' ? dailyProjectTimes : projectTimes).map(({ project, ms }) => {
               const maxMs = tab === 'daily' ? maxDailyProjectMs : maxProjectMs;
               return (
                 <div key={project.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />
-                    <span style={{ flex: 1, fontSize: 11, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />
+                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       title={project.name}>{project.name}</span>
                     {tab !== 'daily' && (() => {
                       const rate = projectCompletionRates[project.id];
                       if (!rate || rate.total === 0) return null;
                       const pct = Math.round((rate.completed / rate.total) * 100);
                       return (
-                        <span style={{ fontSize: 9, color: project.color, background: project.color + '22', borderRadius: 10, padding: '1px 5px', flexShrink: 0, fontWeight: 700 }}>
+                        <span style={{ fontSize: 12, color: project.color, background: project.color + '22', borderRadius: 10, padding: '2px 8px', flexShrink: 0, fontWeight: 700 }}>
                           {pct}%
                         </span>
                       );
                     })()}
-                    <span style={{ fontSize: 11, color: 'var(--text-2, #686868)', flexShrink: 0 }}>{fmtDuration(ms)}</span>
+                    <span style={{ fontSize: 14, color: 'var(--text-2, #686868)', flexShrink: 0 }}>{fmtDuration(ms)}</span>
                   </div>
-                  <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-2, #191919)', overflow: 'hidden' }}>
+                  <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-2, #191919)', overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
-                      borderRadius: 2,
+                      borderRadius: 3,
                       background: project.color,
                       width: `${Math.round((ms / maxMs) * 100)}%`,
                       transition: 'width 0.3s ease',
@@ -493,7 +491,7 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
       {tab === 'weekly' && projectTrends.length > 0 && (
         <div style={section}>
           <div style={sectionTitle}>Project Trends</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {projectTrends.map(({ project, thisWeekMs, lastWeekMs }) => {
               const maxMs = Math.max(thisWeekMs, lastWeekMs, 1);
               const diffMs = thisWeekMs - lastWeekMs;
@@ -501,22 +499,22 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
               const diffColor = diffMs > 0 ? '#22c55e' : diffMs < 0 ? '#ef4444' : 'var(--text-2)';
               return (
                 <div key={project.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />
-                    <span style={{ flex: 1, fontSize: 11, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</span>
-                    <span style={{ fontSize: 10, color: diffColor, flexShrink: 0 }}>{diffLabel}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />
+                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</span>
+                    <span style={{ fontSize: 13, color: diffColor, flexShrink: 0 }}>{diffLabel}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 2, height: 6 }}>
-                    <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 2, background: project.color, opacity: 0.4, width: `${Math.round((lastWeekMs / maxMs) * 100)}%` }} />
+                  <div style={{ display: 'flex', gap: 3, height: 8 }}>
+                    <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 3, background: project.color, opacity: 0.4, width: `${Math.round((lastWeekMs / maxMs) * 100)}%` }} />
                     </div>
-                    <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 2, background: project.color, width: `${Math.round((thisWeekMs / maxMs) * 100)}%` }} />
+                    <div style={{ flex: 1, background: 'var(--bg-2)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 3, background: project.color, width: `${Math.round((thisWeekMs / maxMs) * 100)}%` }} />
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
-                    <span style={{ flex: 1, fontSize: 8, color: 'var(--text-2)', opacity: 0.6 }}>Last week</span>
-                    <span style={{ flex: 1, fontSize: 8, color: 'var(--text-2)' }}>This week</span>
+                  <div style={{ display: 'flex', gap: 3, marginTop: 3 }}>
+                    <span style={{ flex: 1, fontSize: 11, color: 'var(--text-2)', opacity: 0.6 }}>Last week</span>
+                    <span style={{ flex: 1, fontSize: 11, color: 'var(--text-2)' }}>This week</span>
                   </div>
                 </div>
               );
@@ -529,21 +527,21 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
       {tab !== 'alltime' && (
         <div style={section}>
           <div style={sectionTitle}>14-Day Streak</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 5 }}>
             {days.map(({ date, dateStr, hasEntry, label }) => (
-              <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+              <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div
                   title={dateStr}
                   style={{
                     width: '100%',
                     aspectRatio: '1',
-                    borderRadius: 3,
+                    borderRadius: 4,
                     background: hasEntry ? 'var(--accent)' : 'var(--bg-2, #191919)',
                     opacity: hasEntry ? 1 : 0.5,
                     transition: 'background 0.2s',
                   }}
                 />
-                <span style={{ fontSize: 8, color: 'var(--text-2, #686868)', lineHeight: 1 }}>{label}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-2, #686868)', lineHeight: 1 }}>{label}</span>
               </div>
             ))}
           </div>
@@ -555,23 +553,23 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         <div style={section}>
           <div style={sectionTitle}>30-Day Focus</div>
           <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, minWidth: thirtyDayBars.length * 10 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, minWidth: thirtyDayBars.length * 14 }}>
               {thirtyDayBars.map(({ dateStr, totalMin, isToday, isMonday, tooltip }) => {
-                const barH = totalMin === 0 ? 2 : Math.max(3, Math.round((totalMin / maxDayMin) * 60));
+                const barH = totalMin === 0 ? 2 : Math.max(4, Math.round((totalMin / maxDayMin) * 80));
                 return (
-                  <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                     <div
                       title={tooltip}
                       style={{
-                        width: 8,
+                        width: 10,
                         height: barH,
-                        borderRadius: 2,
+                        borderRadius: 3,
                         background: totalMin === 0 ? 'var(--bg-2)' : 'var(--accent)',
                         opacity: totalMin === 0 ? 1 : isToday ? 1 : 0.6,
                         flexShrink: 0,
                       }}
                     />
-                    <span style={{ fontSize: 7, color: 'var(--text-2)', lineHeight: 1, visibility: isMonday ? 'visible' : 'hidden' }}>M</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-2)', lineHeight: 1, visibility: isMonday ? 'visible' : 'hidden' }}>M</span>
                   </div>
                 );
               })}
@@ -585,21 +583,21 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         <div style={section}>
           <div style={sectionTitle}>Peak Hours</div>
           <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 2, minWidth: 24 * 22 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 3, minWidth: 24 * 30 }}>
               {hourHeatmap.map(({ hour, intensity, showLabel, label, tooltip }) => (
-                <div key={hour} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                <div key={hour} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <div
                     title={tooltip}
                     style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 3,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 4,
                       background: intensity === 0 ? 'var(--bg-2)' : 'var(--accent)',
                       opacity: intensity === 0 ? 1 : Math.max(0.15, intensity),
                       flexShrink: 0,
                     }}
                   />
-                  <span style={{ fontSize: 7, color: 'var(--text-2)', lineHeight: 1, visibility: showLabel ? 'visible' : 'hidden' }}>{label}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-2)', lineHeight: 1, visibility: showLabel ? 'visible' : 'hidden' }}>{label}</span>
                 </div>
               ))}
             </div>
@@ -612,17 +610,17 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         <div style={section}>
           <div style={sectionTitle}>Session Lengths</div>
           {timeEntries.length === 0 ? (
-            <span style={{ fontSize: 11, color: 'var(--text-2)', fontStyle: 'italic' }}>No tracked time yet</span>
+            <span style={{ fontSize: 14, color: 'var(--text-2)', fontStyle: 'italic' }}>No tracked time yet</span>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {sessionLengths.map(({ label, count, pct, color }) => (
                 <div key={label}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-1)', width: 46, flexShrink: 0 }}>{label}</span>
-                    <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--bg-2)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 2, background: color, width: `${Math.round(pct * 100)}%`, transition: 'width 0.3s ease' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-1)', width: 52, flexShrink: 0 }}>{label}</span>
+                    <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-2)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 3, background: color, width: `${Math.round(pct * 100)}%`, transition: 'width 0.3s ease' }} />
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--text-2)', flexShrink: 0, width: 58, textAlign: 'right' }}>{count} session{count !== 1 ? 's' : ''}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-2)', flexShrink: 0, width: 70, textAlign: 'right' }}>{count} session{count !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
               ))}
@@ -635,42 +633,44 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
       <div style={{ ...section, borderBottom: 'none' }}>
         <div style={sectionTitle}>Top Tasks by Time</div>
         {(tab === 'daily' ? dailyTopTasks : topTasks).length === 0 ? (
-          <span style={{ fontSize: 11, color: 'var(--text-2, #686868)', fontStyle: 'italic' }}>No tracked time yet</span>
+          <span style={{ fontSize: 14, color: 'var(--text-2, #686868)', fontStyle: 'italic' }}>No tracked time yet</span>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {(tab === 'daily' ? dailyTopTasks : topTasks).map(({ task, ms }, idx) => (
-              <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 10, color: 'var(--text-2, #686868)', width: 14, flexShrink: 0, textAlign: 'right' }}>{idx + 1}.</span>
-                <span style={{ flex: 1, fontSize: 11, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 13, color: 'var(--text-2, #686868)', width: 18, flexShrink: 0, textAlign: 'right' }}>{idx + 1}.</span>
+                <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   title={task.title}>{task.title}</span>
-                <span style={{ fontSize: 11, color: 'var(--accent)', flexShrink: 0, fontWeight: 700 }}>{fmtDuration(ms)}</span>
+                <span style={{ fontSize: 14, color: 'var(--accent)', flexShrink: 0, fontWeight: 700 }}>{fmtDuration(ms)}</span>
               </div>
             ))}
           </div>
         )}
       </div>
 
+      </div> {/* end grid */}
+
       {/* Export Toolbar */}
-      <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-1, #252525)', display: 'flex', gap: 6, flexShrink: 0 }}>
+      <div style={{ padding: '16px 40px', borderTop: '1px solid var(--border-1, #252525)', display: 'flex', gap: 10, flexShrink: 0 }}>
         <button
           onClick={() => exportTimeLogCSV(tasks, timeEntries, projects)}
           style={exportBtnStyle}
           title="Export CSV">
-          <Download size={11} />
+          <Download size={14} />
           <span>CSV</span>
         </button>
         <button
           onClick={() => exportTimeLogJSON(tasks, timeEntries, projects)}
           style={exportBtnStyle}
           title="Export JSON">
-          <FileJson size={11} />
+          <FileJson size={14} />
           <span>JSON</span>
         </button>
         <button
           onClick={handleCopyMd}
           style={{ ...exportBtnStyle, ...(copied ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : {}) }}
           title="Copy Markdown Summary">
-          <Copy size={11} />
+          <Copy size={14} />
           <span>{copied ? 'Copied!' : 'Copy MD'}</span>
         </button>
       </div>
