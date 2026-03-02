@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useStore, Project, Priority } from '../store';
 import { differenceInDays, parseISO, startOfToday, addDays, format } from 'date-fns';
 import { cn } from '../lib/utils';
@@ -97,6 +97,9 @@ function ProjectForm({
   const [color, setColor] = useState(initial?.color ?? parentColor ?? '#3B82F6');
   const [priority, setPriority] = useState<Priority>(initial?.priority ?? 'Medium');
   const [showPicker, setShowPicker] = useState(false);
+  const [showStartedPicker, setShowStartedPicker] = useState(false);
+  const deadlineBtnRef = useRef<HTMLButtonElement>(null);
+  const startedBtnRef = useRef<HTMLButtonElement>(null);
 
   const handle = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,12 +117,26 @@ function ProjectForm({
         className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#F27D26]" />
       <div className="flex flex-col gap-1">
         <label className="text-[11px] uppercase tracking-wider text-[#8E9299]">Started</label>
-        <input type="date" value={startedAt} onChange={e => setStartedAt(e.target.value)}
-          className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] focus:outline-none focus:border-[#F27D26]" />
+        <div className="flex gap-1 items-center">
+          <button type="button" ref={startedBtnRef}
+            onClick={e => { e.stopPropagation(); setShowStartedPicker(p => !p); }}
+            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
+            {startedAt ? format(parseISO(startedAt), 'MMM d, yyyy') : 'Set start date'}
+          </button>
+          {startedAt && (
+            <button type="button" onClick={() => setStartedAt('')} className="text-[#aaa] hover:text-red-400 transition-colors" title="Clear start date">
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        {showStartedPicker && (
+          <DatePickerPopover value={startedAt || null} onChange={d => { setStartedAt(d ?? ''); setShowStartedPicker(false); }} onClose={() => setShowStartedPicker(false)} clearable anchorRef={startedBtnRef} />
+        )}
       </div>
       <div className="relative flex flex-col gap-1">
         <div className="flex gap-1 items-center">
-          <button type="button" onClick={() => setShowPicker(p => !p)}
+          <button type="button" ref={deadlineBtnRef}
+            onClick={e => { e.stopPropagation(); setShowPicker(p => !p); }}
             className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
             {deadline ? format(parseISO(deadline), 'MMM d, yyyy') : 'No deadline'}
           </button>
@@ -130,7 +147,7 @@ function ProjectForm({
           )}
         </div>
         {showPicker && (
-          <DatePickerPopover value={deadline || null} onChange={d => { setDeadline(d ?? ''); setShowPicker(false); }} onClose={() => setShowPicker(false)} clearable />
+          <DatePickerPopover value={deadline || null} onChange={d => { setDeadline(d ?? ''); setShowPicker(false); }} onClose={() => setShowPicker(false)} clearable anchorRef={deadlineBtnRef} />
         )}
         <div className="flex gap-1">
           {[30, 60, 90, 180].map(d => (
@@ -165,6 +182,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
   const [editingDL, setEditingDL] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
+  const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
   const days = project.deadline ? differenceInDays(parseISO(project.deadline), today) : null;
@@ -232,7 +250,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         </div>
         {/* Bottom row: deadline + progress */}
         <div className="flex items-center gap-3 pl-5">
-          <button onClick={() => setEditingDL(true)}
+          <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }}
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
             {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} />}
             <span className="text-2xl font-mono font-black leading-none" style={{ color: days === null ? '#555' : accent }}>
@@ -247,7 +265,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           </div>
         </div>
         {editingDL && (
-          <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable />
+          <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable anchorRef={deadlineBtnRef} />
         )}
       </div>
       {addingChild && (
@@ -277,6 +295,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [addingSub, setAddingSub] = useState(false);
+  const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
   const daysRemaining = project.deadline ? differenceInDays(parseISO(project.deadline), today) : null;
@@ -348,7 +367,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {icon}
-            <button onClick={() => setEditingDL(true)} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', daysRemaining === null ? 'text-[#555]' : text)}>
+            <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', daysRemaining === null ? 'text-[#555]' : text)}>
               {daysRemaining === null ? '—' : Math.abs(daysRemaining)}
             </button>
             <span className={cn('text-[11px] uppercase tracking-wider leading-none mt-2', daysRemaining === null ? 'text-[#555]' : text)}>
@@ -366,7 +385,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         <UpcomingTasks projectId={project.id} today={today} />
 
         {editingDL && (
-          <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable />
+          <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable anchorRef={deadlineBtnRef} />
         )}
       </div>
 

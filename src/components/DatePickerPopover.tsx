@@ -17,11 +17,21 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
   const selected = value ? parseISO(value) : undefined;
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Position relative to anchor if provided
+  // Position relative to anchor if provided, with viewport clamping
   useEffect(() => {
     if (anchorRef?.current) {
       const rect = anchorRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 4, left: rect.left });
+      const pickerW = 280;
+      const pickerH = 320;
+      let top = rect.bottom + 4;
+      let left = rect.left;
+      // Flip above if overflows bottom
+      if (top + pickerH > window.innerHeight - 8) top = rect.top - pickerH - 4;
+      // Clamp right edge
+      if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+      // Clamp left edge
+      if (left < 8) left = 8;
+      setPos({ top, left });
     }
   }, []);
 
