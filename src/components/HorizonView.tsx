@@ -185,7 +185,10 @@ export function HorizonView() {
   useEffect(() => {
     if (!showProjects) return;
     const handler = (e: MouseEvent) => {
-      if (projectsPanelRef.current && !projectsPanelRef.current.contains(e.target as Node)) {
+      const target = e.target as Element;
+      // Don't close if clicking inside a date picker portal
+      if (target.closest?.('[data-date-picker-portal]')) return;
+      if (projectsPanelRef.current && !projectsPanelRef.current.contains(target)) {
         setShowProjects(false);
       }
     };

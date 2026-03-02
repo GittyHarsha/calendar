@@ -48,6 +48,7 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
   const content = (
     <div
       ref={ref}
+      data-date-picker-portal=""
       style={{
         background: '#161616',
         border: '1px solid #2A2A2A',
