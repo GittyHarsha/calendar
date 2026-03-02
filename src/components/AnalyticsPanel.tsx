@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStore, fmtDuration } from '../store';
-import { startOfWeek, endOfWeek, subDays, subWeeks, format, getHours, parseISO, isWithinInterval, differenceInDays } from 'date-fns';
+import { startOfWeek, endOfWeek, subWeeks, format, parseISO, isWithinInterval, differenceInDays } from 'date-fns';
 import { X, Download, Copy, FileJson } from 'lucide-react';
 import { exportTimeLogCSV, exportTimeLogJSON, copyMarkdownSummary } from '../utils/exportTimeLogs';
 
@@ -93,70 +93,7 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     }).filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms).slice(0, 5);
   }, [tasks, todayEntries]);
 
-  // ── Daily Streak Calendar (last 14 days) ────────────────────────────────────
-  const days = useMemo(() => {
-    return Array.from({ length: 14 }, (_, i) => {
-      const d = subDays(today, 13 - i);
-      const dateStr = format(d, 'yyyy-MM-dd');
-      const hasEntry = timeEntries.some(e => e.startedAt.startsWith(dateStr));
-      return { date: d, dateStr, hasEntry, label: format(d, 'EEE').slice(0, 1) };
-    });
-  }, [timeEntries, today]);
-
-  // ── 30-Day Focus Bars ───────────────────────────────────────────────────────
-  const thirtyDayBars = useMemo(() => {
-    return Array.from({ length: 30 }, (_, i) => {
-      const d = subDays(today, 29 - i);
-      const dateStr = format(d, 'yyyy-MM-dd');
-      const entries = timeEntries.filter(e => e.startedAt.startsWith(dateStr));
-      const totalMin = Math.round(entries.reduce((s, e) => s + e.duration, 0) / 60000);
-      const isToday = i === 29;
-      const isMonday = format(d, 'EEE') === 'Mon';
-      const hh = Math.floor(totalMin / 60);
-      const mm = totalMin % 60;
-      const durStr = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
-      const tooltip = `${format(d, 'EEE MMM d')} · ${totalMin > 0 ? durStr : '0m'} · ${entries.length} session${entries.length !== 1 ? 's' : ''}`;
-      return { dateStr, totalMin, isToday, isMonday, tooltip };
-    });
-  }, [timeEntries]);
-
-  const maxDayMin = Math.max(...thirtyDayBars.map(b => b.totalMin), 1);
-
-  // ── Hour-of-Day Heatmap ─────────────────────────────────────────────────────
-  const hourHeatmap = useMemo(() => {
-    const hourTotals = Array.from({ length: 24 }, (_, h) => {
-      const entries = timeEntries.filter(e => getHours(parseISO(e.startedAt)) === h);
-      const totalMin = Math.round(entries.reduce((s, e) => s + e.duration, 0) / 60000);
-      return { hour: h, totalMin };
-    });
-    const maxMin = Math.max(...hourTotals.map(h => h.totalMin), 1);
-    return hourTotals.map(({ hour, totalMin }) => {
-      const intensity = totalMin === 0 ? 0 : totalMin / maxMin;
-      const hh = Math.floor(totalMin / 60);
-      const mm = totalMin % 60;
-      const durStr = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
-      const label = hour === 0 ? '12am' : hour < 12 ? `${hour}am` : hour === 12 ? '12pm' : `${hour - 12}pm`;
-      const showLabel = hour === 0 || hour === 6 || hour === 12 || hour === 18;
-      const tooltip = `${label} · ${totalMin > 0 ? durStr : '0m'} total`;
-      return { hour, totalMin, intensity, label, showLabel, tooltip };
-    });
-  }, [timeEntries]);
-
-  // ── Session Length Distribution ──────────────────────────────────────────────
-  const sessionLengths = useMemo(() => {
-    const buckets = [
-      { label: '<5m',   min: 0,           max: 5 * 60000,   color: '#ef4444' },
-      { label: '5–15m', min: 5 * 60000,   max: 15 * 60000,  color: 'var(--accent)' },
-      { label: '15–25m',min: 15 * 60000,  max: 25 * 60000,  color: 'var(--accent)' },
-      { label: '25m+',  min: 25 * 60000,  max: Infinity,     color: 'var(--accent)' },
-    ];
-    const counts = buckets.map(b => ({
-      ...b,
-      count: timeEntries.filter(e => e.duration >= b.min && e.duration < b.max).length,
-    }));
-    const maxCount = Math.max(...counts.map(c => c.count), 1);
-    return counts.map(c => ({ ...c, pct: c.count / maxCount }));
-  }, [timeEntries]);
+  // ── Daily Streak / 30-Day / Heatmap / Session Lengths removed ──────────────
 
   // ── Top Tasks ───────────────────────────────────────────────────────────────
   const topTasks = useMemo(() => {
@@ -166,6 +103,80 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     }).filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms).slice(0, 5);
     return taskTimes;
   }, [tasks, timeEntries]);
+
+  // ── Deadline: Per-Task Timeline Data ────────────────────────────────────────
+  const taskDeadlineTimelines = useMemo(() => {
+    const todayStr2 = format(today, 'yyyy-MM-dd');
+    return tasks
+      .filter(t => t.deadline || (t.deadlineHistory && t.deadlineHistory.length > 0))
+      .map(t => {
+        const allDeadlines: string[] = [...(t.deadlineHistory ?? []), ...(t.deadline ? [t.deadline] : [])];
+        const original = allDeadlines[0];
+        const current = t.deadline ?? allDeadlines[allDeadlines.length - 1];
+        const totalSlip = original && current ? differenceInDays(parseISO(current), parseISO(original)) : 0;
+        const isOverdue = !t.completed && current && current < todayStr2;
+        const status: 'done' | 'overdue' | 'active' = t.completed ? 'done' : isOverdue ? 'overdue' : 'active';
+        const project = projects.find(p => p.id === t.projectId);
+        return { task: t, allDeadlines, original, current, totalSlip, status, project };
+      })
+      .sort((a, b) => {
+        // Sort: overdue first, then by slip desc, then active, then done
+        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+        if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+        return b.totalSlip - a.totalSlip;
+      });
+  }, [tasks, projects, today]);
+
+  // ── Deadline: On-Time Delivery Ring ─────────────────────────────────────────
+  const onTimeStats = useMemo(() => {
+    const completedWithDeadline = tasks.filter(t => t.completed && t.deadline);
+    const onTime = completedWithDeadline.filter(t => {
+      // completed on time = date <= deadline (use task.date as completion proxy)
+      return t.date && t.date <= t.deadline!;
+    });
+    const late = completedWithDeadline.length - onTime.length;
+    const noDeadline = tasks.filter(t => t.completed && !t.deadline).length;
+    const total = completedWithDeadline.length;
+    const onTimePct = total > 0 ? Math.round((onTime.length / total) * 100) : 0;
+    return { onTime: onTime.length, late, noDeadline, total, onTimePct };
+  }, [tasks]);
+
+  // ── Deadline: Project Health ─────────────────────────────────────────────────
+  const projectDeadlineHealth = useMemo(() => {
+    return projects.map(p => {
+      const pts = tasks.filter(t => t.projectId === p.id && t.deadline);
+      const todayStr2 = format(today, 'yyyy-MM-dd');
+      const onTime = pts.filter(t => t.completed && t.date && t.date <= t.deadline!).length;
+      const late = pts.filter(t => t.completed && (!t.date || t.date > t.deadline!)).length;
+      const overdue = pts.filter(t => !t.completed && t.deadline! < todayStr2).length;
+      const active = pts.filter(t => !t.completed && t.deadline! >= todayStr2).length;
+      const slipped = pts.filter(t => t.deadlineHistory && t.deadlineHistory.length > 0);
+      const avgSlip = slipped.length > 0
+        ? Math.round(slipped.reduce((s, t) => s + differenceInDays(parseISO(t.deadline!), parseISO(t.deadlineHistory![0])), 0) / slipped.length)
+        : 0;
+      return { project: p, onTime, late, overdue, active, total: pts.length, avgSlip };
+    }).filter(x => x.total > 0);
+  }, [projects, tasks, today]);
+
+  // ── Deadline: Velocity Trend (weekly slip count, last 8 weeks) ──────────────
+  const deadlineVelocity = useMemo(() => {
+    return Array.from({ length: 8 }, (_, i) => {
+      const wStart = startOfWeek(subWeeks(today, 7 - i), { weekStartsOn: 1 });
+      const wEnd = endOfWeek(subWeeks(today, 7 - i), { weekStartsOn: 1 });
+      const wStartStr = format(wStart, 'yyyy-MM-dd');
+      const wEndStr = format(wEnd, 'yyyy-MM-dd');
+      const label = format(wStart, 'MMM d');
+      // Count deadline changes that happened in this week window
+      // We approximate: tasks whose deadline was changed (has history) and current deadline falls in this week
+      const count = tasks.filter(t =>
+        t.deadlineHistory && t.deadlineHistory.length > 0 &&
+        t.deadline && t.deadline >= wStartStr && t.deadline <= wEndStr
+      ).length;
+      return { label, count, isCurrentWeek: i === 7 };
+    });
+  }, [tasks, today]);
+
+  const maxVelocityCount = Math.max(...deadlineVelocity.map(w => w.count), 1);
 
   // ── Deadline Health ─────────────────────────────────────────────────────────
   const deadlineStats = useMemo(() => {
@@ -546,114 +557,8 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         </div>
       )}
 
-      {/* Daily Streak Calendar - hidden for alltime tab */}
-      {tab !== 'alltime' && (
-        <div style={section}>
-          <div style={sectionTitle}>14-Day Streak</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 5 }}>
-            {days.map(({ date, dateStr, hasEntry, label }) => (
-              <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div
-                  title={dateStr}
-                  style={{
-                    width: '100%',
-                    aspectRatio: '1',
-                    borderRadius: 4,
-                    background: hasEntry ? 'var(--accent)' : 'var(--bg-2, #191919)',
-                    opacity: hasEntry ? 1 : 0.5,
-                    transition: 'background 0.2s',
-                  }}
-                />
-                <span style={{ fontSize: 11, color: 'var(--text-2, #686868)', lineHeight: 1 }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 30-Day Focus Bar Chart - hidden for alltime tab */}
-      {tab !== 'alltime' && (
-        <div style={section}>
-          <div style={sectionTitle}>30-Day Focus</div>
-          <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, minWidth: thirtyDayBars.length * 14 }}>
-              {thirtyDayBars.map(({ dateStr, totalMin, isToday, isMonday, tooltip }) => {
-                const barH = totalMin === 0 ? 2 : Math.max(4, Math.round((totalMin / maxDayMin) * 80));
-                return (
-                  <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                    <div
-                      title={tooltip}
-                      style={{
-                        width: 10,
-                        height: barH,
-                        borderRadius: 3,
-                        background: totalMin === 0 ? 'var(--bg-2)' : 'var(--accent)',
-                        opacity: totalMin === 0 ? 1 : isToday ? 1 : 0.6,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{ fontSize: 10, color: 'var(--text-2)', lineHeight: 1, visibility: isMonday ? 'visible' : 'hidden' }}>M</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Hour-of-Day Heatmap - hidden for alltime tab */}
-      {tab !== 'alltime' && (
-        <div style={section}>
-          <div style={sectionTitle}>Peak Hours</div>
-          <div style={{ overflowX: 'auto', paddingBottom: 4 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 3, minWidth: 24 * 30 }}>
-              {hourHeatmap.map(({ hour, intensity, showLabel, label, tooltip }) => (
-                <div key={hour} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div
-                    title={tooltip}
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 4,
-                      background: intensity === 0 ? 'var(--bg-2)' : 'var(--accent)',
-                      opacity: intensity === 0 ? 1 : Math.max(0.15, intensity),
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: 10, color: 'var(--text-2)', lineHeight: 1, visibility: showLabel ? 'visible' : 'hidden' }}>{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Session Length Distribution - hidden for alltime tab */}
-      {tab !== 'alltime' && (
-        <div style={section}>
-          <div style={sectionTitle}>Session Lengths</div>
-          {timeEntries.length === 0 ? (
-            <span style={{ fontSize: 14, color: 'var(--text-2)', fontStyle: 'italic' }}>No tracked time yet</span>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {sessionLengths.map(({ label, count, pct, color }) => (
-                <div key={label}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13, color: 'var(--text-1)', width: 52, flexShrink: 0 }}>{label}</span>
-                    <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-2)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, background: color, width: `${Math.round(pct * 100)}%`, transition: 'width 0.3s ease' }} />
-                    </div>
-                    <span style={{ fontSize: 13, color: 'var(--text-2)', flexShrink: 0, width: 70, textAlign: 'right' }}>{count} session{count !== 1 ? 's' : ''}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Top Tasks */}
-      <div style={{ ...section, borderBottom: 'none' }}>
+      <div style={section}>
         <div style={sectionTitle}>Top Tasks by Time</div>
         {(tab === 'daily' ? dailyTopTasks : topTasks).length === 0 ? (
           <span style={{ fontSize: 14, color: 'var(--text-2, #686868)', fontStyle: 'italic' }}>No tracked time yet</span>
@@ -671,53 +576,180 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         )}
       </div>
 
-      {/* Deadline Health */}
-      {deadlineStats.tasksWithDeadline.length > 0 && (
-        <div style={{ ...section, borderBottom: 'none', gridColumn: '1 / -1' }}>
-          <div style={sectionTitle}>Deadline Health</div>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-            <div style={statBox}>
-              <span style={{ ...statValue, fontSize: 28, color: deadlineStats.slipRate > 0.5 ? '#ef4444' : 'var(--accent)' }}>
-                {Math.round(deadlineStats.slipRate * 100)}%
-              </span>
-              <span style={statLabel}>Slip Rate</span>
+      {/* ── DEADLINE ANALYSIS ── spans full grid width ─────────────────────── */}
+
+      {/* 1. On-Time Delivery Ring */}
+      {tab !== 'daily' && onTimeStats.total > 0 && (
+        <div style={{ ...section, gridColumn: '1 / -1' }}>
+          <div style={sectionTitle}>On-Time Delivery</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 40 }}>
+            {/* SVG Ring */}
+            <div style={{ flexShrink: 0 }}>
+              <svg width={120} height={120} viewBox="0 0 120 120">
+                <circle cx={60} cy={60} r={48} fill="none" stroke="var(--bg-2)" strokeWidth={12} />
+                <circle cx={60} cy={60} r={48} fill="none"
+                  stroke="#22c55e" strokeWidth={12}
+                  strokeDasharray={`${2 * Math.PI * 48 * onTimeStats.onTimePct / 100} ${2 * Math.PI * 48}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 60 60)"
+                  style={{ transition: 'stroke-dasharray 0.8s ease' }}
+                />
+                <circle cx={60} cy={60} r={48} fill="none"
+                  stroke="#ef4444" strokeWidth={12}
+                  strokeDasharray={`${2 * Math.PI * 48 * onTimeStats.late / onTimeStats.total} ${2 * Math.PI * 48}`}
+                  strokeLinecap="round"
+                  strokeDashoffset={-(2 * Math.PI * 48 * onTimeStats.onTimePct / 100)}
+                  transform="rotate(-90 60 60)"
+                  style={{ transition: 'stroke-dasharray 0.8s ease' }}
+                />
+                <text x={60} y={55} textAnchor="middle" fill="var(--accent)" fontSize={22} fontWeight={900} fontFamily="Consolas,monospace">{onTimeStats.onTimePct}%</text>
+                <text x={60} y={72} textAnchor="middle" fill="var(--text-2)" fontSize={10} fontFamily="Consolas,monospace">on time</text>
+              </svg>
             </div>
-            <div style={statBox}>
-              <span style={{ ...statValue, fontSize: 28 }}>{deadlineStats.avgDaysSlipped}d</span>
-              <span style={statLabel}>Avg Slip</span>
-            </div>
-          </div>
-          {deadlineStats.slipDetails.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ ...sectionTitle, marginBottom: 10 }}>Top Slipped Tasks</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {deadlineStats.slipDetails.map(({ task, daysSlipped }) => (
-                  <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={task.title}>{task.title}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: daysSlipped >= 8 ? '#ef4444' : '#f97316', background: daysSlipped >= 8 ? 'rgba(239,68,68,0.12)' : 'rgba(249,115,22,0.12)', borderRadius: 4, padding: '2px 7px', flexShrink: 0 }}>
-                      +{daysSlipped}d
-                    </span>
-                  </div>
-                ))}
+            {/* Legend */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: '#22c55e', flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontSize: 14, color: 'var(--text-1)' }}>On time</span>
+                <span style={{ fontSize: 20, fontWeight: 900, color: '#22c55e', marginLeft: 8 }}>{onTimeStats.onTime}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: '#ef4444', flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontSize: 14, color: 'var(--text-1)' }}>Late</span>
+                <span style={{ fontSize: 20, fontWeight: 900, color: '#ef4444', marginLeft: 8 }}>{onTimeStats.late}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--bg-2)', flexShrink: 0, display: 'inline-block' }} />
+                <span style={{ fontSize: 14, color: 'var(--text-2)' }}>No deadline</span>
+                <span style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-2)', marginLeft: 8 }}>{onTimeStats.noDeadline}</span>
               </div>
             </div>
-          )}
-          <div style={{ ...sectionTitle, marginBottom: 10 }}>Slip Distribution</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {deadlineStats.buckets.map(b => {
-              const maxCount = Math.max(...deadlineStats.buckets.map(x => x.count), 1);
+          </div>
+        </div>
+      )}
+
+      {/* 2. Per-Task Deadline Timeline */}
+      {tab !== 'daily' && taskDeadlineTimelines.length > 0 && (
+        <div style={{ ...section, gridColumn: '1 / -1' }}>
+          <div style={sectionTitle}>Task Deadline Timelines</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {taskDeadlineTimelines.slice(0, 12).map(({ task, allDeadlines, original, current, totalSlip, status, project }) => {
+              const statusColor = status === 'done' ? '#22c55e' : status === 'overdue' ? '#ef4444' : 'var(--accent)';
+              const statusLabel = status === 'done' ? '✓ Done' : status === 'overdue' ? '⚠ Overdue' : '● Active';
+              const slipColor = totalSlip <= 0 ? '#22c55e' : totalSlip <= 3 ? '#f97316' : '#ef4444';
               return (
-                <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 36, fontSize: 12, color: 'var(--text-2, #686868)', textAlign: 'right', flexShrink: 0 }}>{b.label}</span>
-                  <div style={{ flex: 1, height: 10, background: 'var(--bg-1, #0F0F0F)', borderRadius: 5, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(b.count / maxCount) * 100}%`, background: 'var(--accent)', borderRadius: 5, transition: 'width 0.4s ease' }} />
+                <div key={task.id} style={{ background: 'var(--bg-1)', borderRadius: 10, padding: '16px 20px', borderLeft: `3px solid ${statusColor}` }}>
+                  {/* Task header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    {project && <span style={{ width: 8, height: 8, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />}
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={task.title}>{task.title}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: statusColor, background: statusColor + '18', borderRadius: 20, padding: '2px 10px', flexShrink: 0 }}>{statusLabel}</span>
+                    {totalSlip > 0 && (
+                      <span style={{ fontSize: 13, fontWeight: 700, color: slipColor, background: slipColor + '18', borderRadius: 6, padding: '2px 8px', flexShrink: 0 }}>+{totalSlip}d</span>
+                    )}
                   </div>
-                  <span style={{ width: 20, fontSize: 12, color: 'var(--text-2, #686868)', flexShrink: 0 }}>{b.count}</span>
+                  {/* Timeline dots */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
+                    {task.startDate && (
+                      <>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--text-2)', border: '2px solid var(--bg-2)' }} />
+                          <span style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 4, whiteSpace: 'nowrap' }}>Started</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{format(parseISO(task.startDate), 'MMM d')}</span>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 24, height: 2, background: 'var(--bg-2)', alignSelf: 'flex-start', marginTop: 4 }} />
+                      </>
+                    )}
+                    {allDeadlines.map((dl, i) => {
+                      const isLast = i === allDeadlines.length - 1;
+                      const slipFromPrev = i > 0 ? differenceInDays(parseISO(dl), parseISO(allDeadlines[i - 1])) : 0;
+                      const dotColor = isLast ? statusColor : '#f97316';
+                      return (
+                        <React.Fragment key={dl + i}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                            <div style={{ width: isLast ? 14 : 10, height: isLast ? 14 : 10, borderRadius: '50%', background: dotColor, border: `2px solid ${dotColor}33`, flexShrink: 0 }} />
+                            {i > 0 && slipFromPrev > 0 && (
+                              <span style={{ fontSize: 10, color: '#f97316', marginTop: 2, whiteSpace: 'nowrap' }}>+{slipFromPrev}d</span>
+                            )}
+                            {i > 0 && slipFromPrev <= 0 && <span style={{ fontSize: 10, color: 'transparent', marginTop: 2 }}>·</span>}
+                            {i === 0 && <span style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2, whiteSpace: 'nowrap' }}>Original</span>}
+                            {isLast && i > 0 && <span style={{ fontSize: 10, color: statusColor, marginTop: 2, whiteSpace: 'nowrap' }}>Current</span>}
+                            <span style={{ fontSize: 11, color: isLast ? 'var(--text-1)' : 'var(--text-2)', whiteSpace: 'nowrap', fontWeight: isLast ? 700 : 400 }}>{format(parseISO(dl), 'MMM d')}</span>
+                          </div>
+                          {!isLast && <div style={{ flex: 1, minWidth: 20, height: 2, background: '#f9731644', alignSelf: 'flex-start', marginTop: 4 }} />}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+            {taskDeadlineTimelines.length > 12 && (
+              <span style={{ fontSize: 13, color: 'var(--text-2)', fontStyle: 'italic' }}>+{taskDeadlineTimelines.length - 12} more tasks…</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Project Deadline Health */}
+      {tab !== 'daily' && projectDeadlineHealth.length > 0 && (
+        <div style={{ ...section, gridColumn: '1 / -1' }}>
+          <div style={sectionTitle}>Project Deadline Health</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {projectDeadlineHealth.map(({ project, onTime, late, overdue, active, total, avgSlip }) => (
+              <div key={project.id} style={{ background: 'var(--bg-1)', borderRadius: 10, padding: '14px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</span>
+                  {avgSlip > 0 && <span style={{ fontSize: 12, color: '#f97316', fontWeight: 700 }}>avg +{avgSlip}d slip</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {onTime > 0 && <span style={{ fontSize: 12, color: '#22c55e', background: 'rgba(34,197,94,0.12)', borderRadius: 20, padding: '3px 10px', fontWeight: 700 }}>✓ {onTime} on time</span>}
+                  {late > 0 && <span style={{ fontSize: 12, color: '#ef4444', background: 'rgba(239,68,68,0.12)', borderRadius: 20, padding: '3px 10px', fontWeight: 700 }}>✗ {late} late</span>}
+                  {overdue > 0 && <span style={{ fontSize: 12, color: '#f97316', background: 'rgba(249,115,22,0.12)', borderRadius: 20, padding: '3px 10px', fontWeight: 700 }}>⚠ {overdue} overdue</span>}
+                  {active > 0 && <span style={{ fontSize: 12, color: 'var(--accent)', background: 'var(--accent)18', borderRadius: 20, padding: '3px 10px', fontWeight: 700 }}>● {active} active</span>}
+                </div>
+                {/* Mini bar: on-time | late | overdue | active */}
+                <div style={{ display: 'flex', gap: 2, height: 5, marginTop: 10, borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ flex: onTime, background: '#22c55e' }} />
+                  <div style={{ flex: late, background: '#ef4444' }} />
+                  <div style={{ flex: overdue, background: '#f97316' }} />
+                  <div style={{ flex: active, background: 'var(--accent)', opacity: 0.5 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. Deadline Velocity Trend */}
+      {tab !== 'daily' && deadlineVelocity.some(w => w.count > 0) && (
+        <div style={{ ...section, gridColumn: '1 / -1', borderBottom: 'none' }}>
+          <div style={sectionTitle}>Deadline Extension Trend (8 weeks)</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            {deadlineVelocity.map(({ label, count, isCurrentWeek }) => {
+              const barH = count === 0 ? 4 : Math.max(8, Math.round((count / maxVelocityCount) * 80));
+              return (
+                <div key={label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{count > 0 ? count : ''}</span>
+                  <div style={{
+                    width: '100%', height: barH, borderRadius: 4,
+                    background: count === 0 ? 'var(--bg-2)' : isCurrentWeek ? 'var(--accent)' : '#f97316',
+                    opacity: count === 0 ? 0.4 : 1,
+                    transition: 'height 0.3s ease',
+                  }} />
+                  <span style={{ fontSize: 11, color: isCurrentWeek ? 'var(--accent)' : 'var(--text-2)', textAlign: 'center' }}>{label}</span>
                 </div>
               );
             })}
           </div>
+          {(() => {
+            const firstHalf = deadlineVelocity.slice(0, 4).reduce((s, w) => s + w.count, 0);
+            const secondHalf = deadlineVelocity.slice(4).reduce((s, w) => s + w.count, 0);
+            const trend = secondHalf > firstHalf ? '↑ More extensions lately' : secondHalf < firstHalf ? '↓ Fewer extensions lately' : '= Stable';
+            const trendColor = secondHalf > firstHalf ? '#ef4444' : secondHalf < firstHalf ? '#22c55e' : 'var(--text-2)';
+            return <div style={{ marginTop: 12, fontSize: 13, color: trendColor, fontWeight: 700 }}>{trend}</div>;
+          })()}
         </div>
       )}
 
