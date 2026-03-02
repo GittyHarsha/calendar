@@ -84,15 +84,16 @@ function ProjectForm({
   label, initial, parentColor, compact = false, onSubmit, onCancel,
 }: {
   label: string;
-  initial?: { name?: string; deadline?: string | null; color?: string; priority?: Priority };
+  initial?: { name?: string; deadline?: string | null; color?: string; priority?: Priority; startedAt?: string | null };
   parentColor?: string;
   compact?: boolean;
-  onSubmit: (name: string, deadline: string | null, color: string, priority: Priority) => void;
+  onSubmit: (name: string, deadline: string | null, color: string, priority: Priority, startedAt: string | null) => void;
   onCancel: () => void;
 }) {
   const today = startOfToday();
   const [name, setName] = useState(initial?.name ?? '');
   const [deadline, setDeadline] = useState<string>(initial?.deadline ?? format(new Date(), 'yyyy-MM-dd'));
+  const [startedAt, setStartedAt] = useState<string>(initial?.startedAt ?? format(new Date(), 'yyyy-MM-dd'));
   const [color, setColor] = useState(initial?.color ?? parentColor ?? '#3B82F6');
   const [priority, setPriority] = useState<Priority>(initial?.priority ?? 'Medium');
   const [showPicker, setShowPicker] = useState(false);
@@ -100,7 +101,7 @@ function ProjectForm({
   const handle = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSubmit(name.trim(), deadline || null, color, priority);
+    onSubmit(name.trim(), deadline || null, color, priority, startedAt || null);
   };
 
   return (
@@ -111,6 +112,11 @@ function ProjectForm({
       </div>
       <input type="text" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Name…"
         className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#F27D26]" />
+      <div className="flex flex-col gap-1">
+        <label className="text-[11px] uppercase tracking-wider text-[#8E9299]">Started</label>
+        <input type="date" value={startedAt} onChange={e => setStartedAt(e.target.value)}
+          className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] focus:outline-none focus:border-[#F27D26]" />
+      </div>
       <div className="relative flex flex-col gap-1">
         <div className="flex gap-1 items-center">
           <button type="button" onClick={() => setShowPicker(p => !p)}
@@ -248,8 +254,8 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         <div className="mx-3 mb-2" style={{ marginLeft: 24 + depth * 16 }}>
           <ProjectForm label="New Subproject" compact parentColor={project.color}
             onCancel={() => setAddingChild(false)}
-            onSubmit={(name, deadline, color, priority) => {
-              addProject({ name, color, priority, deadline, parentId: project.id, startedAt: null });
+            onSubmit={(name, deadline, color, priority, startedAt) => {
+              addProject({ name, color, priority, deadline, parentId: project.id, startedAt });
               setAddingChild(false);
             }}
           />
@@ -295,9 +301,9 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   if (editing) {
     return (
       <ProjectForm label="Edit Goal"
-        initial={{ name: project.name, deadline: project.deadline, color: project.color, priority: project.priority }}
+        initial={{ name: project.name, deadline: project.deadline, color: project.color, priority: project.priority, startedAt: project.startedAt }}
         onCancel={() => setEditing(false)}
-        onSubmit={(name, deadline, color, priority) => { updateProject(project.id, { name, deadline, color, priority }); setEditing(false); }}
+        onSubmit={(name, deadline, color, priority, startedAt) => { updateProject(project.id, { name, deadline, color, priority, startedAt }); setEditing(false); }}
       />
     );
   }
@@ -388,8 +394,8 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
           <div className="p-2">
             <ProjectForm label="New Subproject" compact parentColor={project.color}
               onCancel={() => setAddingSub(false)}
-              onSubmit={(name, deadline, color, priority) => {
-                addProject({ name, color, priority, deadline, parentId: project.id, startedAt: null });
+              onSubmit={(name, deadline, color, priority, startedAt) => {
+                addProject({ name, color, priority, deadline, parentId: project.id, startedAt });
                 setAddingSub(false);
               }}
             />
@@ -431,8 +437,8 @@ export function MacroGoalsPanel() {
         <div className="w-[280px] shrink-0">
           <ProjectForm label="New Goal"
             onCancel={() => setIsCreating(false)}
-            onSubmit={(name, deadline, color, priority) => {
-              addProject({ name, color, priority, deadline, startedAt: null });
+            onSubmit={(name, deadline, color, priority, startedAt) => {
+              addProject({ name, color, priority, deadline, startedAt });
               setIsCreating(false);
             }}
           />

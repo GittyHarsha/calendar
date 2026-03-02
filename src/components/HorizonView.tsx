@@ -355,11 +355,12 @@ export function HorizonView() {
           <button
             onClick={() => setShowAnalytics(p => !p)}
             title="Time Analytics"
-            className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
-              showAnalytics ? '' : 'text-[#555] hover:text-[#bbb]'
+            className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors text-xs font-bold tracking-widest uppercase',
+              showAnalytics ? 'bg-[var(--accent)]/20 border border-[var(--accent)]' : 'text-[#555] hover:text-[#bbb] border border-transparent'
             )}
             style={showAnalytics ? { color: 'var(--accent)' } : undefined}>
             <BarChart2 size={13} />
+            <span>Analytics</span>
           </button>
 
           {/* Theme */}

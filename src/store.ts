@@ -32,6 +32,7 @@ export type Task = {
   subtasks?: Subtask[];
   recurrence?: Recurrence;
   recurrenceGroupId?: string;
+  startDate?: string | null;
 };
 
 export type TimeEntry = {

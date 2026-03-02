@@ -44,18 +44,20 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   const { projects, tasks, timeEntries, updateTask, updateRecurringTask, deleteTask, startPomodoro, getTaskTime, pomodoro, addSubtask, updateSubtask, deleteSubtask } = useStore();
   const [editingDate, setEditingDate] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
+  const [editingStartDate, setEditingStartDate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showTimeLog, setShowTimeLog] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [hoveredSubtaskId, setHoveredSubtaskId] = useState<string | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<{ field: 'date' | 'deadline'; value: string | null } | null>(null);
-  const pickerOpen = editingDate || editingDeadline;
+  const pickerOpen = editingDate || editingDeadline || editingStartDate;
 
   // Cancel close whenever a picker is open
   useEffect(() => { if (pickerOpen) onMouseEnter(); }, [pickerOpen]);
   const dateButtonRef = useRef<HTMLButtonElement>(null);
   const deadlineButtonRef = useRef<HTMLButtonElement>(null);
+  const startDateButtonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const today = startOfToday();
   const priority: Priority = task.priority ?? 'Low';
@@ -149,6 +151,18 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           </div>
         </div>
 
+        {/* Start date */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-[#999]">
+            <CalendarDays size={13} />
+            <span>Start</span>
+          </div>
+          <button ref={startDateButtonRef} onClick={() => setEditingStartDate(v => !v)}
+            className="text-xs font-mono text-[#888] hover:text-white px-1.5 py-0.5 rounded bg-[#1A1A1A] hover:bg-[#222]">
+            {task.startDate ? format(parseISO(task.startDate), 'MMM d') : '+ set'}
+          </button>
+        </div>
+
         {/* Deadline */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs" style={{ color: dl ? dl.color : '#666' }}>
@@ -165,6 +179,30 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
             {task.deadline ? format(parseISO(task.deadline), 'MMM d') : '+ set'}
           </button>
         </div>
+
+        {/* Deadline History */}
+        {task.deadlineHistory && task.deadlineHistory.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-2, #555)' }}>Deadline History</span>
+            {task.deadlineHistory.map((oldDate, i) => {
+              const nextDate = i < task.deadlineHistory.length - 1 ? task.deadlineHistory[i + 1] : task.deadline;
+              if (!nextDate) return null;
+              const days = differenceInDays(parseISO(nextDate), parseISO(oldDate));
+              const isLast = i === task.deadlineHistory.length - 1;
+              return (
+                <div key={i} className="flex items-center gap-1 text-[11px] font-mono" style={{ color: 'var(--text-2, #666)' }}>
+                  <span>{format(parseISO(oldDate), 'MMM d')}</span>
+                  <span style={{ color: '#444' }}>→</span>
+                  <span>{format(parseISO(nextDate), 'MMM d')}</span>
+                  <span style={{ color: days > 0 ? '#ef4444' : '#22c55e' }}>
+                    ({days > 0 ? '+' : ''}{days}d)
+                  </span>
+                  {isLast && <span className="text-[10px]" style={{ color: '#444' }}>← current</span>}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Recurring task scope prompt */}
         {pendingUpdate && (
@@ -341,6 +379,11 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
         })()}
       </div>
 
+      {editingStartDate && (
+        <DatePickerPopover value={task.startDate ?? null} onChange={startDate => {
+          updateTask(task.id, { startDate }); setEditingStartDate(false);
+        }} onClose={() => setEditingStartDate(false)} clearable anchorRef={startDateButtonRef} />
+      )}
       {editingDate && (
         <DatePickerPopover value={task.date} onChange={date => {
           if (task.recurrenceGroupId) { setPendingUpdate({ field: 'date', value: date }); setEditingDate(false); }

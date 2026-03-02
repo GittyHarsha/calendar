@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useStore, fmtDuration } from '../store';
-import { startOfWeek, endOfWeek, subDays, subWeeks, format, getHours, parseISO, isWithinInterval } from 'date-fns';
+import { startOfWeek, endOfWeek, subDays, subWeeks, format, getHours, parseISO, isWithinInterval, differenceInDays } from 'date-fns';
 import { X, Download, Copy, FileJson } from 'lucide-react';
 import { exportTimeLogCSV, exportTimeLogJSON, copyMarkdownSummary } from '../utils/exportTimeLogs';
 
@@ -166,6 +166,29 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     }).filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms).slice(0, 5);
     return taskTimes;
   }, [tasks, timeEntries]);
+
+  // ── Deadline Health ─────────────────────────────────────────────────────────
+  const deadlineStats = useMemo(() => {
+    const tasksWithDeadline = tasks.filter(t => t.deadline);
+    const slippedTasks = tasksWithDeadline.filter(t => t.deadlineHistory && t.deadlineHistory.length > 0);
+    const slipRate = tasksWithDeadline.length > 0 ? slippedTasks.length / tasksWithDeadline.length : 0;
+    const slipDetails = slippedTasks.map(t => {
+      const original = parseISO(t.deadlineHistory![0]);
+      const current = parseISO(t.deadline!);
+      const daysSlipped = differenceInDays(current, original);
+      return { task: t, daysSlipped };
+    }).sort((a, b) => b.daysSlipped - a.daysSlipped);
+    const avgDaysSlipped = slipDetails.length > 0
+      ? Math.round(slipDetails.reduce((s, x) => s + x.daysSlipped, 0) / slipDetails.length)
+      : 0;
+    const buckets = [
+      { label: '1–3d', min: 1, max: 3 },
+      { label: '4–7d', min: 4, max: 7 },
+      { label: '8–14d', min: 8, max: 14 },
+      { label: '15d+', min: 15, max: Infinity },
+    ].map(b => ({ ...b, count: slipDetails.filter(x => x.daysSlipped >= b.min && x.daysSlipped <= b.max).length }));
+    return { tasksWithDeadline, slippedTasks, slipRate, slipDetails: slipDetails.slice(0, 5), avgDaysSlipped, buckets };
+  }, [tasks]);
 
   // ── Last-week entries ───────────────────────────────────────────────────────
   const lastWeekStart = subWeeks(weekStart, 1);
@@ -647,6 +670,56 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Deadline Health */}
+      {deadlineStats.tasksWithDeadline.length > 0 && (
+        <div style={{ ...section, borderBottom: 'none', gridColumn: '1 / -1' }}>
+          <div style={sectionTitle}>Deadline Health</div>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+            <div style={statBox}>
+              <span style={{ ...statValue, fontSize: 28, color: deadlineStats.slipRate > 0.5 ? '#ef4444' : 'var(--accent)' }}>
+                {Math.round(deadlineStats.slipRate * 100)}%
+              </span>
+              <span style={statLabel}>Slip Rate</span>
+            </div>
+            <div style={statBox}>
+              <span style={{ ...statValue, fontSize: 28 }}>{deadlineStats.avgDaysSlipped}d</span>
+              <span style={statLabel}>Avg Slip</span>
+            </div>
+          </div>
+          {deadlineStats.slipDetails.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ ...sectionTitle, marginBottom: 10 }}>Top Slipped Tasks</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {deadlineStats.slipDetails.map(({ task, daysSlipped }) => (
+                  <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={task.title}>{task.title}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: daysSlipped >= 8 ? '#ef4444' : '#f97316', background: daysSlipped >= 8 ? 'rgba(239,68,68,0.12)' : 'rgba(249,115,22,0.12)', borderRadius: 4, padding: '2px 7px', flexShrink: 0 }}>
+                      +{daysSlipped}d
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div style={{ ...sectionTitle, marginBottom: 10 }}>Slip Distribution</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {deadlineStats.buckets.map(b => {
+              const maxCount = Math.max(...deadlineStats.buckets.map(x => x.count), 1);
+              return (
+                <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 36, fontSize: 12, color: 'var(--text-2, #686868)', textAlign: 'right', flexShrink: 0 }}>{b.label}</span>
+                  <div style={{ flex: 1, height: 10, background: 'var(--bg-1, #0F0F0F)', borderRadius: 5, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(b.count / maxCount) * 100}%`, background: 'var(--accent)', borderRadius: 5, transition: 'width 0.4s ease' }} />
+                  </div>
+                  <span style={{ width: 20, fontSize: 12, color: 'var(--text-2, #686868)', flexShrink: 0 }}>{b.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       </div> {/* end grid */}
 
