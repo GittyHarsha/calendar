@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { DayPicker } from 'react-day-picker';
 import { format, parseISO } from 'date-fns';
@@ -17,19 +17,16 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
   const selected = value ? parseISO(value) : undefined;
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  // Position relative to anchor if provided, with viewport clamping
-  useEffect(() => {
+  // Position relative to anchor before paint (no flash)
+  useLayoutEffect(() => {
     if (anchorRef?.current) {
       const rect = anchorRef.current.getBoundingClientRect();
       const pickerW = 280;
       const pickerH = 320;
       let top = rect.bottom + 4;
       let left = rect.left;
-      // Flip above if overflows bottom
       if (top + pickerH > window.innerHeight - 8) top = rect.top - pickerH - 4;
-      // Clamp right edge
       if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
-      // Clamp left edge
       if (left < 8) left = 8;
       setPos({ top, left });
     }
@@ -68,20 +65,22 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
           --rdp-day-width: 36px;
           --rdp-day-height: 36px;
           --rdp-selected-border: none;
-          color: #C8C7C4;
+          --rdp-background-color: #161616;
+          color: #C8C7C4 !important;
+          background: #161616 !important;
           padding: 12px;
           font-family: inherit;
         }
         .rdp-month_caption { padding-bottom: 8px; }
-        .rdp-caption_label { font-size: 13px; font-weight: 700; color: #E4E3E0; text-transform: uppercase; letter-spacing: 0.06em; }
-        .rdp-nav button { color: #555; background: none; border: none; cursor: pointer; border-radius: 6px; padding: 4px 6px; }
-        .rdp-nav button:hover { color: #E4E3E0; background: #222; }
-        .rdp-weekday { font-size: 10px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: 0.08em; padding-bottom: 4px; }
-        .rdp-day button { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; color: #8E9299; background: none; border: none; cursor: pointer; transition: background 0.1s, color 0.1s; font-weight: 500; }
-        .rdp-day button:hover { background: #222; color: #E4E3E0; }
+        .rdp-caption_label { font-size: 13px; font-weight: 700; color: #E4E3E0 !important; text-transform: uppercase; letter-spacing: 0.06em; }
+        .rdp-nav button { color: #555 !important; background: none !important; border: none; cursor: pointer; border-radius: 6px; padding: 4px 6px; }
+        .rdp-nav button:hover { color: #E4E3E0 !important; background: #222 !important; }
+        .rdp-weekday { font-size: 10px; font-weight: 600; color: #444 !important; text-transform: uppercase; letter-spacing: 0.08em; padding-bottom: 4px; }
+        .rdp-day button { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; color: #8E9299 !important; background: none !important; border: none; cursor: pointer; transition: background 0.1s, color 0.1s; font-weight: 500; }
+        .rdp-day button:hover { background: #222 !important; color: #E4E3E0 !important; }
         .rdp-today button { color: #F27D26 !important; font-weight: 700; }
         .rdp-selected button { background: #F27D26 !important; color: #000 !important; font-weight: 700; }
-        .rdp-outside button { color: #2A2A2A; }
+        .rdp-outside button { color: #2A2A2A !important; }
         .rdp-disabled button { opacity: 0.2; cursor: not-allowed; }
       `}</style>
 
