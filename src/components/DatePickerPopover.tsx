@@ -50,10 +50,10 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
       ref={ref}
       data-date-picker-portal=""
       style={{
-        background: '#161616',
-        border: '1px solid #2A2A2A',
+        background: 'var(--bg-0)',
+        border: '1px solid var(--border-1)',
         borderRadius: 12,
-        boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.7)',
         zIndex: 9999,
         position: 'fixed',
         ...(pos ? { top: pos.top, left: pos.left } : { top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }),
@@ -61,27 +61,27 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
     >
       <style>{`
         .rdp-root {
-          --rdp-accent-color: #F27D26;
-          --rdp-accent-background-color: rgba(242,125,38,0.15);
+          --rdp-accent-color: var(--accent);
+          --rdp-accent-background-color: color-mix(in srgb, var(--accent) 15%, transparent);
           --rdp-day-width: 36px;
           --rdp-day-height: 36px;
           --rdp-selected-border: none;
-          --rdp-background-color: #161616;
-          color: #C8C7C4 !important;
-          background: #161616 !important;
+          --rdp-background-color: var(--bg-0);
+          color: var(--text-2) !important;
+          background: var(--bg-0) !important;
           padding: 12px;
           font-family: inherit;
         }
         .rdp-month_caption { padding-bottom: 8px; }
-        .rdp-caption_label { font-size: 13px; font-weight: 700; color: #E4E3E0 !important; text-transform: uppercase; letter-spacing: 0.06em; }
-        .rdp-nav button { color: #555 !important; background: none !important; border: none; cursor: pointer; border-radius: 6px; padding: 4px 6px; }
-        .rdp-nav button:hover { color: #E4E3E0 !important; background: #222 !important; }
-        .rdp-weekday { font-size: 10px; font-weight: 600; color: #444 !important; text-transform: uppercase; letter-spacing: 0.08em; padding-bottom: 4px; }
-        .rdp-day button { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; color: #8E9299 !important; background: none !important; border: none; cursor: pointer; transition: background 0.1s, color 0.1s; font-weight: 500; }
-        .rdp-day button:hover { background: #222 !important; color: #E4E3E0 !important; }
-        .rdp-today button { color: #F27D26 !important; font-weight: 700; }
-        .rdp-selected button { background: #F27D26 !important; color: #000 !important; font-weight: 700; }
-        .rdp-outside button { color: #2A2A2A !important; }
+        .rdp-caption_label { font-size: 13px; font-weight: 700; color: var(--text-1) !important; text-transform: uppercase; letter-spacing: 0.06em; }
+        .rdp-nav button { color: var(--text-2) !important; background: none !important; border: none; cursor: pointer; border-radius: 6px; padding: 4px 6px; }
+        .rdp-nav button:hover { color: var(--text-1) !important; background: var(--bg-2) !important; }
+        .rdp-weekday { font-size: 10px; font-weight: 600; color: var(--border-1) !important; text-transform: uppercase; letter-spacing: 0.08em; padding-bottom: 4px; }
+        .rdp-day button { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; color: var(--text-2) !important; background: none !important; border: none; cursor: pointer; transition: background 0.1s, color 0.1s; font-weight: 500; }
+        .rdp-day button:hover { background: var(--bg-2) !important; color: var(--text-1) !important; }
+        .rdp-today button { color: var(--accent) !important; font-weight: 700; }
+        .rdp-selected button { background: var(--accent) !important; color: var(--bg-0) !important; font-weight: 700; }
+        .rdp-outside button { color: var(--border-1) !important; opacity: 0.5; }
         .rdp-disabled button { opacity: 0.2; cursor: not-allowed; }
       `}</style>
 
@@ -97,12 +97,13 @@ export function DatePickerPopover({ value, onChange, onClose, clearable, anchorR
       />
 
       {clearable && value && (
-        <div style={{ borderTop: '1px solid #1E1E1E', padding: '6px 12px 10px' }}>
+        <div style={{ borderTop: '1px solid var(--border-1)', padding: '6px 12px 10px' }}>
           <button
+            type="button"
             onClick={() => { onChange(null); onClose(); }}
-            style={{ width: '100%', fontSize: 11, color: '#555', background: 'none', border: 'none', cursor: 'pointer' }}
+            style={{ width: '100%', fontSize: 11, color: 'var(--text-2)', background: 'none', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-2)')}
           >
             Clear date
           </button>
