@@ -96,12 +96,13 @@ public class MainForm : Form
                         var sessions = msg.RootElement.TryGetProperty("sessionsCompleted", out var sc) ? sc.GetInt32() : 1;
                         Invoke(() =>
                         {
-                            var title = isEyeRest ? "👁 Eye Rest Done" : $"🍅 Session {sessions} Complete!";
-                            var body = isEyeRest ? "Time to get back to work." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a 5-min break ☕" : "Take a 5-min break ☕");
+                            // Maximize and bring to front so the break modal is unmissable
+                            Show();
+                            WindowState = FormWindowState.Maximized;
+                            Activate();
+                            var title = isEyeRest ? "Eye Rest Done" : $"Session {sessions} Complete!";
+                            var body = isEyeRest ? "Time to get back to work." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a break now." : "Stop working. Take a break.");
                             TrayIcon.ShowBalloonTip(8000, title, body, ToolTipIcon.Info);
-                            // Bring window to front so modal is visible
-                            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
-                            Show(); Activate();
                         });
                     }
                     else if (type == "breakComplete")

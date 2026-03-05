@@ -36,82 +36,94 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
   }, [onSkipBreak]);
 
   const pct = 1 - (breakLeft / BREAK_DURATION);
-  const C = 2 * Math.PI * 28;
+  const C = 2 * Math.PI * 44;
+  const mins = Math.floor(breakLeft / 60000);
+  const secs = Math.floor((breakLeft % 60000) / 1000);
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 99998,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backdropFilter: 'blur(4px)',
+      position: 'fixed', inset: 0, zIndex: 99998,
+      background: 'rgba(0,0,0,0.92)',
+      backdropFilter: 'blur(12px)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      fontFamily: 'Consolas, monospace',
+      animation: 'fadeIn 0.3s ease',
     }}>
-      <div style={{
-        background: 'var(--bg-1)', border: `1px solid ${BREAK_COLOR}33`, borderRadius: 20,
-        padding: '36px 44px', maxWidth: 380, width: '100%', textAlign: 'center',
-        fontFamily: 'Consolas, monospace', color: 'var(--text-1)',
-        boxShadow: `0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px ${BREAK_COLOR}22`,
-      }}>
-        {/* Ring with countdown */}
-        <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 20px' }}>
-          <svg width={80} height={80}>
-            <circle cx={40} cy={40} r={28} fill="none" stroke="var(--bg-2)" strokeWidth={3} />
-            <circle cx={40} cy={40} r={28} fill="none" stroke={BREAK_COLOR} strokeWidth={3}
-              strokeDasharray={C} strokeDashoffset={C * (1 - pct)}
-              strokeLinecap="round"
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '40px 40px', transition: 'stroke-dashoffset 1s linear' }} />
-          </svg>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-            <span style={{ fontSize: 22, lineHeight: 1 }}>☕</span>
-          </div>
-        </div>
-
-        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, letterSpacing: '0.02em' }}>Session complete!</div>
-        <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 3 }}>
-          {sessionsCompleted} {sessionsCompleted === 1 ? 'session' : 'sessions'} today
-          {' · '}{TOMATO.repeat(Math.min(sessionsCompleted, 5))}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--text-2)', marginBottom: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.7 }}>
+      {/* Big heading */}
+      <div style={{ fontSize: 13, color: BREAK_COLOR, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: 16, opacity: 0.8 }}>
+        session {sessionsCompleted} complete
+      </div>
+      <div style={{ fontSize: 52, fontWeight: 900, color: '#fff', letterSpacing: '0.04em', lineHeight: 1, marginBottom: 8, textAlign: 'center' }}>
+        STOP WORKING.
+      </div>
+      <div style={{ fontSize: 20, color: 'var(--text-2)', marginBottom: 6, letterSpacing: '0.06em' }}>
+        step away from the screen.
+      </div>
+      {taskTitle && (
+        <div style={{ fontSize: 12, color: 'var(--text-2)', opacity: 0.5, marginBottom: 48, maxWidth: 400, textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {taskTitle}
         </div>
+      )}
 
-        <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Break suggested</div>
-        <div style={{ fontSize: 40, fontWeight: 700, color: BREAK_COLOR, marginBottom: 28, letterSpacing: 3, fontVariantNumeric: 'tabular-nums' }}>
-          {fmtCountdown(breakLeft)}
+      {/* Break countdown ring */}
+      <div style={{ position: 'relative', width: 120, height: 120, marginBottom: 40 }}>
+        <svg width={120} height={120}>
+          <circle cx={60} cy={60} r={44} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={4} />
+          <circle cx={60} cy={60} r={44} fill="none" stroke={BREAK_COLOR} strokeWidth={4}
+            strokeDasharray={C} strokeDashoffset={C * (1 - pct)}
+            strokeLinecap="round"
+            style={{ transform: 'rotate(-90deg)', transformOrigin: '60px 60px', transition: 'stroke-dashoffset 1s linear' }} />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 28, fontWeight: 700, color: BREAK_COLOR, fontVariantNumeric: 'tabular-nums', letterSpacing: 2 }}>
+            {String(mins).padStart(2,'0')}:{String(secs).padStart(2,'0')}
+          </span>
+          <span style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: '0.12em', marginTop: 2 }}>BREAK</span>
         </div>
+      </div>
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onStartBreak} style={{
-            flex: 1, padding: '11px 0',
-            background: `${BREAK_COLOR}18`, border: `1px solid ${BREAK_COLOR}55`,
-            borderRadius: 10, color: BREAK_COLOR, fontSize: 13, cursor: 'pointer',
-            fontFamily: 'Consolas, monospace', fontWeight: 700, transition: 'background 0.15s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = `${BREAK_COLOR}30`)}
-            onMouseLeave={e => (e.currentTarget.style.background = `${BREAK_COLOR}18`)}
-          >
-            ☕ Start break
-          </button>
-          <button onClick={onSkipBreak} style={{
-            flex: 1, padding: '11px 0',
-            background: 'var(--bg-2)', border: '1px solid var(--border-1)',
-            borderRadius: 10, color: 'var(--text-2)', fontSize: 13, cursor: 'pointer',
-            fontFamily: 'Consolas, monospace', transition: 'color 0.15s, border-color 0.15s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-1)'; e.currentTarget.style.borderColor = 'var(--text-2)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)'; e.currentTarget.style.borderColor = 'var(--border-1)'; }}
-          >
-            Skip → continue
-          </button>
-        </div>
-        <button onClick={onStop} style={{
-          marginTop: 12, width: '100%', padding: '8px 0', background: 'transparent',
-          border: 'none', color: 'var(--text-2)', fontSize: 12, cursor: 'pointer',
-          fontFamily: 'Consolas, monospace', opacity: 0.6, transition: 'opacity 0.15s',
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <button onClick={onStartBreak} style={{
+          padding: '13px 32px',
+          background: `${BREAK_COLOR}22`, border: `1px solid ${BREAK_COLOR}66`,
+          borderRadius: 10, color: BREAK_COLOR, fontSize: 14, cursor: 'pointer',
+          fontFamily: 'Consolas, monospace', fontWeight: 700, letterSpacing: '0.05em',
+          transition: 'background 0.15s, border-color 0.15s',
         }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+          onMouseEnter={e => { e.currentTarget.style.background = `${BREAK_COLOR}38`; e.currentTarget.style.borderColor = BREAK_COLOR; }}
+          onMouseLeave={e => { e.currentTarget.style.background = `${BREAK_COLOR}22`; e.currentTarget.style.borderColor = `${BREAK_COLOR}66`; }}
         >
-          Done for now
+          ☕ start break
         </button>
+        <button onClick={onSkipBreak} style={{
+          padding: '13px 32px',
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 10, color: 'rgba(255,255,255,0.4)', fontSize: 14, cursor: 'pointer',
+          fontFamily: 'Consolas, monospace', letterSpacing: '0.05em',
+          transition: 'color 0.15s, border-color 0.15s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+        >
+          skip →
+        </button>
+      </div>
+      <button onClick={onStop} style={{
+        background: 'transparent', border: 'none',
+        color: 'rgba(255,255,255,0.2)', fontSize: 11, cursor: 'pointer',
+        fontFamily: 'Consolas, monospace', letterSpacing: '0.08em',
+        transition: 'color 0.15s',
+      }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.5)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
+      >
+        done for today
+      </button>
+
+      <div style={{ position: 'absolute', bottom: 24, fontSize: 10, color: 'rgba(255,255,255,0.15)', letterSpacing: '0.1em' }}>
+        ESC to skip
       </div>
     </div>
   );
