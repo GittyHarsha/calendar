@@ -13,11 +13,11 @@ function daysLabel(dl: string) {
   const d = differenceInCalendarDays(parseISO(dl), now);
   return d < 0 ? `${Math.abs(d)}d over` : d === 0 ? 'today' : d === 1 ? 'tmrw' : `${d}d`;
 }
-function daysColor(dl: string) {
+function daysColor(dl: string, accent: string) {
   const now = startOfToday();
   const d = differenceInCalendarDays(parseISO(dl), now);
   if (d < 0)  return '#ef4444';
-  if (d === 0) return '#F27D26';
+  if (d === 0) return accent;
   if (d <= 3)  return '#f97316';
   return '#eab308';
 }
@@ -51,8 +51,17 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
         <span title={task.title} style={{ flex: 1, fontSize: 13, color: hovered ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>
           {task.title}
         </span>
+        {(task.subtasks?.length ?? 0) > 0 && (() => {
+          const total = task.subtasks!.length;
+          const done = task.subtasks!.filter((s: { done: boolean }) => s.done).length;
+          return (
+            <span title={`${done} of ${total} subtasks done`} style={{ fontSize: 10, color: done === total ? '#4ade80' : 'var(--text-2)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+              {done}/{total}
+            </span>
+          );
+        })()}
         {task.deadline && (
-          <span style={{ fontSize: 11, fontWeight: 700, color: daysColor(task.deadline), flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: daysColor(task.deadline, accent), flexShrink: 0 }}>
             {daysLabel(task.deadline)}
           </span>
         )}
@@ -105,6 +114,7 @@ export function WidgetView() {
           completeWorkSession, skipBreak } = useStore();
   const [fading, setFading] = useState<Set<string>>(new Set());
   const [quickAdd, setQuickAdd] = useState('');
+  const [quickAddToday, setQuickAddToday] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [atQuery, setAtQuery] = useState('');
@@ -175,6 +185,19 @@ export function WidgetView() {
     intervalRef.current = setInterval(tick, 500);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [pomodoro.phase, pomodoro.sessionStart, pomodoro.paused]);
+
+  // Keyboard controls for focus mode: Space = pause/resume, Escape = stop
+  useEffect(() => {
+    if (!focusMode) return;
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === ' ') { e.preventDefault(); pausePomodoro(); }
+      if (e.key === 'Escape') { e.preventDefault(); stopPomodoro(); }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [focusMode, pausePomodoro, stopPomodoro]);
 
   // Auto-resize the OS window based on session phase
   useEffect(() => {
@@ -287,9 +310,9 @@ export function WidgetView() {
       title = title.replace(/@[^\s@]*/, '').trim();
     }
     addTask({
-      projectId: projectId ?? (projects[0]?.id ?? null),
+      projectId: projectId ?? null,
       title,
-      date: todayStr,
+      date: quickAddToday ? todayStr : null,
       deadline: null,
       deadlineHistory: [],
       priority: 'Medium',
@@ -325,6 +348,11 @@ export function WidgetView() {
             {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '⏱ Stop' : '⏱ Rest'}
           </button>
           <button onClick={() => setShowDone(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: doneToday > 0 ? '#4ade80' : 'var(--border-1)', fontSize: 12, fontFamily: 'Consolas, monospace' }}>✓ {doneToday} done</button>
+          {pomodoro.sessionsCompleted > 0 && (
+            <span style={{ fontSize: 11, color: accent, fontFamily: 'Consolas, monospace' }} title={`${pomodoro.sessionsCompleted} pomodoro sessions today`}>
+              🍅{pomodoro.sessionsCompleted}
+            </span>
+          )}
         </div>
       </div>}
 
@@ -352,7 +380,7 @@ export function WidgetView() {
           return (
             <div style={{
               height: '100%', boxSizing: 'border-box',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               background: `${pColor}08`,
               position: 'relative',
             }}>
@@ -361,7 +389,7 @@ export function WidgetView() {
                 <div style={{ height: '100%', width: `${pct * 100}%`, background: pColor, transition: 'width 0.5s linear' }} />
               </div>
 
-              {/* Timer only */}
+              {/* Timer */}
               <div style={{
                 fontSize: 38, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
                 letterSpacing: 2, color: isPaused ? `${pColor}55` : pColor,
@@ -370,7 +398,23 @@ export function WidgetView() {
                 {fmtCountdown(rem)}
               </div>
 
-              {/* Hover controls */}
+              {/* Task title */}
+              {task && (
+                <div style={{ marginTop: 6, fontSize: 11, color: `${pColor}99`, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                  {task.title}
+                </div>
+              )}
+
+              {/* Sessions count + keyboard hint */}
+              <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: 'var(--text-2)' }}>
+                {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}
+                {pomodoro.sessionsCompleted > 5 ? ` ×${pomodoro.sessionsCompleted}` : ''}
+              </div>
+              <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: 'var(--border-1)', letterSpacing: '0.08em' }}>
+                {isPaused ? 'space · resume' : 'space · pause'} &nbsp;·&nbsp; esc · stop
+              </div>
+
+              {/* Controls */}
               <div style={{
                 position: 'absolute', bottom: 6, right: 8,
                 display: 'flex', gap: 4,
@@ -512,20 +556,31 @@ export function WidgetView() {
             </div>
           ) : null;
         })()}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
         <input
           ref={inputRef}
           value={quickAdd}
           onChange={handleQuickAddChange}
           onKeyDown={submitQuickAdd}
-          placeholder="+ add task… (type @ for project)"
+          placeholder={quickAddToday ? '+ add task for today… (@ project)' : '+ add to inbox… (@ project)'}
           style={{
-            width: '100%', background: 'transparent', border: 'none',
+            flex: 1, background: 'transparent', border: 'none',
             borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 13,
             fontFamily: 'Consolas, monospace', padding: '3px 0', outline: 'none', boxSizing: 'border-box',
           }}
           onFocus={e => (e.target.style.borderBottomColor = accent)}
           onBlur={e => (e.target.style.borderBottomColor = 'var(--border-1)')}
         />
+        <button
+          onClick={() => setQuickAddToday(t => !t)}
+          title={quickAddToday ? 'Scheduled for today — click for inbox' : 'Adding to inbox — click for today'}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px',
+            fontSize: 14, color: quickAddToday ? accent : 'var(--text-2)', flexShrink: 0,
+            lineHeight: 1,
+          }}
+        >{quickAddToday ? '📅' : '📥'}</button>
+        </div>
         {showProjectDropdown && (() => {
           const filtered = projects.filter(p =>
             p.name.toLowerCase().includes(atQuery.toLowerCase())
