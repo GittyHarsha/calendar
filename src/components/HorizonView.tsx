@@ -27,15 +27,17 @@ function TaskCarousel({ items }: { items: { label: string; sublabel: string; acc
   const item = items[idx];
   return (
     <div className="relative flex flex-col justify-center h-full overflow-hidden">
+      {/* Fixed-height content so swapping items never shifts card size */}
       <div className="flex flex-col gap-0.5">
-        <div className="flex items-baseline gap-1.5">
-          {item.urgent && <AlertTriangle size={9} style={{ color: item.accent }} className="shrink-0 mb-0.5" />}
+        <div className="flex items-baseline gap-1.5 h-[22px]">
+          {item.urgent && <AlertTriangle size={9} style={{ color: item.accent }} className="shrink-0" />}
           <span className="text-[22px] font-mono font-black leading-none" style={{ color: item.accent }}>{item.label}</span>
         </div>
-        <span className="text-[11px] font-semibold leading-tight truncate max-w-[140px]" style={{ color: '#C8C7C4' }} title={item.sublabel}>{item.sublabel}</span>
+        <span className="text-[11px] font-semibold leading-tight truncate" style={{ color: '#C8C7C4' }} title={item.sublabel}>{item.sublabel}</span>
       </div>
+      {/* Dots pinned absolutely so they don't push content */}
       {items.length > 1 && (
-        <div className="flex gap-0.5 mt-1">
+        <div className="absolute bottom-0 left-0 flex gap-0.5 pb-0.5">
           {items.map((_, i) => (
             <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
               className="w-1 h-1 rounded-full transition-all"
@@ -150,7 +152,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
               {/* Divider */}
               <div className="w-px self-stretch bg-[#1E1E1E]" />
               {/* Tasks carousel */}
-              <div className="flex flex-col justify-center px-3 py-2 min-w-[150px]">
+              <div className="flex flex-col justify-center px-3 py-2 w-[150px] overflow-hidden">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-1">Tasks</span>
                 <TaskCarousel items={taskItems} />
               </div>
