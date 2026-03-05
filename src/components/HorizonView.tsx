@@ -27,7 +27,7 @@ function TaskCarousel({ items }: { items: { label: string; sublabel: string; acc
   const item = items[idx];
   return (
     <div className="relative flex flex-col justify-center h-full overflow-hidden">
-      <div key={idx} className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5">
         <div className="flex items-baseline gap-1.5">
           {item.urgent && <AlertTriangle size={9} style={{ color: item.accent }} className="shrink-0 mb-0.5" />}
           <span className="text-[22px] font-mono font-black leading-none" style={{ color: item.accent }}>{item.label}</span>

@@ -89,6 +89,11 @@ export function CommandPalette() {
         setTimeout(() => {
           document.getElementById(`task-${task.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 50);
+      } else {
+        // No date — scroll to ThinkPad inbox
+        setTimeout(() => {
+          document.getElementById('thinkpad-inbox')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
       }
       close();
     } else if (item.kind === 'project') {

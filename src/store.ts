@@ -367,10 +367,13 @@ export const useStore = create<EpochState>()(
   stopPomodoro: () => set((state) => {
     const { pomodoro } = state;
     const entries = [...state.timeEntries];
-    if (pomodoro.phase === 'work' && pomodoro.sessionStart && pomodoro.taskId) {
+    if (pomodoro.phase === 'work' && pomodoro.taskId) {
       const endedAt = new Date().toISOString();
-      const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
-      if (duration >= 5000) entries.push({ id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration });
+      // If paused, use pausedElapsed (the actual worked time), not wall-clock delta
+      const duration = pomodoro.paused
+        ? (pomodoro.pausedElapsed ?? 0)
+        : (pomodoro.sessionStart ? Date.now() - new Date(pomodoro.sessionStart).getTime() : 0);
+      if (duration >= 5000) entries.push({ id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart ?? endedAt, endedAt, duration });
     }
     return { pomodoro: { taskId: null, phase: 'idle', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted, paused: false, pausedElapsed: 0 }, timeEntries: entries };
   }),
@@ -401,8 +404,11 @@ export const useStore = create<EpochState>()(
     const entries = get().timeEntries.filter(e => e.taskId === taskId);
     const running = get().pomodoro;
     let extra = 0;
-    if (running.phase === 'work' && running.taskId === taskId && running.sessionStart) {
-      extra = Date.now() - new Date(running.sessionStart).getTime();
+    if (running.phase === 'work' && running.taskId === taskId) {
+      // If paused, use the recorded pausedElapsed; otherwise compute live
+      extra = running.paused
+        ? (running.pausedElapsed ?? 0)
+        : (running.sessionStart ? Date.now() - new Date(running.sessionStart).getTime() : 0);
     }
     return entries.reduce((s, e) => s + e.duration, 0) + extra;
   },

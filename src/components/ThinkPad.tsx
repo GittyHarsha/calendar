@@ -130,7 +130,7 @@ export function ThinkPad() {
         )}
 
         {/* Inbox Tasks */}
-        <div className="flex flex-col gap-2 flex-1">
+        <div id="thinkpad-inbox" className="flex flex-col gap-2 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-2,#8E9299)]">Inbox</span>
             <span className="text-[10px] font-bold bg-[#2A2A2A] text-[#8E9299] px-1.5 py-0.5 rounded-full">{inboxTasks.length}</span>

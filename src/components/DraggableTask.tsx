@@ -435,6 +435,10 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState(task.title);
+  // Keep titleVal in sync with store when not editing
+  useEffect(() => {
+    if (!editingTitle) setTitleVal(task.title);
+  }, [task.title, editingTitle]);
   const [showPopup, setShowPopup] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
