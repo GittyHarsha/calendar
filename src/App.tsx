@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useEffect, useState } from 'react';
 import { HorizonView } from './components/HorizonView';
 import { ThinkPad } from './components/ThinkPad';
@@ -78,18 +79,50 @@ export default function App() {
 
     const taskId = active.id as string;
     const overId = over.id as string;
+    const draggedTask = tasks.find(t => t.id === taskId);
+    if (!draggedTask) return;
 
-    // overId can be a date string (e.g., '2023-10-25') or 'think-pad'
     if (overId === 'think-pad') {
       updateTask(taskId, { date: null });
+      return;
+    }
+
+    // overId is either a date string (column drop) or another task id (sortable reorder)
+    const isDateDrop = /^\d{4}-\d{2}-\d{2}$/.test(overId);
+
+    if (isDateDrop) {
+      const targetDate = overId;
+      if (draggedTask.date === targetDate) return; // same day, nothing to do
+      // Cross-day: move to end of target day
+      const targetDayTasks = tasks.filter(t => t.date === targetDate && t.id !== taskId);
+      const maxOrder = targetDayTasks.reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0);
+      updateTask(taskId, { date: targetDate, sortOrder: maxOrder + 1000 });
     } else {
-      // It's a date
-      updateTask(taskId, { date: overId });
+      // Reorder within same day (overId = another task's id)
+      const overTask = tasks.find(t => t.id === overId);
+      if (!overTask) return;
+      if (draggedTask.date !== overTask.date) {
+        // Cross-day via task hover — just move to that date
+        const targetDayTasks = tasks.filter(t => t.date === overTask.date && t.id !== taskId);
+        const maxOrder = targetDayTasks.reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0);
+        updateTask(taskId, { date: overTask.date, sortOrder: overTask.sortOrder != null ? overTask.sortOrder - 1 : maxOrder + 1000 });
+      } else {
+        // Same day reorder: swap sortOrders
+        const dayTasks = tasks
+          .filter(t => t.date === draggedTask.date)
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+        const oldIdx = dayTasks.findIndex(t => t.id === taskId);
+        const newIdx = dayTasks.findIndex(t => t.id === overId);
+        if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return;
+        const reordered = arrayMove(dayTasks, oldIdx, newIdx);
+        const updates = reordered.map((t, i) => ({ id: t.id, sortOrder: i * 1000 }));
+        updates.forEach(u => updateTask(u.id, { sortOrder: u.sortOrder }));
+      }
     }
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-full font-sans overflow-hidden" style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }}>
         {/* Left Sidebar: Think Pad */}
         <div className="w-80 flex flex-col shrink-0" style={{ background: 'var(--bg-0)', borderRight: '1px solid var(--border-1)' }}>

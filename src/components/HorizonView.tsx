@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears } from 'date-fns';
 import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
@@ -125,6 +126,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
               onClick={() => onFilterProject(isFiltered ? null : p.id)}
               className="flex items-stretch gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
               style={{
+                height: 88,
                 background: `${p.color}12`,
                 border: isFiltered ? `2px solid ${p.color}` : `1px solid ${noDeadline ? '#252525' : accent + '50'}`,
                 boxShadow: isFiltered ? `0 0 8px ${p.color}40` : undefined,
@@ -429,7 +431,8 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
     if (filterProjectIds && !filterProjectIds.includes(t.projectId ?? '')) return false;
     return true;
   });
-  const columnTasks = hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks;
+  const columnTasks = (hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   // Ghost tasks: deadline falls in this column, but work date is elsewhere
   const ghostTasks = tasks.filter(t =>
     t.deadline && t.deadline >= startDateStr && t.deadline <= endDateStr &&
@@ -556,9 +559,11 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
 
       {/* Tasks Area */}
       <div className="flex-1 p-2 overflow-y-auto flex flex-col gap-2">
-        {columnTasks.map(task => (
-          <DraggableTask key={task.id} task={task} showDate={mode !== 'daily'} />
-        ))}
+        <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          {columnTasks.map(task => (
+            <DraggableTask key={task.id} task={task} showDate={mode !== 'daily'} />
+          ))}
+        </SortableContext>
         {ghostTasks.map(task => {
           const project = projects.find(p => p.id === task.projectId);
           const daysLeft = differenceInDays(parseISO(task.deadline!), today);

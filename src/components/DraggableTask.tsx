@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { useDraggable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, useStore, fmtDuration, Subtask } from '../store';
 import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -66,11 +67,11 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
   // Position popup to the RIGHT of the card (fallback: left side)
   const [pos, setPos] = useState<{ top: number; left: number; ready: boolean }>({ top: 0, left: 0, ready: false });
-  useEffect(() => {
+  const computePos = () => {
     if (!anchorRef.current) return;
     const r = anchorRef.current.getBoundingClientRect();
     const popW = 288; // w-72
-    const popH = 300;
+    const popH = popupRef.current ? popupRef.current.offsetHeight : 400;
     const gap = 6;
 
     // Try right side first
@@ -90,7 +91,17 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
     top = Math.max(8, top);
 
     setPos({ top, left, ready: true });
-  }, [anchorRef]);
+  };
+  // First pass: position offscreen to measure real height
+  useLayoutEffect(() => {
+    setPos({ top: -9999, left: -9999, ready: false });
+  }, []);
+  // Second pass: measure actual height, then position correctly
+  useEffect(() => {
+    if (pos.top === -9999) {
+      computePos();
+    }
+  }, [pos.top, anchorRef]);
 
   return ReactDOM.createPortal(
     <>
@@ -116,18 +127,29 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           )}
         </div>
 
-        {/* Project label */}
-        {task.projectId && (() => {
-          const proj = projects.find(p => p.id === task.projectId);
-          const parent = proj?.parentId ? projects.find(p => p.id === proj.parentId) : null;
-          const label = parent ? `${parent.name} › ${proj!.name}` : proj?.name;
-          return proj ? (
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: proj.color }} />
-              <span className="text-xs text-[#999] truncate" title={label}>{label}</span>
-            </div>
-          ) : null;
-        })()}
+        {/* Project selector */}
+        <div className="flex items-center gap-1.5">
+          {task.projectId && (() => {
+            const proj = projects.find(p => p.id === task.projectId);
+            return proj ? <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: proj.color }} /> : null;
+          })()}
+          <select
+            value={task.projectId ?? ''}
+            onChange={e => updateTask(task.id, { projectId: e.target.value || null })}
+            className="flex-1 text-xs bg-transparent border-none outline-none cursor-pointer"
+            style={{ color: task.projectId ? '#999' : '#555' }}
+          >
+            <option value="">No project</option>
+            {projects.filter(p => !p.parentId).map(p => (
+              <React.Fragment key={p.id}>
+                <option value={p.id}>{p.name}</option>
+                {projects.filter(c => c.parentId === p.id).map(c => (
+                  <option key={c.id} value={c.id}>{'  › ' + c.name}</option>
+                ))}
+              </React.Fragment>
+            ))}
+          </select>
+        </div>
 
         <div className="border-t border-[#1E1E1E]" />
 
@@ -427,7 +449,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
     updateTask(task.id, { completed: !task.completed });
   };
 
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({ id: task.id, data: { date: task.date } });
   const priority: Priority = task.priority ?? 'Low';
 
   const today = startOfToday();
@@ -462,6 +484,8 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
         style={{
           background: task.completed ? '#141414' : PRIORITY_BG[priority] || '#141414',
           ...(showPopup && !isDragging ? { boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)' } : { boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }),
+          transform: CSS.Transform.toString(transform),
+          transition,
         }}
       >
         <div className={cn('flex items-center gap-2 px-2', task.completed ? 'py-0.5' : 'py-1.5')}>

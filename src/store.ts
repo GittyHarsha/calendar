@@ -33,6 +33,7 @@ export type Task = {
   recurrence?: Recurrence;
   recurrenceGroupId?: string;
   startDate?: string | null;
+  sortOrder?: number;
 };
 
 export type TimeEntry = {
@@ -226,7 +227,7 @@ export const useStore = create<EpochState>()(
   }),
   
   addTask: (task, recurrence = 'none', startDate) => set((state) => {
-    const baseTask = { ...task, startedAt: task.startedAt || null, deadlineHistory: task.deadlineHistory ?? [] };
+    const baseTask = { ...task, startedAt: task.startedAt || null, deadlineHistory: task.deadlineHistory ?? [], sortOrder: Date.now() };
     if (recurrence === 'none' || !startDate) {
       return {
         taskHistory: [...state.taskHistory.slice(-20), state.tasks],
@@ -248,6 +249,7 @@ export const useStore = create<EpochState>()(
         completed: false,
         recurrence,
         recurrenceGroupId,
+        sortOrder: Date.now() + count,
       });
       
       if (recurrence === 'daily') {
