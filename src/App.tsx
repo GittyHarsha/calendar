@@ -16,7 +16,7 @@ import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
 
 export default function App() {
-  const { tasks, updateTask, theme, customAccent, undo } = useStore();
+  const { tasks, projects, updateTask, theme, customAccent, undo } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -136,11 +136,24 @@ export default function App() {
       </div>
 
       <DragOverlay>
-        {activeTask ? (
-          <div className="p-3 rounded-md shadow-xl text-sm opacity-90 cursor-grabbing" style={{ background: 'var(--bg-2)', border: '1px solid var(--border-1)', color: 'var(--text-1)' }}>
-            {activeTask.title}
-          </div>
-        ) : null}
+        {activeTask ? (() => {
+          const proj = projects.find(p => p.id === activeTask.projectId);
+          const PRIORITY_BORDER: Record<string, string> = { High: '#ef4444', Medium: '#eab308', Low: '#2A2A2A' };
+          const borderColor = PRIORITY_BORDER[activeTask.priority ?? 'Low'];
+          return (
+            <div className="p-2 rounded shadow-2xl text-sm cursor-grabbing flex items-center gap-2 opacity-95"
+              style={{
+                background: 'var(--bg-2)',
+                border: `1px solid var(--border-1)`,
+                borderLeft: `2px solid ${borderColor}`,
+                color: 'var(--text-1)',
+                maxWidth: 240,
+              }}>
+              {proj && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: proj.color }} />}
+              <span className="truncate text-[13px]">{activeTask.title}</span>
+            </div>
+          );
+        })() : null}
       </DragOverlay>
 
       <PomodoroBar />

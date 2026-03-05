@@ -14,11 +14,12 @@ type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
   const [idx, setIdx] = useState(0);
+  const [hovered, setHovered] = useState(false);
   useEffect(() => {
-    if (items.length <= 1) return;
+    if (items.length <= 1 || hovered) return;
     const t = setInterval(() => setIdx(i => (i + 1) % items.length), 2500);
     return () => clearInterval(t);
-  }, [items.length]);
+  }, [items.length, hovered]);
 
   if (items.length === 0) return (
     <div className="flex items-center justify-center h-full text-[11px] text-[#555] italic">none due</div>
@@ -26,7 +27,8 @@ function TaskCarousel({ items }: { items: { label: string; sublabel: string; acc
 
   const item = items[idx];
   return (
-    <div className="relative flex flex-col justify-center h-full overflow-hidden">
+    <div className="relative flex flex-col justify-center h-full overflow-hidden"
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       {/* Fixed-height content so swapping items never shifts card size */}
       <div className="flex flex-col gap-0.5">
         <div className="flex items-baseline gap-1.5 h-[22px]">

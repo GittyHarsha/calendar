@@ -121,7 +121,7 @@ export function ThinkPad() {
             value={thinkPadNotes}
             onChange={(e) => setThinkPadNotes(e.target.value)}
             onDoubleClick={() => setScratchpadFullscreen(true)}
-            className="w-full h-40 bg-[#1A1A1A] border border-[#2A2A2A] rounded-md p-3 text-sm text-[#E4E3E0] placeholder-[#555] focus:outline-none focus:border-[#F27D26] resize-none font-mono"
+            className="w-full h-40 bg-[#1A1A1A] border border-[#2A2A2A] rounded-md p-3 text-sm text-[#E4E3E0] placeholder-[#555] focus:outline-none focus:border-[var(--accent)] resize-none font-mono"
             placeholder="Dump your thoughts here..."
           />
         </div>
@@ -152,23 +152,7 @@ export function ThinkPad() {
             )}
           </div>
 
-          {/* Overdue Tasks — shown above add form so urgent items are seen immediately */}
-          {overdueTasks.length > 0 && (
-            <div className="flex flex-col gap-2 p-2 rounded-lg border border-red-500/20 mb-1"
-              style={{ background: 'color-mix(in srgb, #ef4444 5%, transparent)', boxShadow: '0 0 12px color-mix(in srgb, #ef4444 12%, transparent)' }}>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-red-500/80 flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  Overdue
-                </span>
-                <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">{overdueTasks.length}</span>
-              </div>
-              {overdueTasks.map(task => (
-                <DraggableTask key={task.id} task={task} showDate />
-              ))}
-            </div>
-          )}
-          
+          {/* Add Task Form — primary action at top */}
           <form onSubmit={handleAddTask} className="flex flex-col gap-2 mb-2 bg-[#141414] p-3 rounded-md border border-[#2A2A2A]">
             <div className="flex flex-col gap-1">
               <input
@@ -177,7 +161,7 @@ export function ThinkPad() {
                 value={newTaskTitle}
                 onChange={(e) => { setNewTaskTitle(e.target.value); if (titleError) setTitleError(false); }}
                 placeholder="Add a new task..."
-                className={`w-full bg-[#0A0A0A] rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-[#F27D26] border ${titleError ? 'border-red-500' : 'border-[#2A2A2A]'}`}
+                className={`w-full bg-[#0A0A0A] rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-[var(--accent)] border ${titleError ? 'border-red-500' : 'border-[#2A2A2A]'}`}
               />
               {titleError && <span className="text-[11px] text-red-500">Title is required</span>}
             </div>
@@ -194,7 +178,7 @@ export function ThinkPad() {
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[#F27D26]"
+                    className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] focus:outline-none focus:border-[var(--accent)]"
                   >
                     <option value="">No Project</option>
                     {projects.filter(p => !p.parentId).map(p => (
@@ -234,7 +218,7 @@ export function ThinkPad() {
                 <div className="relative flex gap-2">
                   <button type="button"
                     onClick={() => setShowDatePicker(p => !p)}
-                    className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
+                    className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded-md px-2 py-2 text-xs text-[#8E9299] hover:border-[var(--accent)] transition-colors focus:outline-none">
                     {newTaskDate ? format(new Date(newTaskDate + 'T00:00:00'), 'MMM d, yyyy') : '📅 Work date…'}
                   </button>
                   {showDatePicker && (
@@ -258,6 +242,23 @@ export function ThinkPad() {
               </button>
             </div>
           </form>
+
+          {/* Overdue Tasks */}
+          {overdueTasks.length > 0 && (
+            <div className="flex flex-col gap-2 p-2 rounded-lg border border-red-500/20 mb-1"
+              style={{ background: 'color-mix(in srgb, #ef4444 5%, transparent)', boxShadow: '0 0 12px color-mix(in srgb, #ef4444 12%, transparent)' }}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-red-500/80 flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  Overdue
+                </span>
+                <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">{overdueTasks.length}</span>
+              </div>
+              {overdueTasks.map(task => (
+                <DraggableTask key={task.id} task={task} showDate />
+              ))}
+            </div>
+          )}
 
           <div 
             ref={setNodeRef} 

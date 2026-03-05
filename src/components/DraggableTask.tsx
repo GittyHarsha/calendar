@@ -166,7 +166,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           <div className="flex items-center gap-1.5">
             {task.date && task.date !== format(today, 'yyyy-MM-dd') && (
               <button onClick={() => { updateTask(task.id, { date: format(today, 'yyyy-MM-dd') }); onClose(); }}
-                className="text-[12px] text-[#F27D26] hover:underline font-mono flex items-center gap-0.5">
+                className="text-[12px] hover:underline font-mono flex items-center gap-0.5" style={{ color: 'var(--accent)' }}>
                 <ArrowRight size={10} /> Today
               </button>
             )}
@@ -268,7 +268,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
             className={cn(
               'flex items-center gap-1.5 text-xs transition-colors',
               pomodoro.taskId === task.id && pomodoro.phase === 'work'
-                ? 'text-[#F27D26]' : 'text-[#aaa] hover:text-[#F27D26]'
+                ? 'text-[var(--accent)]' : 'text-[#aaa] hover:text-[var(--accent)]'
             )}>
             <Timer size={13} />
             {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
@@ -539,12 +539,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: 'var(--accent)' }}>▶</span>
           )}
           {dl && (
-            <span className="text-[12px] font-mono shrink-0 group-hover:hidden" style={{ color: dl.color }}>
+            <span className="text-[12px] font-mono shrink-0" style={{ color: dl.color }}>
               <Flag size={9} className="inline mr-0.5" style={{ color: dl.color }} />{dl.label}
             </span>
           )}
           {showDate && task.date && (
-            <span className="text-[12px] text-[#888] font-mono shrink-0 group-hover:hidden">
+            <span className="text-[12px] text-[#888] font-mono shrink-0">
               {format(parseISO(task.date), 'MMM d')}
             </span>
           )}

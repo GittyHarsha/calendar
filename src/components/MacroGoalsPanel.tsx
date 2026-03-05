@@ -24,7 +24,8 @@ const PRIORITY_CLASS: Record<Priority, string> = {
 
 function ProgressBar({ projectId }: { projectId: string }) {
   const { tasks } = useStore();
-  const all = tasks.filter(t => t.projectId === projectId);
+  // Only count tasks that have been scheduled (date !== null)
+  const all = tasks.filter(t => t.projectId === projectId && t.date !== null);
   const done = all.filter(t => t.completed).length;
   const pct = all.length > 0 ? (done / all.length) * 100 : 0;
   return (
@@ -114,13 +115,13 @@ function ProjectForm({
         <button type="button" onClick={onCancel} className="text-[#aaa] hover:text-white"><X size={13} /></button>
       </div>
       <input type="text" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Name…"
-        className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#F27D26]" />
+        className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[var(--accent)]" />
       <div className="flex flex-col gap-1">
         <label className="text-[11px] uppercase tracking-wider text-[#8E9299]">Started</label>
         <div className="flex gap-1 items-center">
           <button type="button" ref={startedBtnRef}
             onClick={e => { e.stopPropagation(); setShowStartedPicker(p => !p); }}
-            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
+            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[var(--accent)] transition-colors focus:outline-none">
             {startedAt ? format(parseISO(startedAt), 'MMM d, yyyy') : 'Set start date'}
           </button>
           {startedAt && (
@@ -137,7 +138,7 @@ function ProjectForm({
         <div className="flex gap-1 items-center">
           <button type="button" ref={deadlineBtnRef}
             onClick={e => { e.stopPropagation(); setShowPicker(p => !p); }}
-            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#F27D26] transition-colors focus:outline-none">
+            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[var(--accent)] transition-colors focus:outline-none">
             {deadline ? format(parseISO(deadline), 'MMM d, yyyy') : 'No deadline'}
           </button>
           {deadline && (
@@ -221,7 +222,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           {editingName ? (
             <input autoFocus value={nameVal} onChange={e => setNameVal(e.target.value)} onBlur={saveName}
               onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setNameVal(project.name); setEditingName(false); } }}
-              className="flex-1 text-sm font-semibold text-white bg-[#0A0A0A] border border-[#F27D26] rounded px-2 py-0.5 focus:outline-none" />
+              className="flex-1 text-sm font-semibold text-white bg-[#0A0A0A] border border-[var(--accent)] rounded px-2 py-0.5 focus:outline-none" />
           ) : (
             <span className="flex-1 text-sm font-semibold text-[#C8C7C4] truncate cursor-pointer hover:text-white"
               title={project.name}
@@ -339,7 +340,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
             {editingName ? (
               <input autoFocus value={nameVal} onChange={e => setNameVal(e.target.value)} onBlur={saveName}
                 onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setNameVal(project.name); setEditingName(false); } }}
-                className="text-base font-bold text-white bg-[#0A0A0A] border border-[#F27D26] rounded px-2 py-0.5 focus:outline-none flex-1 min-w-0" />
+                className="text-base font-bold text-white bg-[#0A0A0A] border border-[var(--accent)] rounded px-2 py-0.5 focus:outline-none flex-1 min-w-0" />
             ) : (
               <h3 className="text-base font-bold text-white truncate cursor-pointer hover:underline flex-1 min-w-0"
                 title={project.name}
@@ -375,7 +376,9 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
             </span>
           </div>
           {lostDays > 0 && (
-            <div className="text-[13px] font-mono uppercase tracking-wider text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded">
+            <div
+              title={`${lostDays} day${lostDays !== 1 ? 's' : ''} since last task was scheduled for this project`}
+              className="text-[13px] font-mono uppercase tracking-wider text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded cursor-help">
               {lostDays}d lost
             </div>
           )}
