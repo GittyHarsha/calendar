@@ -78,7 +78,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
       {/* Clear filter button */}
       {filterProjectId && (
         <button
-          className="absolute left-2 bottom-0.5 z-10 text-[10px] font-mono text-[#F27D26] hover:text-white flex items-center gap-0.5 transition-colors"
+          className="absolute left-2 bottom-0.5 z-10 text-[10px] font-mono text-[var(--accent)] hover:text-white flex items-center gap-0.5 transition-colors"
           onClick={() => onFilterProject(null)}
           title="Clear filter">
           × clear

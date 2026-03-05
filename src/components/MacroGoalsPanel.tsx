@@ -29,7 +29,7 @@ function ProgressBar({ projectId }: { projectId: string }) {
   const done = all.filter(t => t.completed).length;
   const pct = all.length > 0 ? (done / all.length) * 100 : 0;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" title={`${done} of ${all.length} scheduled tasks complete`}>
       <div className="flex-1 h-0.5 bg-[#2A2A2A] rounded-full overflow-hidden">
         <div className="h-full bg-green-500/70 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>

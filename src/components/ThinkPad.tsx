@@ -96,7 +96,7 @@ export function ThinkPad() {
     setSelectedPriority('Medium');
     setSelectedProjectId('');
     setTitleError(false);
-    setShowAdvanced(false);
+    // keep showAdvanced open so power users can add multiple tasks with options
   };
 
   return (

@@ -19,6 +19,18 @@ export default function App() {
   const { tasks, projects, updateTask, theme, customAccent, undo } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Listen for toast events fired by child components
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const msg = (e as CustomEvent<string>).detail;
+      setToast(msg);
+      setTimeout(() => setToast(null), 3000);
+    };
+    window.addEventListener('horizon:toast', handler);
+    return () => window.removeEventListener('horizon:toast', handler);
+  }, []);
 
   // Apply theme CSS vars to root
   useEffect(() => {
@@ -159,6 +171,12 @@ export default function App() {
       <PomodoroBar />
       <CommandPalette />
       {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
+      {toast && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2 rounded-lg text-sm font-medium shadow-xl pointer-events-none transition-all"
+          style={{ background: 'var(--bg-2)', border: '1px solid var(--border-1)', color: 'var(--text-1)' }}>
+          {toast}
+        </div>
+      )}
     </DndContext>
   );
 }

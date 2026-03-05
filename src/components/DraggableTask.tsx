@@ -49,6 +49,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showTimeLog, setShowTimeLog] = useState(false);
+  const [showAllTimeEntries, setShowAllTimeEntries] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [hoveredSubtaskId, setHoveredSubtaskId] = useState<string | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<{ field: 'date' | 'deadline'; value: string | null } | null>(null);
@@ -80,8 +81,8 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
       // Not enough room on right → go left
       left = r.left - popW - gap;
     }
-    // Clamp left within viewport
-    left = Math.max(8, left);
+    // Clamp left within viewport (min 328 = 320px sidebar + 8px gap)
+    left = Math.max(328, left);
 
     // Vertical: align top with card, clamp so popup doesn't go off bottom
     let top = r.top;
@@ -264,7 +265,11 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
         {/* Focus timer */}
         <div className="flex items-center justify-between">
           <button
-            onClick={() => { startPomodoro(task.id); onClose(); }}
+            onClick={() => {
+              startPomodoro(task.id);
+              window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `🍅 Pomodoro started — ${task.title}` }));
+              onClose();
+            }}
             className={cn(
               'flex items-center gap-1.5 text-xs transition-colors',
               pomodoro.taskId === task.id && pomodoro.phase === 'work'
@@ -284,7 +289,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
         {(() => {
           const taskEntries = timeEntries.filter(e => e.taskId === task.id);
           const totalTime = getTaskTime(task.id);
-          const visible = taskEntries.slice(0, 5);
+          const visible = showAllTimeEntries ? taskEntries : taskEntries.slice(0, 5);
           const overflow = taskEntries.length - 5;
           return (
             <div className="flex flex-col gap-1.5">
@@ -315,7 +320,11 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
                     </div>
                   ))}
                   {overflow > 0 && (
-                    <div className="text-[11px] text-[#555] font-mono">+{overflow} more</div>
+                    <button
+                      onClick={() => setShowAllTimeEntries(v => !v)}
+                      className="text-[11px] text-[var(--accent)] font-mono hover:underline text-left">
+                      {showAllTimeEntries ? '↑ show less' : `+${overflow} more`}
+                    </button>
                   )}
                 </div>
               )}
@@ -396,7 +405,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
                     setNewSubtaskTitle('');
                   }
                 }}
-                placeholder="+ add subtask"
+                placeholder="+ add subtask (Enter)"
                 className="w-full bg-[#1A1A1A] text-xs placeholder-[#444] rounded p-1.5 focus:outline-none border border-[#2A2A2A] focus:border-[#444]"
                 style={{ color: '#C8C7C4', fontFamily: 'Consolas, monospace' }}
               />

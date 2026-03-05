@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { startOfToday, parseISO } from 'date-fns';
+import { startOfToday, parseISO, differenceInDays, format } from 'date-fns';
 import { useStore } from '../store';
 import { newProjectTrigger } from './MacroGoalsPanel';
 import { baseDateTrigger } from './HorizonView';
@@ -217,7 +217,14 @@ export function CommandPalette() {
                   </span>
                   {item.deadline && (
                     <span style={{ fontSize: '11px', color: 'var(--text-2)', flexShrink: 0 }}>
-                      {item.deadline}
+                      {(() => {
+                        const d = parseISO(item.deadline);
+                        const diff = differenceInDays(d, startOfToday());
+                        if (diff === 0) return 'today';
+                        if (diff === 1) return 'tmrw';
+                        if (diff > 0 && diff <= 6) return `in ${diff}d`;
+                        return format(d, 'MMM d');
+                      })()}
                     </span>
                   )}
                   <span style={{ fontSize: '10px', color: 'var(--text-2)', flexShrink: 0 }}>task</span>
