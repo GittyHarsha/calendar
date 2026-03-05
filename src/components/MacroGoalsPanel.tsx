@@ -2,8 +2,9 @@
 import { useStore, Project, Priority } from '../store';
 import { differenceInDays, parseISO, startOfToday, addDays, format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus } from 'lucide-react';
+import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus, FileText } from 'lucide-react';
 import { DatePickerPopover } from './DatePickerPopover';
+import { ProjectNotesModal } from './ProjectNotesModal';
 
 export const newProjectTrigger = { open: () => {} };
 
@@ -183,6 +184,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
   const [editingDL, setEditingDL] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
@@ -232,6 +234,9 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           <div className="hidden group-hover:flex items-center gap-1.5 shrink-0">
             <button onClick={() => setAddingChild(true)} className="text-[#888] hover:text-[#D0CFC7]" title="Add subproject">
               <FolderPlus size={13} />
+            </button>
+            <button onClick={() => setShowNotes(true)} className={cn('hover:text-[#D0CFC7] transition-colors', project.notes ? 'text-[#888] flex' : 'text-[#888] hidden group-hover:flex')} title="Notes">
+              <FileText size={13} />
             </button>
             <button onClick={() => updateProject(project.id, { priority: PRIORITY_NEXT[project.priority] })}
               className={cn('text-xs font-bold px-1.5 py-0.5 rounded', PRIORITY_CLASS[project.priority])} title="Priority">
@@ -283,6 +288,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
       {expanded && children.map(child => (
         <SubprojectRow key={child.id} project={child} today={today} depth={depth + 1} />
       ))}
+      {showNotes && <ProjectNotesModal project={project} onClose={() => setShowNotes(false)} />}
     </>
   );
 }
@@ -296,6 +302,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [addingSub, setAddingSub] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
@@ -353,6 +360,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
               {project.priority}
             </span>
             <button onClick={() => setEditing(true)} className="hidden group-hover:flex text-[#888] hover:text-[#D0CFC7]"><Pencil size={11} /></button>
+            <button onClick={() => setShowNotes(true)} className={cn('text-[#888] hover:text-[#D0CFC7] transition-colors', project.notes ? 'flex' : 'hidden group-hover:flex')} title="Project notes"><FileText size={11} /></button>
             {confirmDelete
               ? <span className="flex items-center gap-0.5 text-[12px]">
                   <button onClick={() => deleteProject(project.id)} className="text-red-400 font-bold">Yes</button>
@@ -429,6 +437,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
           </button>
         )}
       </div>
+      {showNotes && <ProjectNotesModal project={project} onClose={() => setShowNotes(false)} />}
     </div>
   );
 }

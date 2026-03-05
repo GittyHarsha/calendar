@@ -1,33 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Task, useStore } from '../store';
+import { Project, useStore } from '../store';
 import { X } from 'lucide-react';
 
 interface Props {
-  task: Task;
+  project: Project;
   onClose: () => void;
 }
 
-export function TaskNotesModal({ task, onClose }: Props) {
-  const { updateTask } = useStore();
-  const [notes, setNotes] = useState(task.description ?? '');
+export function ProjectNotesModal({ project, onClose }: Props) {
+  const { updateProject } = useStore();
+  const [notes, setNotes] = useState(project.notes ?? '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-focus textarea
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
+  useEffect(() => { textareaRef.current?.focus(); }, []);
 
-  // Save on close
   const handleClose = () => {
-    updateTask(task.id, { description: notes });
+    updateProject(project.id, { notes });
     onClose();
   };
 
-  // Escape to close
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [notes]);
@@ -41,13 +34,15 @@ export function TaskNotesModal({ task, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-8 py-4 border-b border-[#222] shrink-0">
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] uppercase tracking-widest text-[#aaa] font-semibold mb-1">Notes</div>
-            <div className="text-lg font-semibold text-[#E4E3E0] truncate">{task.title}</div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
+              <span className="text-[12px] uppercase tracking-widest text-[#aaa] font-semibold">
+                {project.parentId ? 'Subproject Notes' : 'Project Notes'}
+              </span>
+            </div>
+            <div className="text-lg font-semibold text-[#E4E3E0] truncate">{project.name}</div>
           </div>
-          <button
-            onClick={handleClose}
-            className="ml-4 text-[#aaa] hover:text-white transition-colors shrink-0"
-          >
+          <button onClick={handleClose} className="ml-4 text-[#aaa] hover:text-white transition-colors shrink-0">
             <X size={18} />
           </button>
         </div>
@@ -57,7 +52,7 @@ export function TaskNotesModal({ task, onClose }: Props) {
           ref={textareaRef}
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          placeholder="Write anything…"
+          placeholder="Write anything about this project…"
           className="flex-1 w-full bg-transparent text-[#C8C7C4] placeholder-[#333] text-base leading-relaxed px-8 py-6 focus:outline-none resize-none font-sans"
         />
 

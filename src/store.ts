@@ -16,6 +16,7 @@ export type Project = {
   priority: Priority;
   startedAt?: string | null;
   parentId?: string | null;
+  notes?: string;
 };
 
 export type Task = {
