@@ -73,6 +73,18 @@ export function ThinkPad() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Pre-fill date when user clicks an empty day column in HorizonView
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const date = (e as CustomEvent<string>).detail;
+      setNewTaskDate(date);
+      setShowAdvanced(true);
+      document.getElementById('new-task-input')?.focus();
+    };
+    window.addEventListener('horizon:prefill-date', handler);
+    return () => window.removeEventListener('horizon:prefill-date', handler);
+  }, []);
+
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) {

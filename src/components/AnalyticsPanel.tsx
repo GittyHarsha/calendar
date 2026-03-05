@@ -339,6 +339,16 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
     color: 'var(--text-2, #686868)',
     cursor: 'pointer',
     fontFamily: 'Consolas, monospace',
+    transition: 'background 0.15s, color 0.15s',
+  };
+
+  const exportBtnHover = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.background = 'var(--bg-2, #1A1A1A)';
+    e.currentTarget.style.color = 'var(--text-1, #F0EDEA)';
+  };
+  const exportBtnLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.currentTarget.style.background = 'var(--bg-1, #0F0F0F)';
+    e.currentTarget.style.color = 'var(--text-2, #686868)';
   };
 
   const handleCopyMd = async () => {
@@ -388,7 +398,17 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         ))}
       </div>
 
+      {/* Global empty state */}
+      {timeEntries.length === 0 && (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-2)', padding: 40, textAlign: 'center' }}>
+          <span style={{ fontSize: 32 }}>🍅</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '0.05em' }}>No data yet</span>
+          <span style={{ fontSize: 13, maxWidth: 260, lineHeight: 1.6 }}>Start a focus session on any task to begin tracking your time.</span>
+        </div>
+      )}
+
       {/* Main content — 2-column grid */}
+      {timeEntries.length > 0 && (
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gridAutoRows: 'min-content', overflow: 'auto' }}>
 
       {/* Stats Summary */}
@@ -489,9 +509,9 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
               const maxMs = tab === 'daily' ? maxDailyProjectMs : maxProjectMs;
               return (
                 <div key={project.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, minWidth: 0 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0, display: 'inline-block' }} />
-                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    <span style={{ flex: 1, fontSize: 14, color: 'var(--text-1, #F0EDEA)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
                       title={project.name}>{project.name}</span>
                     {tab !== 'daily' && (() => {
                       const rate = projectCompletionRates[project.id];
@@ -753,13 +773,15 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         </div>
       )}
 
-      </div> {/* end grid */}
+      </div>
+      )}
 
       {/* Export Toolbar */}
       <div style={{ padding: '16px 40px', borderTop: '1px solid var(--border-1, #252525)', display: 'flex', gap: 10, flexShrink: 0 }}>
         <button
           onClick={() => exportTimeLogCSV(tasks, timeEntries, projects)}
           style={exportBtnStyle}
+          onMouseEnter={exportBtnHover} onMouseLeave={exportBtnLeave}
           title="Export CSV">
           <Download size={14} />
           <span>CSV</span>
@@ -767,6 +789,7 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         <button
           onClick={() => exportTimeLogJSON(tasks, timeEntries, projects)}
           style={exportBtnStyle}
+          onMouseEnter={exportBtnHover} onMouseLeave={exportBtnLeave}
           title="Export JSON">
           <FileJson size={14} />
           <span>JSON</span>
@@ -774,6 +797,7 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
         <button
           onClick={handleCopyMd}
           style={{ ...exportBtnStyle, ...(copied ? { color: 'var(--accent)', borderColor: 'var(--accent)' } : {}) }}
+          onMouseEnter={e => !copied && exportBtnHover(e)} onMouseLeave={e => !copied && exportBtnLeave(e)}
           title="Copy Markdown Summary">
           <Copy size={14} />
           <span>{copied ? 'Copied!' : 'Copy MD'}</span>

@@ -66,7 +66,10 @@ export function TaskNotesModal({ task, onClose }: Props) {
           <span className="text-[12px] text-[#888]">Esc to save & close</span>
           <button
             onClick={handleClose}
-            className="text-xs font-semibold px-4 py-1.5 bg-[#F27D26] hover:bg-[#E06D16] text-black rounded transition-colors"
+            className="text-xs font-semibold px-4 py-1.5 text-black rounded transition-colors"
+            style={{ background: 'var(--accent)' }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
           >
             Save
           </button>

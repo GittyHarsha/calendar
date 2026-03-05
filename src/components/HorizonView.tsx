@@ -451,7 +451,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
   });
 
   const isCurrent = today >= startDate && today <= endDate;
-  const isWeekend = mode === 'daily' && (startDate.getDay() === 0 || startDate.getDay() === 6);
+  const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
 
   let widthClass = "w-64";
   if (mode === 'weekly') widthClass = "w-72";
@@ -463,7 +463,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       ref={setNodeRef}
       className={cn(
         widthClass,
-        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors relative",
+        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative",
         isOver && "bg-[#1A1A1A]",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
       )}
@@ -564,10 +564,22 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       {/* Tasks Area */}
       <div className="flex-1 p-2 overflow-y-auto flex flex-col gap-2">
         <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {columnTasks.map(task => (
-            <DraggableTask key={task.id} task={task} showDate={mode !== 'daily'} />
-          ))}
+          {columnTasks.map(task => {
+            const isPastUnfinished = !task.completed && task.date && task.date < format(today, 'yyyy-MM-dd');
+            return (
+              <div key={task.id} style={isPastUnfinished ? { opacity: 0.6 } : undefined}>
+                <DraggableTask task={task} showDate={mode !== 'daily'} />
+              </div>
+            );
+          })}
         </SortableContext>
+        {ghostTasks.length > 0 && (
+          <div className="flex items-center gap-2 mt-1 mb-0.5 select-none">
+            <div className="h-px flex-1 border-t border-dashed border-[#333]" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[#444]">Due here</span>
+            <div className="h-px flex-1 border-t border-dashed border-[#333]" />
+          </div>
+        )}
         {ghostTasks.map(task => {
           const project = projects.find(p => p.id === task.projectId);
           const daysLeft = differenceInDays(parseISO(task.deadline!), today);
@@ -586,17 +598,34 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </div>
           );
         })}
-        {columnTasks.length === 0 && ghostTasks.length === 0 && (
-          <div className={cn(
-            'flex-1 flex flex-col items-center justify-center gap-2 select-none border border-dashed rounded-lg transition-all duration-200 min-h-[60px] px-3',
-            isOver
-              ? 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
-              : 'border-[#282828] text-[#444] bg-[#0A0A0A]/40'
-          )}>
-            <span className="text-base leading-none">{isOver ? '↓' : '+'}</span>
-            <span className="text-[11px] font-mono text-center leading-tight">{isOver ? 'drop here' : 'Drop a task or click +'}</span>
-          </div>
-        )}
+        {columnTasks.length === 0 && ghostTasks.length === 0 && (() => {
+          const hiddenCount = allColumnTasks.length - columnTasks.length;
+          if (hideCompleted && hiddenCount > 0) {
+            return (
+              <div className="flex-1 flex flex-col items-center justify-center gap-1 select-none min-h-[60px] px-3">
+                <span className="text-[11px] font-mono text-[#444] text-center">
+                  {hiddenCount} completed task{hiddenCount !== 1 ? 's' : ''} hidden
+                </span>
+              </div>
+            );
+          }
+          return (
+            <div className={cn(
+              'flex-1 flex flex-col items-center justify-center gap-2 select-none border border-dashed rounded-lg transition-all duration-200 min-h-[60px] px-3 cursor-pointer',
+              isOver
+                ? 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
+                : 'border-[#282828] text-[#444] bg-[#0A0A0A]/40 hover:border-[#3A3A3A] hover:text-[#666]'
+            )}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('horizon:prefill-date', { detail: startDateStr }));
+                document.getElementById('new-task-input')?.focus();
+              }}
+            >
+              <span className="text-base leading-none">{isOver ? '↓' : '+'}</span>
+              <span className="text-[11px] font-mono text-center leading-tight">{isOver ? 'drop here' : 'Drop a task or click +'}</span>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
