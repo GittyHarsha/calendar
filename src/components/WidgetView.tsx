@@ -349,8 +349,8 @@ export function WidgetView() {
           </button>
           <button onClick={() => setShowDone(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: doneToday > 0 ? '#4ade80' : 'var(--border-1)', fontSize: 12, fontFamily: 'Consolas, monospace' }}>✓ {doneToday} done</button>
           {pomodoro.sessionsCompleted > 0 && (
-            <span style={{ fontSize: 11, color: accent, fontFamily: 'Consolas, monospace' }} title={`${pomodoro.sessionsCompleted} pomodoro sessions today`}>
-              🍅{pomodoro.sessionsCompleted}
+            <span style={{ fontSize: 11, color: accent, fontFamily: 'Consolas, monospace' }} title={`${pomodoro.sessionsCompleted} focus sessions today`}>
+              ◉ {pomodoro.sessionsCompleted}
             </span>
           )}
         </div>
@@ -407,8 +407,7 @@ export function WidgetView() {
 
               {/* Sessions count + keyboard hint */}
               <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: 'var(--text-2)' }}>
-                {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}
-                {pomodoro.sessionsCompleted > 5 ? ` ×${pomodoro.sessionsCompleted}` : ''}
+                {pomodoro.sessionsCompleted > 0 ? `◉ ×${pomodoro.sessionsCompleted}` : ''}
               </div>
               <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: 'var(--border-1)', letterSpacing: '0.08em' }}>
                 {isPaused ? 'space · resume' : 'space · pause'} &nbsp;·&nbsp; esc · stop
@@ -446,7 +445,7 @@ export function WidgetView() {
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px' }} />
             </svg>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸ PAUSED' : (isEyeRest ? 'MISC' : isWork ? 'FOCUS' : 'BREAK')} · {'🍅'.repeat(Math.min(pomodoro.sessionsCompleted, 5))}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸ PAUSED' : (isEyeRest ? 'MISC' : isWork ? 'FOCUS' : 'BREAK')}{pomodoro.sessionsCompleted > 0 ? ` · ◉ ×${pomodoro.sessionsCompleted}` : ''}</div>
               <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {isEyeRest ? '⏱ Misc' : (task?.title ?? '—') + (tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : '')}
               </div>

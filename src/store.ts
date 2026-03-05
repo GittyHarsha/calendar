@@ -50,7 +50,7 @@ export type PomodoroState = {
   taskId: string | null;
   phase: PomodoroPhase;
   sessionStart: string | null; // ISO — when current work/break phase started (adjusted for pauses)
-  sessionsCompleted: number;   // total 🍅 this app session
+  sessionsCompleted: number;   // total sessions this app session
   paused: boolean;
   pausedElapsed: number;       // ms elapsed before current pause
 };

@@ -267,7 +267,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           <button
             onClick={() => {
               startPomodoro(task.id);
-              window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `🍅 Pomodoro started — ${task.title}` }));
+              window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `◉ Pomodoro started — ${task.title}` }));
               onClose();
             }}
             className={cn(

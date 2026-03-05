@@ -401,7 +401,7 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
       {/* Global empty state */}
       {timeEntries.length === 0 && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-2)', padding: 40, textAlign: 'center' }}>
-          <span style={{ fontSize: 32 }}>🍅</span>
+          <span style={{ fontSize: 32, color: 'var(--accent)' }}>◉</span>
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', letterSpacing: '0.05em' }}>No data yet</span>
           <span style={{ fontSize: 13, maxWidth: 260, lineHeight: 1.6 }}>Start a focus session on any task to begin tracking your time.</span>
         </div>

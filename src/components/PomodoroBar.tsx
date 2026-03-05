@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore, WORK_DURATION, BREAK_DURATION, fmtDuration } from '../store';
 import { startOfToday } from 'date-fns';
 
-const TOMATO = '🍅';
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 
@@ -182,8 +181,8 @@ export function PomodoroBar() {
     const ringColor = goalPct >= 1 ? BREAK_COLOR : 'var(--accent)';
     const C = 2 * Math.PI * 10;
     const statsLabel = todaySessions > 0
-      ? `${TOMATO} ${todaySessions} · ${fmtDuration(todayMs)}`
-      : '🍅 Start focus';
+      ? `◉ ${todaySessions} · ${fmtDuration(todayMs)}`
+      : '◉ Start focus';
 
     return (
       <button
@@ -214,7 +213,7 @@ export function PomodoroBar() {
             )}
           </svg>
         ) : (
-          <span style={{ fontSize: 14, lineHeight: 1 }}>🍅</span>
+          <span style={{ fontSize: 14, lineHeight: 1, color: 'var(--accent)' }}>◉</span>
         )}
         <span>{statsLabel}</span>
       </button>
