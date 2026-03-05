@@ -136,15 +136,19 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
           <select
             value={task.projectId ?? ''}
             onChange={e => updateTask(task.id, { projectId: e.target.value || null })}
-            className="flex-1 text-xs bg-transparent border-none outline-none cursor-pointer"
-            style={{ color: task.projectId ? '#999' : '#555' }}
+            className="flex-1 text-xs cursor-pointer rounded px-1.5 py-0.5 outline-none appearance-none"
+            style={{
+              background: 'var(--bg-2)',
+              color: 'var(--text-1)',
+              border: '1px solid var(--border-1)',
+            }}
           >
-            <option value="">No project</option>
+            <option value="" style={{ background: 'var(--bg-2)', color: 'var(--text-1)' }}>No project</option>
             {projects.filter(p => !p.parentId).map(p => (
               <React.Fragment key={p.id}>
-                <option value={p.id}>{p.name}</option>
+                <option value={p.id} style={{ background: 'var(--bg-2)', color: 'var(--text-1)' }}>{p.name}</option>
                 {projects.filter(c => c.parentId === p.id).map(c => (
-                  <option key={c.id} value={c.id}>{'  › ' + c.name}</option>
+                  <option key={c.id} value={c.id} style={{ background: 'var(--bg-2)', color: 'var(--text-1)' }}>{'  › ' + c.name}</option>
                 ))}
               </React.Fragment>
             ))}
