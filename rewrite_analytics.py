@@ -1,264 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { useStore, fmtDuration } from '../store';
-import { startOfWeek, endOfWeek, subWeeks, format, parseISO, isWithinInterval, differenceInDays } from 'date-fns';
-import { X, Download, Copy, FileJson } from 'lucide-react';
-import { exportTimeLogCSV, exportTimeLogJSON, copyMarkdownSummary } from '../utils/exportTimeLogs';
-
-interface AnalyticsPanelProps {
-  onClose: () => void;
-}
-
-function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    let start: number | null = null;
-    let frameId: number;
-    const to = value;
-    const step = (timestamp: number) => {
-      if (start === null) start = timestamp;
-      const elapsed = timestamp - start;
-      const progress = Math.min(elapsed / 600, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(Math.round(to * eased));
-      if (progress < 1) { frameId = requestAnimationFrame(step); }
-    };
-    frameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameId);
-  }, [value]);
-  return <span>{display}{suffix}</span>;
-}
-
-export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
-  const { tasks, projects, timeEntries, pomodoro, getProjectTime } = useStore();
-  const [tab, setTab] = useState<'daily' | 'weekly' | 'alltime'>('weekly');
-  const [copied, setCopied] = useState(false);
-
-  const today = new Date();
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-
-  // ── Weekly Summary ──────────────────────────────────────────────────────────
-  const weekEntries = useMemo(
-    () => timeEntries.filter(e => {
-      const d = parseISO(e.startedAt);
-      return isWithinInterval(d, { start: weekStart, end: weekEnd });
-    }),
-    [timeEntries, weekStart, weekEnd]
-  );
-
-  const totalFocusMs = weekEntries.reduce((s, e) => s + e.duration, 0);
-  const tasksCompletedThisWeek = tasks.filter(t => t.completed && t.date && t.date >= format(weekStart, 'yyyy-MM-dd') && t.date <= format(weekEnd, 'yyyy-MM-dd')).length;
-  const sessionsCompleted = pomodoro.sessionsCompleted + weekEntries.length;
-
-  // ── Today's focus (must come before any useMemo that references todayEntries) ─
-  const todayStr = format(today, 'yyyy-MM-dd');
-  const todayEntries = useMemo(
-    () => timeEntries.filter(e => e.startedAt.startsWith(todayStr)),
-    [timeEntries, todayStr]
-  );
-  const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
-  const todayTasksDone = tasks.filter(t => t.completed && t.date === todayStr).length;
-  const todaySessions = todayEntries.length;
-  const allTimeTasksDone = tasks.filter(t => t.completed).length;
-
-  // ── Time per Project ────────────────────────────────────────────────────────
-  const projectTimes = useMemo(() => {
-    return projects
-      .map(p => ({ project: p, ms: getProjectTime(p.id) }))
-      .filter(x => x.ms > 0)
-      .sort((a, b) => b.ms - a.ms);
-  }, [projects, timeEntries]);
-
-  const maxProjectMs = projectTimes[0]?.ms ?? 1;
-
-  const dailyProjectTimes = useMemo(() => {
-    const msMap = new Map<string, number>();
-    todayEntries.forEach(e => {
-      const task = tasks.find(t => t.id === e.taskId);
-      if (task?.projectId) msMap.set(task.projectId, (msMap.get(task.projectId) ?? 0) + e.duration);
-    });
-    return projects
-      .filter(p => msMap.has(p.id))
-      .map(p => ({ project: p, ms: msMap.get(p.id)! }))
-      .sort((a, b) => b.ms - a.ms);
-  }, [todayEntries, tasks, projects]);
-
-  const maxDailyProjectMs = dailyProjectTimes[0]?.ms ?? 1;
-
-  const dailyTopTasks = useMemo(() => {
-    return tasks.map(t => {
-      const ms = todayEntries.filter(e => e.taskId === t.id).reduce((s, e) => s + e.duration, 0);
-      return { task: t, ms };
-    }).filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms).slice(0, 5);
-  }, [tasks, todayEntries]);
-
-  // ── Daily Streak / 30-Day / Heatmap / Session Lengths removed ──────────────
-
-  // ── Top Tasks ───────────────────────────────────────────────────────────────
-  const topTasks = useMemo(() => {
-    const taskTimes = tasks.map(t => {
-      const ms = timeEntries.filter(e => e.taskId === t.id).reduce((s, e) => s + e.duration, 0);
-      return { task: t, ms };
-    }).filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms).slice(0, 5);
-    return taskTimes;
-  }, [tasks, timeEntries]);
-
-  // ── Deadline: Per-Task Timeline Data ────────────────────────────────────────
-  const taskDeadlineTimelines = useMemo(() => {
-    const todayStr2 = format(today, 'yyyy-MM-dd');
-    return tasks
-      .filter(t => t.deadline || (t.deadlineHistory && t.deadlineHistory.length > 0))
-      .map(t => {
-        const allDeadlines: string[] = [...(t.deadlineHistory ?? []), ...(t.deadline ? [t.deadline] : [])];
-        const original = allDeadlines[0];
-        const current = t.deadline ?? allDeadlines[allDeadlines.length - 1];
-        const totalSlip = original && current ? differenceInDays(parseISO(current), parseISO(original)) : 0;
-        const isOverdue = !t.completed && current && current < todayStr2;
-        const status: 'done' | 'overdue' | 'active' = t.completed ? 'done' : isOverdue ? 'overdue' : 'active';
-        const project = projects.find(p => p.id === t.projectId);
-        return { task: t, allDeadlines, original, current, totalSlip, status, project };
-      })
-      .sort((a, b) => {
-        // Sort: overdue first, then by slip desc, then active, then done
-        if (a.status === 'overdue' && b.status !== 'overdue') return -1;
-        if (b.status === 'overdue' && a.status !== 'overdue') return 1;
-        return b.totalSlip - a.totalSlip;
-      });
-  }, [tasks, projects, today]);
-
-  // ── Deadline: On-Time Delivery Ring ─────────────────────────────────────────
-  const onTimeStats = useMemo(() => {
-    const completedWithDeadline = tasks.filter(t => t.completed && t.deadline);
-    const onTime = completedWithDeadline.filter(t => {
-      // completed on time = date <= deadline (use task.date as completion proxy)
-      return t.date && t.date <= t.deadline!;
-    });
-    const late = completedWithDeadline.length - onTime.length;
-    const noDeadline = tasks.filter(t => t.completed && !t.deadline).length;
-    const total = completedWithDeadline.length;
-    const onTimePct = total > 0 ? Math.round((onTime.length / total) * 100) : 0;
-    return { onTime: onTime.length, late, noDeadline, total, onTimePct };
-  }, [tasks]);
-
-  // ── Deadline: Project Health ─────────────────────────────────────────────────
-  const projectDeadlineHealth = useMemo(() => {
-    return projects.map(p => {
-      const pts = tasks.filter(t => t.projectId === p.id && t.deadline);
-      const todayStr2 = format(today, 'yyyy-MM-dd');
-      const onTime = pts.filter(t => t.completed && t.date && t.date <= t.deadline!).length;
-      const late = pts.filter(t => t.completed && (!t.date || t.date > t.deadline!)).length;
-      const overdue = pts.filter(t => !t.completed && t.deadline! < todayStr2).length;
-      const active = pts.filter(t => !t.completed && t.deadline! >= todayStr2).length;
-      const slipped = pts.filter(t => t.deadlineHistory && t.deadlineHistory.length > 0);
-      const avgSlip = slipped.length > 0
-        ? Math.round(slipped.reduce((s, t) => s + differenceInDays(parseISO(t.deadline!), parseISO(t.deadlineHistory![0])), 0) / slipped.length)
-        : 0;
-      return { project: p, onTime, late, overdue, active, total: pts.length, avgSlip };
-    }).filter(x => x.total > 0);
-  }, [projects, tasks, today]);
-
-  // ── Deadline: Velocity Trend (weekly slip count, last 8 weeks) ──────────────
-  const deadlineVelocity = useMemo(() => {
-    return Array.from({ length: 8 }, (_, i) => {
-      const wStart = startOfWeek(subWeeks(today, 7 - i), { weekStartsOn: 1 });
-      const wEnd = endOfWeek(subWeeks(today, 7 - i), { weekStartsOn: 1 });
-      const wStartStr = format(wStart, 'yyyy-MM-dd');
-      const wEndStr = format(wEnd, 'yyyy-MM-dd');
-      const label = format(wStart, 'MMM d');
-      // Count deadline changes that happened in this week window
-      // We approximate: tasks whose deadline was changed (has history) and current deadline falls in this week
-      const count = tasks.filter(t =>
-        t.deadlineHistory && t.deadlineHistory.length > 0 &&
-        t.deadline && t.deadline >= wStartStr && t.deadline <= wEndStr
-      ).length;
-      return { label, count, isCurrentWeek: i === 7 };
-    });
-  }, [tasks, today]);
-
-  const maxVelocityCount = Math.max(...deadlineVelocity.map(w => w.count), 1);
-
-  // ── Deadline Health ─────────────────────────────────────────────────────────
-  const deadlineStats = useMemo(() => {
-    const tasksWithDeadline = tasks.filter(t => t.deadline);
-    const slippedTasks = tasksWithDeadline.filter(t => t.deadlineHistory && t.deadlineHistory.length > 0);
-    const slipRate = tasksWithDeadline.length > 0 ? slippedTasks.length / tasksWithDeadline.length : 0;
-    const slipDetails = slippedTasks.map(t => {
-      const original = parseISO(t.deadlineHistory![0]);
-      const current = parseISO(t.deadline!);
-      const daysSlipped = differenceInDays(current, original);
-      return { task: t, daysSlipped };
-    }).sort((a, b) => b.daysSlipped - a.daysSlipped);
-    const avgDaysSlipped = slipDetails.length > 0
-      ? Math.round(slipDetails.reduce((s, x) => s + x.daysSlipped, 0) / slipDetails.length)
-      : 0;
-    const buckets = [
-      { label: '1–3d', min: 1, max: 3 },
-      { label: '4–7d', min: 4, max: 7 },
-      { label: '8–14d', min: 8, max: 14 },
-      { label: '15d+', min: 15, max: Infinity },
-    ].map(b => ({ ...b, count: slipDetails.filter(x => x.daysSlipped >= b.min && x.daysSlipped <= b.max).length }));
-    return { tasksWithDeadline, slippedTasks, slipRate, slipDetails: slipDetails.slice(0, 5), avgDaysSlipped, buckets };
-  }, [tasks]);
-
-  // ── Last-week entries ───────────────────────────────────────────────────────
-  const lastWeekStart = subWeeks(weekStart, 1);
-  const lastWeekEnd   = subWeeks(weekEnd,   1);
-  const lastWeekEntries = useMemo(
-    () => timeEntries.filter(e => {
-      const d = parseISO(e.startedAt);
-      return isWithinInterval(d, { start: lastWeekStart, end: lastWeekEnd });
-    }),
-    [timeEntries]
-  );
-
-  // ── Project completion rates ────────────────────────────────────────────────
-  const projectCompletionRates = useMemo(() => {
-    const rates: Record<string, { completed: number; total: number }> = {};
-    projects.forEach(p => {
-      const pt = tasks.filter(t => t.projectId === p.id);
-      rates[p.id] = { completed: pt.filter(t => t.completed).length, total: pt.length };
-    });
-    return rates;
-  }, [projects, tasks]);
-
-  // ── Project week-over-week trends ───────────────────────────────────────────
-  const projectTrends = useMemo(() => {
-    return projects.map(p => {
-      const taskIds = tasks.filter(t => t.projectId === p.id).map(t => t.id);
-      const thisWeekMs = weekEntries.filter(e => taskIds.includes(e.taskId)).reduce((s, e) => s + e.duration, 0);
-      const lastWeekMs = lastWeekEntries.filter(e => taskIds.includes(e.taskId)).reduce((s, e) => s + e.duration, 0);
-      return { project: p, thisWeekMs, lastWeekMs };
-    }).filter(x => x.thisWeekMs > 0 || x.lastWeekMs > 0);
-  }, [projects, tasks, weekEntries, lastWeekEntries]);
-
-  // ── All-time stats ──────────────────────────────────────────────────────────
-  const allTimeStats = useMemo(() => {
-    const totalMs       = timeEntries.reduce((s, e) => s + e.duration, 0);
-    const totalSessions = timeEntries.length;
-    const dayMap: Record<string, number> = {};
-    timeEntries.forEach(e => {
-      const d = e.startedAt.slice(0, 10);
-      dayMap[d] = (dayMap[d] ?? 0) + e.duration;
-    });
-    const mostProductiveDay = Object.entries(dayMap).sort((a, b) => b[1] - a[1])[0] as [string, number] | undefined;
-    const activeDays = [...new Set(timeEntries.map(e => e.startedAt.slice(0, 10)))].sort();
-    let maxStreak = 0, curStreak = 0;
-    let prevDate: Date | null = null;
-    for (const d of activeDays) {
-      const cur = new Date(d);
-      if (prevDate) {
-        const diffDays = Math.round((cur.getTime() - prevDate.getTime()) / 86400000);
-        curStreak = diffDays === 1 ? curStreak + 1 : 1;
-      } else {
-        curStreak = 1;
-      }
-      maxStreak = Math.max(maxStreak, curStreak);
-      prevDate = cur;
-    }
-    return { totalMs, totalSessions, mostProductiveDay, longestStreak: maxStreak };
-  }, [timeEntries]);
-
-
+new_render = """
   const activeMs = tab === 'daily' ? todayMs : tab === 'weekly' ? totalFocusMs : allTimeStats.totalMs;
   const activeDone = tab === 'daily' ? todayTasksDone : tab === 'weekly' ? tasksCompletedThisWeek : allTimeTasksDone;
   const activeSessions = tab === 'daily' ? todaySessions : tab === 'weekly' ? sessionsCompleted : allTimeStats.totalSessions;
@@ -317,7 +57,7 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
           {/* Hero Stats */}
           <div className="grid grid-cols-3 gap-4">
             {([
-              { label: 'Focus Time', value: activeMs > 0 ? fmtDuration(activeMs) : '—', sub: 'total tracked', accent: true },
+              { label: 'Focus Time', value: activeMs > 0 ? fmtDuration(activeMs) : '\u2014', sub: 'total tracked', accent: true },
               { label: 'Completed', value: String(activeDone), sub: 'tasks done', accent: false },
               { label: 'Sessions', value: String(activeSessions), sub: 'pomodoros', accent: false },
             ] as { label: string; value: string; sub: string; accent: boolean }[]).map(s => (
@@ -335,14 +75,14 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
               <div className="rounded-xl p-5 border" style={{ background: 'var(--bg-1)', borderColor: 'var(--border-1)' }}>
                 <div className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-2)' }}>Best Day</div>
                 <div className="text-2xl font-black" style={{ color: 'var(--text-1)', fontFamily: 'Consolas, monospace' }}>
-                  {allTimeStats.mostProductiveDay ? format(parseISO(allTimeStats.mostProductiveDay[0]), 'EEE, MMM d') : '—'}
+                  {allTimeStats.mostProductiveDay ? format(parseISO(allTimeStats.mostProductiveDay[0]), 'EEE, MMM d') : '\u2014'}
                 </div>
                 {allTimeStats.mostProductiveDay && <div className="text-xs mt-1" style={{ color: 'var(--text-2)' }}>{fmtDuration(allTimeStats.mostProductiveDay[1])} focused</div>}
               </div>
               <div className="rounded-xl p-5 border" style={{ background: 'var(--bg-1)', borderColor: 'var(--border-1)' }}>
                 <div className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-2)' }}>Best Streak</div>
                 <div className="text-2xl font-black" style={{ color: 'var(--text-1)', fontFamily: 'Consolas, monospace' }}>
-                  {allTimeStats.longestStreak > 0 ? `${allTimeStats.longestStreak} days` : '—'}
+                  {allTimeStats.longestStreak > 0 ? `${allTimeStats.longestStreak} days` : '\u2014'}
                 </div>
                 <div className="text-xs mt-1" style={{ color: 'var(--text-2)' }}>consecutive active days</div>
               </div>
@@ -525,10 +265,10 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
                           <div className="flex items-center gap-1.5 shrink-0">
                             {allDeadlines.length > 1 && <span className="text-xs tabular-nums" style={{ color: 'var(--text-2)', fontFamily: 'Consolas, monospace' }}>{format(parseISO(allDeadlines[0]), 'MMM d')}</span>}
                             {allDeadlines.length > 1 && <span className="text-xs" style={{ color: '#f97316' }}>&rarr;</span>}
-                            <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--text-1)', fontFamily: 'Consolas, monospace' }}>{current ? format(parseISO(current), 'MMM d') : '—'}</span>
+                            <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--text-1)', fontFamily: 'Consolas, monospace' }}>{current ? format(parseISO(current), 'MMM d') : '\u2014'}</span>
                           </div>
                           {totalSlip > 0 && <span className="text-xs font-bold px-1.5 py-0.5 rounded tabular-nums" style={{ background: '#f9731618', color: '#f97316', fontFamily: 'Consolas, monospace' }}>+{totalSlip}d</span>}
-                          <span className="text-xs font-bold w-5 text-center" style={{ color: sc }}>{status === 'done' ? '\u2713' : status === 'overdue' ? '!' : '\u25cf'}</span>
+                          <span className="text-xs font-bold w-5 text-center" style={{ color: sc }}>{status === 'done' ? '\\u2713' : status === 'overdue' ? '!' : '\\u25cf'}</span>
                         </div>
                       );
                     })}
@@ -580,3 +320,11 @@ function AnalCard({ title, children }: { title: string; children: React.ReactNod
 function AnalEmpty({ text }: { text: string }) {
   return <div className="text-sm py-2" style={{ color: 'var(--text-2)' }}>{text}</div>;
 }
+"""
+
+lines = open('src/components/AnalyticsPanel.tsx', encoding='utf-8').readlines()
+cut = next(i for i,l in enumerate(lines) if 'const panel: React.CSSProperties' in l)
+kept = ''.join(lines[:cut])
+with open('src/components/AnalyticsPanel.tsx', 'w', encoding='utf-8') as f:
+    f.write(kept + new_render)
+print(f'Done. Kept {cut} lines, wrote new render.')

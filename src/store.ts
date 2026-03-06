@@ -19,6 +19,8 @@ export type Project = {
   notes?: string;
 };
 
+export type TaskStatus = 'active' | 'blocked' | 'waiting';
+
 export type Task = {
   id: string;
   projectId: string | null;
@@ -35,6 +37,8 @@ export type Task = {
   recurrenceGroupId?: string;
   startDate?: string | null;
   sortOrder?: number;
+  estimatedMinutes?: number | null;
+  taskStatus?: TaskStatus;
 };
 
 export type TimeEntry = {
@@ -167,11 +171,13 @@ type EpochState = {
   getTaskTime: (taskId: string) => number;
   getProjectTime: (projectId: string) => number;
 
+  weeklyIntention: string;
   setTheme: (theme: ThemeKey) => void;
   setCustomAccent: (hex: string | null) => void;
   setThinkPadNotes: (notes: string) => void;
   setHoveredProjectId: (id: string | null) => void;
   toggleHideCompleted: () => void;
+  setWeeklyIntention: (text: string) => void;
 };
 
 const today = startOfToday();
@@ -219,6 +225,7 @@ export const useStore = create<EpochState>()(
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
   hideCompleted: false,
+  weeklyIntention: '',
   
   addProject: (project) => set((state) => ({
     projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
@@ -439,6 +446,7 @@ export const useStore = create<EpochState>()(
       setThinkPadNotes: (notes) => set({ thinkPadNotes: notes }),
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
+      setWeeklyIntention: (text) => set({ weeklyIntention: text }),
 
     }),
     {
@@ -452,6 +460,7 @@ export const useStore = create<EpochState>()(
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
         pomodoro: state.pomodoro,
+        weeklyIntention: state.weeklyIntention,
       }),
     }
   )

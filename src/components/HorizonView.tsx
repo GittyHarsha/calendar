@@ -185,7 +185,9 @@ export function HorizonView() {
   const [showTheme, setShowTheme] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
-  const [horizonLengths, setHorizonLengths] = useState<Record<ViewMode, number | ''>>({
+  type QuickFilter = 'overdue' | 'high-priority' | 'this-week' | 'no-deadline' | null;
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>(null);
+  const [horizonLengths, setHorizonLengths]= useState<Record<ViewMode, number | ''>>({
     daily: 90,
     weekly: 14,
     monthly: 12,
@@ -520,13 +522,16 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             {format(today, 'MMM d, yyyy')}
           </div>
         )}
-        {/* Capacity bar — colored by high-priority task ratio */}
-        {columnTasks.length > 0 && (() => {
-          const highCount = columnTasks.filter(t => !t.completed && t.priority === 'High').length;
-          const medCount  = columnTasks.filter(t => !t.completed && t.priority === 'Medium').length;
-          const total     = columnTasks.filter(t => !t.completed).length;
-          const barColor  = highCount > 0 ? '#ef4444' : medCount > 0 ? '#eab308' : 'var(--accent)';
-          const fill      = Math.min(1, total / 6); // saturates at 6 tasks
+        {/* Capacity bar — based on estimated minutes, fallback to task count */}
+        {columnTasks.filter(t => !t.completed).length > 0 && (() => {
+          const activeTasks = columnTasks.filter(t => !t.completed);
+          const estimated = activeTasks.reduce((s, t) => s + (t.estimatedMinutes ?? 0), 0);
+          const hasEstimates = activeTasks.some(t => t.estimatedMinutes);
+          const capacity = 480; // 8h in minutes
+          const fill = hasEstimates ? Math.min(1, estimated / capacity) : Math.min(1, activeTasks.length / 6);
+          const highCount = activeTasks.filter(t => t.priority === 'High').length;
+          const medCount  = activeTasks.filter(t => t.priority === 'Medium').length;
+          const barColor  = fill > 0.9 ? '#ef4444' : highCount > 0 ? '#ef4444' : medCount > 0 ? '#eab308' : 'var(--accent)';
           return (
             <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'var(--bg-2)' }}>
               <div style={{ height: '100%', width: `${fill * 100}%`, background: barColor, transition: 'width 0.3s' }} />

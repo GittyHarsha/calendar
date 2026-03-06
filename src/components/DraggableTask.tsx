@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Task, Priority, useStore, fmtDuration, Subtask } from '../store';
-import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2 } from 'lucide-react';
+import { Task, Priority, TaskStatus, useStore, fmtDuration, Subtask } from '../store';
+import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday, differenceInDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
@@ -258,6 +258,54 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
             style={{ background: PRIORITY_COLOR[priority] + '22', color: PRIORITY_COLOR[priority] }}>
             {PRIORITY_LABEL[priority]}
           </button>
+        </div>
+
+        {/* Effort estimate */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-[#999]">
+            <Clock size={13} />
+            <span>Effort</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {([['XS', 15], ['S', 30], ['M', 60], ['L', 120], ['XL', 180]] as [string, number][]).map(([label, mins]) => (
+              <button key={label}
+                onClick={() => updateTask(task.id, { estimatedMinutes: task.estimatedMinutes === mins ? null : mins })}
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors"
+                style={{
+                  background: task.estimatedMinutes === mins ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : '#1A1A1A',
+                  color: task.estimatedMinutes === mins ? 'var(--accent)' : '#555',
+                  border: `1px solid ${task.estimatedMinutes === mins ? 'var(--accent)' : '#2A2A2A'}`,
+                }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Status: blocked / waiting */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-[#999]">
+            <Lock size={13} />
+            <span>Status</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {(['active', 'blocked', 'waiting'] as TaskStatus[]).map(s => {
+              const active = (task.taskStatus ?? 'active') === s;
+              const color = s === 'blocked' ? '#ef4444' : s === 'waiting' ? '#eab308' : 'var(--accent)';
+              return (
+                <button key={s}
+                  onClick={() => updateTask(task.id, { taskStatus: s === 'active' ? undefined : s })}
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded capitalize transition-colors"
+                  style={{
+                    background: active ? color + '22' : '#1A1A1A',
+                    color: active ? color : '#555',
+                    border: `1px solid ${active ? color : '#2A2A2A'}`,
+                  }}>
+                  {s}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="border-t border-[#1E1E1E]" />
@@ -562,6 +610,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
           )}
 
           {/* Badges — only show the 2 most important inline; rest in popup */}
+          {task.taskStatus === 'blocked' && (
+            <span className="text-[10px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ background: '#ef444420', color: '#ef4444' }}>🔒</span>
+          )}
+          {task.taskStatus === 'waiting' && (
+            <span className="text-[10px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ background: '#eab30820', color: '#eab308' }}>⏳</span>
+          )}
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
             <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: 'var(--accent)' }}>▶</span>
           )}
