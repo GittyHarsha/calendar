@@ -49,12 +49,31 @@ export function ThinkPad() {
   const [search, setSearch] = useState('');
   const [titleError, setTitleError] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [sortBy, setSortBy] = useState<'default' | 'priority' | 'deadline' | 'title'>('default');
+  const [filterPriorities, setFilterPriorities] = useState<Set<Priority>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
 
   const today = format(startOfToday(), 'yyyy-MM-dd');
   // Tasks with no date (inbox)
   const inboxTasks = tasks.filter(t => t.date === null && (!hideCompleted || !t.completed));
-  const filteredInbox = inboxTasks.filter(t => t.title.toLowerCase().includes(search.toLowerCase()));
+
+  const PRIORITY_ORDER: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+  const filteredInbox = inboxTasks
+    .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
+    .filter(t => filterPriorities.size === 0 || filterPriorities.has(t.priority as Priority))
+    .sort((a, b) => {
+      if (sortBy === 'priority') {
+        return (PRIORITY_ORDER[a.priority ?? 'Low'] ?? 2) - (PRIORITY_ORDER[b.priority ?? 'Low'] ?? 2);
+      }
+      if (sortBy === 'deadline') {
+        if (!a.deadline && !b.deadline) return 0;
+        if (!a.deadline) return 1;
+        if (!b.deadline) return -1;
+        return a.deadline.localeCompare(b.deadline);
+      }
+      if (sortBy === 'title') return a.title.localeCompare(b.title);
+      return 0; // default: preserve insertion order
+    });
   // Overdue: has a date in the past, not completed
   const overdueTasks = tasks.filter(t => t.date !== null && t.date < today && !t.completed);
 
@@ -148,7 +167,7 @@ export function ThinkPad() {
             <span className="text-[10px] font-bold bg-[#2A2A2A] text-[#8E9299] px-1.5 py-0.5 rounded-full">{inboxTasks.length}</span>
           </div>
           
-          <div className="relative mb-2">
+          <div className="relative mb-1">
             <input
               ref={searchRef}
               type="text"
@@ -162,6 +181,44 @@ export function ThinkPad() {
                 ×
               </button>
             )}
+          </div>
+
+          {/* Sort + Filter row */}
+          <div className="flex items-center gap-2 mb-2">
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as typeof sortBy)}
+              className="flex-1 bg-[#111] border border-[#222] rounded px-2 py-1 text-[11px] text-[#888] focus:outline-none focus:border-[#444] cursor-pointer"
+            >
+              <option value="default">Sort: Default</option>
+              <option value="priority">Sort: Priority</option>
+              <option value="deadline">Sort: Deadline</option>
+              <option value="title">Sort: Name</option>
+            </select>
+            <div className="flex gap-1">
+              {([['High', 'H', '#ef4444'], ['Medium', 'M', '#eab308'], ['Low', 'L', '#3B82F6']] as const).map(([val, label, color]) => {
+                const active = filterPriorities.has(val as Priority);
+                return (
+                  <button
+                    key={val}
+                    onClick={() => setFilterPriorities(prev => {
+                      const next = new Set(prev);
+                      next.has(val as Priority) ? next.delete(val as Priority) : next.add(val as Priority);
+                      return next;
+                    })}
+                    title={`Filter: ${val} priority`}
+                    className="w-6 h-6 rounded text-[10px] font-bold transition-all"
+                    style={{
+                      background: active ? color + '22' : '#111',
+                      color: active ? color : '#555',
+                      border: `1px solid ${active ? color + '66' : '#222'}`,
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Add Task Form — primary action at top */}

@@ -42,6 +42,24 @@ body {
 }
 .accent-glow { animation: accent-pulse 2.5s ease-in-out infinite; }
 
+@keyframes deadline-warn {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242,125,38,0); }
+  50%       { box-shadow: 0 0 14px 3px rgba(242,125,38,0.3); }
+}
+.deadline-warn { animation: deadline-warn 2s ease-in-out infinite; }
+
+@keyframes deadline-alarm {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  50%       { box-shadow: 0 0 18px 5px rgba(239,68,68,0.35); }
+}
+.deadline-alarm { animation: deadline-alarm 1.2s ease-in-out infinite; }
+
+@keyframes lost-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+.lost-pulse { animation: lost-pulse 1.5s ease-in-out infinite; }
+
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -89,6 +107,9 @@ textarea:focus-visible,
 /* ── Reduced-motion: disable all keyframe animations ── */
 @media (prefers-reduced-motion: reduce) {
   .accent-glow   { animation: none; }
+  .deadline-warn { animation: none; }
+  .deadline-alarm { animation: none; }
+  .lost-pulse    { animation: none; }
   .animate-fade  { animation: none; opacity: 1; }
   .animate-slide-down { animation: none; opacity: 1; }
   .animate-check { animation: none; }

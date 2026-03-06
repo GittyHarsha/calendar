@@ -29,8 +29,7 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
 }
 
 export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
-  const { tasks, projects, timeEntries, pomodoro, getProjectTime, focusGoalMinutes, setFocusGoal } = useStore();
-  const [editingGoal, setEditingGoal] = useState(false);
+  const { tasks, projects, timeEntries, pomodoro, getProjectTime } = useStore();
   const [tab, setTab] = useState<'daily' | 'weekly' | 'alltime'>('weekly');
   const [copied, setCopied] = useState(false);
 
@@ -417,32 +416,6 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
           <span style={{ ...sectionTitle, marginBottom: 0 }}>
             {tab === 'daily' ? 'Today' : tab === 'weekly' ? 'This Week' : 'All Time'}
           </span>
-          {tab === 'weekly' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>Goal:</span>
-              {editingGoal ? (
-                <input
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  defaultValue={focusGoalMinutes / 60}
-                  autoFocus
-                  onBlur={(e) => { setFocusGoal(Math.round(parseFloat(e.target.value || '0') * 60)); setEditingGoal(false); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingGoal(false); }}
-                  style={{ width: 60, fontSize: 13, fontFamily: 'Consolas, monospace', background: 'var(--bg-2)', border: '1px solid var(--border-1)', borderRadius: 4, color: 'var(--text-1)', padding: '2px 6px', outline: 'none' }}
-                />
-              ) : (
-                <span
-                  onClick={() => setEditingGoal(true)}
-                  title="Click to edit daily focus goal"
-                  style={{ fontSize: 13, color: 'var(--accent)', cursor: 'pointer', borderBottom: '1px dashed var(--accent)' }}
-                >
-                  {focusGoalMinutes > 0 ? `${focusGoalMinutes / 60}h` : 'set'}
-                </span>
-              )}
-              <span style={{ fontSize: 13, color: 'var(--text-2)' }}>/day</span>
-            </div>
-          )}
         </div>
         <div style={statRow}>
           <div style={statBox}>
@@ -466,22 +439,6 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
             <span style={statLabel}>Sessions</span>
           </div>
         </div>
-        {tab === 'weekly' && focusGoalMinutes > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-2)', marginBottom: 6 }}>
-              <span>Today: {todayMs > 0 ? fmtDuration(todayMs) : '—'}</span>
-              <span>{fmtDuration(focusGoalMinutes * 60000)} goal</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 3, background: 'var(--bg-2)', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: 2,
-                background: todayMs >= focusGoalMinutes * 60000 ? '#22c55e' : 'var(--accent)',
-                width: `${Math.min(100, (todayMs / (focusGoalMinutes * 60000)) * 100)}%`,
-                transition: 'width 0.3s',
-              }} />
-            </div>
-          </div>
-        )}
         {tab === 'alltime' && (
           <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div style={statBox}>

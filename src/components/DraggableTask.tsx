@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, useStore, fmtDuration, Subtask } from '../store';
-import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download } from 'lucide-react';
+import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday, differenceInDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
@@ -34,7 +34,7 @@ function deadlineAccent(days: number | null) {
   return { color: '#555', label: `due in ${days}d` };
 }
 
-function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMouseLeave }: {
+export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMouseLeave }: {
   task: Task;
   anchorRef: React.RefObject<HTMLElement | null>;
   onClose: () => void;
@@ -82,7 +82,7 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
       left = r.left - popW - gap;
     }
     // Clamp left within viewport (min 328 = 320px sidebar + 8px gap)
-    left = Math.max(328, left);
+    left = Math.max(8, left);
 
     // Vertical: align top with card, clamp so popup doesn't go off bottom
     let top = r.top;
@@ -339,11 +339,17 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 
         {/* Notes (inline expandable) */}
         <div className="flex flex-col gap-1.5">
-          <button onClick={() => setShowNotes(v => !v)}
-            className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
-            <AlignLeft size={13} />
-            {task.description ? 'Edit notes' : 'Add notes'}
-          </button>
+          <div className="flex items-center justify-between">
+            <button onClick={() => setShowNotes(v => !v)}
+              className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
+              <AlignLeft size={13} />
+              {task.description ? 'Edit notes' : 'Add notes'}
+            </button>
+            <button onClick={onOpenNotes} title="Expand notes"
+              className="text-[#555] hover:text-[#aaa] transition-colors">
+              <Maximize2 size={11} />
+            </button>
+          </div>
           {showNotes && (
             <textarea
               defaultValue={task.description ?? ''}
@@ -437,20 +443,20 @@ function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMous
 }
 
 export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task; showDate?: boolean }) {
-  const { projects, updateTask, setHoveredProjectId, getTaskTime, pomodoro } = useStore();
+  const { projects, tasks, updateTask, setHoveredProjectId, getTaskTime, pomodoro } = useStore();
   const project = projects.find(p => p.id === task.projectId);
   const parentProject = project?.parentId ? projects.find(p => p.id === project.parentId) : null;
   const projectLabel = parentProject ? `${parentProject.name} › ${project!.name}` : project?.name;
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleVal, setTitleVal] = useState(task.title);
-  // Keep titleVal in sync with store when not editing
   useEffect(() => {
     if (!editingTitle) setTitleVal(task.title);
   }, [task.title, editingTitle]);
   const [showPopup, setShowPopup] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
+  const [completionNudge, setCompletionNudge] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -462,7 +468,19 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   };
 
   const handleToggleComplete = () => {
-    if (!task.completed) { setCheckAnim(true); setTimeout(() => setCheckAnim(false), 300); }
+    if (!task.completed) {
+      setCheckAnim(true);
+      setTimeout(() => setCheckAnim(false), 300);
+      // Friction: if project has other incomplete tasks, nudge
+      if (task.projectId) {
+        const siblings = tasks.filter(t => t.projectId === task.projectId && !t.completed && t.id !== task.id);
+        if (siblings.length > 0) {
+          const msg = `${siblings.length} task${siblings.length !== 1 ? 's' : ''} still remain in ${project?.name ?? 'this project'}`;
+          setCompletionNudge(msg);
+          setTimeout(() => setCompletionNudge(null), 5000);
+        }
+      }
+    }
     updateTask(task.id, { completed: !task.completed });
   };
 
@@ -587,6 +605,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
         />
       )}
       {showNotes && <TaskNotesModal task={task} onClose={() => setShowNotes(false)} />}
+      {completionNudge && (
+        <div className="mt-1 px-2 py-1 rounded text-[11px] font-mono animate-fade"
+          style={{ background: 'rgba(234,179,8,0.08)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)' }}>
+          ↑ {completionNudge}
+        </div>
+      )}
     </>
   );
 }

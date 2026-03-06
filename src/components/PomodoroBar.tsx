@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useStore, WORK_DURATION, BREAK_DURATION, fmtDuration } from '../store';
 import { startOfToday } from 'date-fns';
 
@@ -11,6 +11,7 @@ function fmtCountdown(ms: number) {
 }
 
 const BREAK_COLOR = '#22c55e';
+const TOMATO = '🍅';
 
 /** Modal shown when a 25-min work session finishes */
 function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, onStop }: {
@@ -95,7 +96,7 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
           onMouseEnter={e => { e.currentTarget.style.background = `${BREAK_COLOR}38`; e.currentTarget.style.borderColor = BREAK_COLOR; }}
           onMouseLeave={e => { e.currentTarget.style.background = `${BREAK_COLOR}22`; e.currentTarget.style.borderColor = `${BREAK_COLOR}66`; }}
         >
-          ☕ start break
+          ☕ break
         </button>
         <button onClick={onSkipBreak} style={{
           padding: '13px 32px',
@@ -121,21 +122,16 @@ function BreakModal({ sessionsCompleted, taskTitle, onStartBreak, onSkipBreak, o
       >
         done for today
       </button>
-
-      <div style={{ position: 'absolute', bottom: 24, fontSize: 10, color: 'rgba(255,255,255,0.15)', letterSpacing: '0.1em' }}>
-        ESC to skip
-      </div>
     </div>
   );
 }
 
 export function PomodoroBar() {
   const { tasks, projects, pomodoro, timeEntries, startPomodoro, pausePomodoro, stopPomodoro,
-          completeWorkSession, startBreak, skipBreak, focusGoalMinutes, getTaskTime } = useStore();
+          completeWorkSession, startBreak, skipBreak } = useStore();
 
   const [elapsed, setElapsed] = useState(0);
   const [showBreakModal, setShowBreakModal] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tick
@@ -188,10 +184,6 @@ export function PomodoroBar() {
     const todayEntries = timeEntries.filter(e => e.startedAt.slice(0, 10) === todayStr);
     const todaySessions = todayEntries.length;
     const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
-    const todayFocusMin = Math.floor(todayMs / 60000);
-    const goalPct = focusGoalMinutes > 0 ? Math.min(1, todayFocusMin / focusGoalMinutes) : 0;
-    const ringColor = goalPct >= 1 ? BREAK_COLOR : 'var(--accent)';
-    const C = 2 * Math.PI * 10;
     const statsLabel = todaySessions > 0
       ? `◉ ${todaySessions} · ${fmtDuration(todayMs)}`
       : '◉ Start focus';
@@ -199,9 +191,8 @@ export function PomodoroBar() {
     return (
       <button
         onClick={() => startPomodoro(null)}
-        title={focusGoalMinutes > 0 ? `${todayFocusMin}/${focusGoalMinutes} min goal · Click to start misc timer` : 'Start a focus session'}
-        onMouseEnter={e => { setHovered(true); e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-1)'; }}
-        onMouseLeave={e => { setHovered(false); e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)'; }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-1)'; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)'; }}
         style={{
           position: 'fixed', bottom: 20, right: 20, zIndex: 9990,
           display: 'flex', alignItems: 'center', gap: 8,
@@ -213,20 +204,7 @@ export function PomodoroBar() {
           transition: 'border-color 0.15s, color 0.15s, box-shadow 0.15s',
         }}
       >
-        {focusGoalMinutes > 0 ? (
-          <svg width={22} height={22} style={{ flexShrink: 0 }}>
-            <circle cx={11} cy={11} r={10} fill="none" stroke="var(--bg-2)" strokeWidth={2.5} />
-            <circle cx={11} cy={11} r={10} fill="none" stroke={ringColor} strokeWidth={2.5}
-              strokeDasharray={C} strokeDashoffset={C * (1 - goalPct)}
-              strokeLinecap="round"
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px', transition: 'stroke-dashoffset 0.5s' }} />
-            {goalPct >= 1 && (
-              <text x={11} y={14} textAnchor="middle" fill={ringColor} fontSize={7} fontFamily="Consolas">✓</text>
-            )}
-          </svg>
-        ) : (
-          <span style={{ fontSize: 14, lineHeight: 1, color: 'var(--accent)' }}>◉</span>
-        )}
+        <span style={{ fontSize: 14, lineHeight: 1, color: 'var(--accent)' }}>◉</span>
         <span>{statsLabel}</span>
       </button>
     );
@@ -243,76 +221,53 @@ export function PomodoroBar() {
   const isPaused = pomodoro.paused;
   const sessionAccent = isWork ? (isEyeRest ? '#22d3ee' : 'var(--accent)') : BREAK_COLOR;
   const R = 16; const C2 = 2 * Math.PI * R;
-  const totalTracked = task ? getTaskTime(task.id) : 0;
 
   return (
     <>
       {!showBreakModal && (
         <div
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
           style={{
             position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 9990, display: 'flex', alignItems: 'center', gap: 14,
-            background: 'var(--bg-0)', border: `1px solid ${isPaused ? 'var(--border-1)' : sessionAccent === 'var(--accent)' ? 'color-mix(in srgb, var(--accent) 40%, transparent)' : sessionAccent + '40'}`,
-            borderRadius: 40, padding: '10px 20px',
-            boxShadow: isPaused
-              ? '0 4px 20px rgba(0,0,0,0.5)'
-              : `0 4px 32px rgba(0,0,0,0.7), 0 0 20px ${sessionAccent === 'var(--accent)' ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : sessionAccent + '25'}`,
+            zIndex: 9990, display: 'flex', alignItems: 'center', gap: 10,
+            background: 'var(--bg-0)',
+            border: `1px solid ${isPaused ? 'var(--border-1)' : sessionAccent === 'var(--accent)' ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : sessionAccent + '35'}`,
+            borderRadius: 40, padding: '8px 14px 8px 10px',
+            boxShadow: isPaused ? '0 4px 16px rgba(0,0,0,0.4)' : `0 4px 24px rgba(0,0,0,0.6)`,
             fontFamily: 'Consolas, monospace', userSelect: 'none',
-            minWidth: 380, maxWidth: 520,
             transition: 'box-shadow 0.3s, border-color 0.3s',
             animation: 'pomodoroSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)',
           }}>
 
-          {/* Progress ring */}
-          <svg width={38} height={38} style={{ flexShrink: 0, opacity: isPaused ? 0.5 : 1, transition: 'opacity 0.3s' }}>
-            <circle cx={19} cy={19} r={R} fill="none" stroke="var(--bg-2)" strokeWidth={3} />
-            <circle cx={19} cy={19} r={R} fill="none"
+          {/* Progress arc */}
+          <svg width={32} height={32} style={{ flexShrink: 0, opacity: isPaused ? 0.45 : 1, transition: 'opacity 0.3s' }}>
+            <circle cx={16} cy={16} r={R} fill="none" stroke="var(--bg-2)" strokeWidth={2.5} />
+            <circle cx={16} cy={16} r={R} fill="none"
               stroke={sessionAccent}
-              strokeWidth={3}
+              strokeWidth={2.5}
               strokeDasharray={C2}
               strokeDashoffset={C2 * (1 - pct)}
               strokeLinecap="round"
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '19px 19px', transition: 'stroke-dashoffset 0.5s linear' }} />
-            <text x={19} y={23} textAnchor="middle"
-              fill={sessionAccent}
-              fontSize={10} fontFamily="Consolas">
-              {isPaused ? '⏸' : isWork ? '▶' : '☕'}
-            </text>
+              style={{ transform: 'rotate(-90deg)', transformOrigin: '16px 16px', transition: 'stroke-dashoffset 0.5s linear' }} />
           </svg>
 
-          {/* Task info */}
-          <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-            <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 2, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-              {isPaused ? '⏸ Paused' : isEyeRest ? 'Misc' : isWork ? `Focus · Session ${pomodoro.sessionsCompleted + 1}` : 'Break'}
-              {!isPaused && !isEyeRest && isWork && pomodoro.sessionsCompleted > 0 && (
-                <span style={{ marginLeft: 6, opacity: 0.7 }}>{TOMATO.repeat(Math.min(pomodoro.sessionsCompleted, 5))}{pomodoro.sessionsCompleted > 5 ? `+${pomodoro.sessionsCompleted - 5}` : ''}</span>
+          {/* Task name */}
+          <div style={{ overflow: 'hidden', maxWidth: 160, minWidth: 0 }}>
+            <div style={{
+              fontSize: 12, color: isPaused ? 'var(--text-2)' : 'var(--text-1)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              opacity: isPaused ? 0.6 : 1,
+            }}>
+              {isEyeRest ? 'Misc' : isWork ? (task?.title ?? '—') : 'Break'}
+              {project && !isEyeRest && (
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: project.color, marginLeft: 5, verticalAlign: 'middle', marginBottom: 1 }} />
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {isEyeRest ? (
-                <span style={{ fontSize: 13, color: '#22d3ee', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>⏱ Misc timer</span>
-              ) : (
-                <>
-                  {project && <span style={{ width: 7, height: 7, borderRadius: '50%', background: project.color, flexShrink: 0 }} />}
-                  <span style={{ fontSize: 13, color: 'var(--text-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                    {isWork ? (task?.title ?? '—') : 'Time to rest'}
-                  </span>
-                </>
-              )}
-            </div>
-            {task && totalTracked > 0 && hovered && (
-              <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2, opacity: 0.7 }}>
-                ⏱ {fmtDuration(totalTracked)} total on this task
-              </div>
-            )}
           </div>
 
           {/* Countdown */}
           <div style={{
-            fontSize: 28, fontWeight: 700, letterSpacing: 2, flexShrink: 0,
-            minWidth: 76, textAlign: 'center', fontVariantNumeric: 'tabular-nums',
+            fontSize: 20, fontWeight: 700, letterSpacing: 1.5, flexShrink: 0,
+            fontVariantNumeric: 'tabular-nums',
             color: isPaused ? 'var(--text-2)' : sessionAccent,
             opacity: isPaused ? 0.5 : 1,
             transition: 'color 0.3s, opacity 0.3s',
@@ -321,11 +276,10 @@ export function PomodoroBar() {
           </div>
 
           {/* Controls */}
-          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
             {isWork && (
               <button
                 onClick={pausePomodoro}
-                title={isPaused ? 'Resume (Space)' : 'Pause (Space)'}
                 style={ctrlBtn('var(--bg-2)')}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
@@ -334,14 +288,13 @@ export function PomodoroBar() {
               </button>
             )}
             {!isWork && (
-              <button onClick={skipBreak} title="Skip break" style={ctrlBtn('var(--bg-2)')}
+              <button onClick={skipBreak} style={ctrlBtn('var(--bg-2)')}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = BREAK_COLOR)}
                 onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
               >▶</button>
             )}
             <button
               onClick={() => { stopPomodoro(); setShowBreakModal(false); }}
-              title="Stop session"
               style={ctrlBtn('var(--bg-2)')}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)'; }}
@@ -363,7 +316,7 @@ export function PomodoroBar() {
   );
 }
 
-function ctrlBtn(bg: string): React.CSSProperties {
+function ctrlBtn(bg: string): CSSProperties {
   return {
     width: 30, height: 30, borderRadius: '50%',
     border: '1px solid var(--border-1)',
@@ -375,7 +328,7 @@ function ctrlBtn(bg: string): React.CSSProperties {
 }
 
 
-function btnStyle(bg: string): React.CSSProperties {
+function btnStyle(bg: string): CSSProperties {
   return {
     width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--border-1)',
     background: bg, color: 'var(--text-2)', cursor: 'pointer', fontSize: 12,

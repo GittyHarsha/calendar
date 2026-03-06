@@ -7,8 +7,9 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2, Inbox } from 'lucide-react';
 import { AnalyticsPanel } from './AnalyticsPanel';
+import { InboxPanel } from './InboxPanel';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -171,11 +172,16 @@ export const baseDateTrigger = { setDate: (_d: Date) => {} };
 export function HorizonView() {
   const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro } = useStore();
   const today = startOfToday();
+  const todayStr = format(today, 'yyyy-MM-dd');
   const [viewMode, setViewMode] = useState<ViewMode>('weekly');
   const [baseDate, setBaseDate] = useState<Date>(today);
 
   React.useEffect(() => { baseDateTrigger.setDate = setBaseDate; }, []);
   const [showProjects, setShowProjects] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+
+  // Inbox badge: unscheduled + overdue incomplete tasks
+  const inboxCount = tasks.filter(t => !t.completed && (t.date === null || t.date < todayStr)).length;
   const [showTheme, setShowTheme] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
@@ -186,13 +192,13 @@ export function HorizonView() {
     yearly: 5
   });
   const projectsPanelRef = useRef<HTMLDivElement>(null);
+  const inboxPanelRef = useRef<HTMLDivElement>(null);
 
   // Close projects panel when clicking outside
   useEffect(() => {
     if (!showProjects) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Element;
-      // Don't close if clicking inside a date picker portal
       if (target.closest?.('[data-date-picker-portal]')) return;
       if (projectsPanelRef.current && !projectsPanelRef.current.contains(target)) {
         setShowProjects(false);
@@ -201,6 +207,18 @@ export function HorizonView() {
     setTimeout(() => document.addEventListener('mousedown', handler), 0);
     return () => document.removeEventListener('mousedown', handler);
   }, [showProjects]);
+
+  // Close inbox panel when clicking outside
+  useEffect(() => {
+    if (!showInbox) return;
+    const handler = (e: MouseEvent) => {
+      if (inboxPanelRef.current && !inboxPanelRef.current.contains(e.target as Element)) {
+        setShowInbox(false);
+      }
+    };
+    setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showInbox]);
 
   const currentLength = Math.max(1, typeof horizonLengths[viewMode] === 'number' ? (horizonLengths[viewMode] as number) : 1);
 
@@ -325,7 +343,7 @@ export function HorizonView() {
           </button>
 
           {/* Goals */}
-          <button onClick={() => setShowProjects(p => !p)}
+          <button onClick={() => { setShowProjects(p => !p); setShowInbox(false); }}
             className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
               showProjects ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
             )}
@@ -334,6 +352,22 @@ export function HorizonView() {
             <LayoutGrid size={12} />
             {projects.filter(p => !p.parentId).length > 0 && (
               <span className="text-[10px]">{projects.filter(p => !p.parentId).length}</span>
+            )}
+          </button>
+
+          {/* Inbox */}
+          <button onClick={() => { setShowInbox(p => !p); setShowProjects(false); }}
+            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors relative',
+              showInbox ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={showInbox ? { color: 'var(--accent)' } : undefined}
+            title="Inbox">
+            <Inbox size={12} />
+            {inboxCount > 0 && (
+              <span className="text-[10px] font-bold"
+                style={{ color: inboxCount > 10 ? '#ef4444' : showInbox ? 'var(--accent)' : '#888' }}>
+                {inboxCount}
+              </span>
             )}
           </button>
 
@@ -386,10 +420,17 @@ export function HorizonView() {
         </div>
       </div>
 
-      {/* Goals overlay panel — floats over calendar, doesn't push it */}
+      {/* Goals overlay panel */}
       {showProjects && (
         <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
           <MacroGoalsPanel />
+        </div>
+      )}
+
+      {/* Inbox overlay panel */}
+      {showInbox && (
+        <div ref={inboxPanelRef} className="absolute top-11 right-0 z-40 w-[420px] border border-[#2A2A2A] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+          <InboxPanel onClose={() => setShowInbox(false)} />
         </div>
       )}
 
@@ -479,13 +520,19 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             {format(today, 'MMM d, yyyy')}
           </div>
         )}
-        {/* Task count badge */}
-        {columnTasks.length > 0 && (
-          <div className="absolute bottom-2 right-2 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full"
-            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
-            {columnTasks.length}
-          </div>
-        )}
+        {/* Capacity bar — colored by high-priority task ratio */}
+        {columnTasks.length > 0 && (() => {
+          const highCount = columnTasks.filter(t => !t.completed && t.priority === 'High').length;
+          const medCount  = columnTasks.filter(t => !t.completed && t.priority === 'Medium').length;
+          const total     = columnTasks.filter(t => !t.completed).length;
+          const barColor  = highCount > 0 ? '#ef4444' : medCount > 0 ? '#eab308' : 'var(--accent)';
+          const fill      = Math.min(1, total / 6); // saturates at 6 tasks
+          return (
+            <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'var(--bg-2)' }}>
+              <div style={{ height: '100%', width: `${fill * 100}%`, background: barColor, transition: 'width 0.3s' }} />
+            </div>
+          );
+        })()}
         {mode === 'daily' && (
           <>
             <div className="flex justify-between items-baseline">
@@ -542,22 +589,32 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
 
       {/* Deadlines Section */}
       {deadlineProjects.length > 0 && (
-        <div className="p-2 border-b border-[#2A2A2A] bg-[#1A1A1A]/80 flex flex-col gap-2">
-          {deadlineProjects.map(p => (
-            <div 
-              key={p.id} 
-              className="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-between"
-              style={{ backgroundColor: `${p.color}20`, color: p.color, border: `1px solid ${p.color}40` }}
-            >
-              <span className="truncate mr-2" title={p.name}>{p.name}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                {mode !== 'daily' && (
-                  <span className="text-[13px] opacity-80">{p.deadline ? format(parseISO(p.deadline), 'MMM d') : ''}</span>
+        <div className="p-2 border-b border-[#2A2A2A] bg-[#1A1A1A]/80 flex flex-col gap-1.5">
+          {deadlineProjects.map(p => {
+            const isDueToday = p.deadline === format(today, 'yyyy-MM-dd');
+            const remaining = tasks.filter(t => t.projectId === p.id && !t.completed).length;
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  'px-2 py-1.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-between',
+                  isDueToday && 'deadline-alarm'
                 )}
-                <span>DUE</span>
+                style={{ backgroundColor: `${p.color}18`, color: p.color, border: `1px solid ${isDueToday ? p.color + 'cc' : p.color + '40'}` }}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {isDueToday && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: p.color }} />}
+                  <span className="truncate" title={p.name}>{p.name}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  {remaining > 0 && (
+                    <span className="text-[10px] font-mono opacity-80">{remaining} left</span>
+                  )}
+                  <span className={isDueToday ? 'animate-pulse' : ''}>DUE</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

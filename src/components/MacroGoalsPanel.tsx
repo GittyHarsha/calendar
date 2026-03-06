@@ -1,19 +1,22 @@
 import React, { useState, useRef } from 'react';
-import { useStore, Project, Priority } from '../store';
+import { useStore, Project, Priority, workingDaysUntil } from '../store';
 import { differenceInDays, parseISO, startOfToday, addDays, format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus, FileText } from 'lucide-react';
+import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus, Maximize2 } from 'lucide-react';
 import { DatePickerPopover } from './DatePickerPopover';
 import { ProjectNotesModal } from './ProjectNotesModal';
 
 export const newProjectTrigger = { open: () => {} };
 
-function urgencyStyles(days: number | null) {
-  if (days === null) return { border: 'border-[#2A2A2A]', text: 'text-[#aaa]', bg: 'bg-[#141414]', icon: null };
-  if (days < 0)   return { border: 'border-red-500',     text: 'text-red-500',     bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-500" /> };
-  if (days <= 7)  return { border: 'border-[#F27D26] border-2 shadow-[0_0_12px_rgba(242,125,38,0.2)]', text: 'text-[#F27D26]', bg: 'bg-[#F27D26]/10', icon: <AlertTriangle size={14} className="text-[#F27D26]" /> };
-  if (days <= 30) return { border: 'border-yellow-500',  text: 'text-yellow-500',  bg: 'bg-yellow-500/10', icon: <Clock size={14} className="text-yellow-500" /> };
-  return                 { border: 'border-[#3B82F6]',   text: 'text-[#3B82F6]',   bg: 'bg-[#3B82F6]/10',  icon: <Clock size={14} className="text-[#3B82F6]" /> };
+/** Returns styling + animation class based on working days remaining */
+function urgencyStyles(wDays: number | null) {
+  if (wDays === null) return { border: 'border-[#2A2A2A]',    text: 'text-[#aaa]',      bg: 'bg-[#141414]',     icon: null,                                                                      glow: '' };
+  if (wDays < 0)     return { border: 'border-red-500',       text: 'text-red-400',      bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-400 animate-pulse" />,     glow: 'deadline-alarm' };
+  if (wDays === 0)   return { border: 'border-red-500 border-2', text: 'text-red-300',   bg: 'bg-red-500/15',    icon: <AlertTriangle size={14} className="text-red-300 animate-pulse" />,     glow: 'deadline-alarm' };
+  if (wDays <= 2)    return { border: 'border-red-500/80 border-2', text: 'text-red-400', bg: 'bg-red-500/10',   icon: <AlertTriangle size={14} className="text-red-400" />,                  glow: 'deadline-alarm' };
+  if (wDays <= 5)    return { border: 'border-[#F27D26] border-2', text: 'text-[#F27D26]', bg: 'bg-[#F27D26]/10', icon: <AlertTriangle size={14} className="text-[#F27D26]" />,               glow: 'deadline-warn' };
+  if (wDays <= 10)   return { border: 'border-yellow-500',    text: 'text-yellow-400',   bg: 'bg-yellow-500/10', icon: <Clock size={14} className="text-yellow-400" />,                       glow: '' };
+  return                    { border: 'border-[#3B82F6]',     text: 'text-[#3B82F6]',    bg: 'bg-[#3B82F6]/10',  icon: <Clock size={14} className="text-[#3B82F6]" />,                        glow: '' };
 }
 
 const PRIORITY_NEXT: Record<Priority, Priority> = { High: 'Medium', Medium: 'Low', Low: 'High' };
@@ -188,12 +191,12 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
-  const days = project.deadline ? differenceInDays(parseISO(project.deadline), today) : null;
-  const overdue = days !== null && days < 0;
-  const urgent = days !== null && days >= 0 && days <= 7;
-  const soon = days !== null && days > 7 && days <= 30;
+  const wDays = project.deadline ? workingDaysUntil(project.deadline) : null;
+  const overdue = wDays !== null && wDays < 0;
+  const urgent = wDays !== null && wDays >= 0 && wDays <= 5;
+  const soon = wDays !== null && wDays > 5 && wDays <= 10;
   const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : soon ? '#eab308' : '#3B82F6';
-  const { text } = urgencyStyles(days);
+  const { text } = urgencyStyles(wDays);
 
   const saveName = () => {
     if (nameVal.trim()) updateProject(project.id, { name: nameVal.trim() });
@@ -235,9 +238,6 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
             <button onClick={() => setAddingChild(true)} className="text-[#888] hover:text-[#D0CFC7]" title="Add subproject">
               <FolderPlus size={13} />
             </button>
-            <button onClick={() => setShowNotes(true)} className={cn('hover:text-[#D0CFC7] transition-colors', project.notes ? 'text-[#888] flex' : 'text-[#888] hidden group-hover:flex')} title="Notes">
-              <FileText size={13} />
-            </button>
             <button onClick={() => updateProject(project.id, { priority: PRIORITY_NEXT[project.priority] })}
               className={cn('text-xs font-bold px-1.5 py-0.5 rounded', PRIORITY_CLASS[project.priority])} title="Priority">
               {project.priority[0]}
@@ -258,12 +258,12 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         <div className="flex items-center gap-3 pl-5">
           <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }}
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-            {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} />}
-            <span className="text-2xl font-mono font-black leading-none" style={{ color: days === null ? '#555' : accent }}>
-              {days === null ? '—' : Math.abs(days)}
+            {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} className={overdue ? 'animate-pulse' : ''} />}
+            <span className="text-2xl font-mono font-black leading-none" style={{ color: wDays === null ? '#555' : accent }}>
+              {wDays === null ? '—' : Math.abs(wDays)}
             </span>
-            <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: days === null ? '#555' : accent }}>
-              {days === null ? 'no date' : overdue ? 'over' : 'd'}
+            <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: wDays === null ? '#555' : accent }}>
+              {wDays === null ? 'no date' : overdue ? 'over' : 'wk d'}
             </span>
           </button>
           <div className="flex-1">
@@ -272,6 +272,26 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         </div>
         {editingDL && (
           <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable anchorRef={deadlineBtnRef} />
+        )}
+        {/* Inline notes */}
+        {(project.notes || showNotes) && (
+          <div className="flex flex-col gap-1 pl-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-wider text-[#444] font-semibold">Notes</span>
+              <button onClick={() => setShowNotes(true)} title="Expand notes"
+                className="text-[#444] hover:text-[#888] transition-colors">
+                <Maximize2 size={10} />
+              </button>
+            </div>
+            <textarea
+              value={project.notes ?? ''}
+              onChange={e => updateProject(project.id, { notes: e.target.value })}
+              onDoubleClick={() => setShowNotes(true)}
+              placeholder="Notes…"
+              rows={2}
+              className="w-full bg-[#0D0D0D] text-[11px] text-[#C8C7C4] placeholder-[#333] rounded p-1.5 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#2A2A2A] leading-relaxed"
+            />
+          </div>
         )}
       </div>
       {addingChild && (
@@ -306,9 +326,14 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
-  const daysRemaining = project.deadline ? differenceInDays(parseISO(project.deadline), today) : null;
+  const wDaysRemaining = project.deadline ? workingDaysUntil(project.deadline) : null;
   const isHovered = hoveredProjectId === project.id;
-  const { border, text, bg, icon } = urgencyStyles(daysRemaining);
+  const { border, text, bg, icon, glow } = urgencyStyles(wDaysRemaining);
+
+  // All tasks for this project
+  const allProjectTasks = tasks.filter(t => t.projectId === project.id);
+  const remainingTasks = allProjectTasks.filter(t => !t.completed).length;
+  const totalTasks = allProjectTasks.length;
 
   const projectTasks = tasks.filter(t => t.projectId === project.id && t.date !== null);
   let lostDays = 0;
@@ -318,6 +343,13 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   } else {
     lostDays = Math.max(0, differenceInDays(today, parseISO(project.createdAt)));
   }
+  const lostClass = lostDays >= 14
+    ? 'text-red-400 bg-red-500/15 border border-red-500/30 lost-pulse'
+    : lostDays >= 7
+    ? 'text-orange-400 bg-orange-500/10 border border-orange-500/20 lost-pulse'
+    : lostDays >= 3
+    ? 'text-yellow-500 bg-yellow-500/10 border border-yellow-500/20'
+    : 'text-red-400/70 bg-red-500/10';
 
   const saveName = () => {
     if (nameVal.trim()) updateProject(project.id, { name: nameVal.trim() });
@@ -336,7 +368,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   }
 
   return (
-    <div className={cn('rounded-lg flex flex-col transition-all relative group border overflow-hidden', border, bg, isHovered && 'ring-2 ring-white/10 shadow-xl')}>
+    <div className={cn('rounded-lg flex flex-col transition-all relative group border overflow-hidden', border, bg, glow, isHovered && 'ring-2 ring-white/10 shadow-xl')}>
       {/* Header */}
       <div className="p-4 flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
@@ -360,7 +392,6 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
               {project.priority}
             </span>
             <button onClick={() => setEditing(true)} className="hidden group-hover:flex text-[#888] hover:text-[#D0CFC7]"><Pencil size={11} /></button>
-            <button onClick={() => setShowNotes(true)} className={cn('text-[#888] hover:text-[#D0CFC7] transition-colors', project.notes ? 'flex' : 'hidden group-hover:flex')} title="Project notes"><FileText size={11} /></button>
             {confirmDelete
               ? <span className="flex items-center gap-0.5 text-[12px]">
                   <button onClick={() => deleteProject(project.id)} className="text-red-400 font-bold">Yes</button>
@@ -376,18 +407,25 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {icon}
-            <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', daysRemaining === null ? 'text-[#555]' : text)}>
-              {daysRemaining === null ? '—' : Math.abs(daysRemaining)}
+            <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', wDaysRemaining === null ? 'text-[#555]' : text)}>
+              {wDaysRemaining === null ? '—' : Math.abs(wDaysRemaining)}
             </button>
-            <span className={cn('text-[11px] uppercase tracking-wider leading-none mt-2', daysRemaining === null ? 'text-[#555]' : text)}>
-              {daysRemaining === null ? 'no deadline' : daysRemaining < 0 ? 'overdue' : 'days left'}
-            </span>
+            <div className="flex flex-col gap-0.5 mt-1">
+              <span className={cn('text-[11px] uppercase tracking-wider leading-none', wDaysRemaining === null ? 'text-[#555]' : text)}>
+                {wDaysRemaining === null ? 'no deadline' : wDaysRemaining < 0 ? 'work days over' : 'work days left'}
+              </span>
+              {remainingTasks > 0 && totalTasks > 0 && (
+                <span className={cn('text-[10px] font-mono leading-none', wDaysRemaining !== null && wDaysRemaining <= 5 ? 'text-red-400/80' : 'text-[#666]')}>
+                  {remainingTasks} task{remainingTasks !== 1 ? 's' : ''} remain
+                </span>
+              )}
+            </div>
           </div>
           {lostDays > 0 && (
             <div
-              title={`${lostDays} day${lostDays !== 1 ? 's' : ''} since last task was scheduled for this project`}
-              className="text-[13px] font-mono uppercase tracking-wider text-red-400/70 bg-red-500/10 px-1.5 py-0.5 rounded cursor-help">
-              {lostDays}d lost
+              title={`${lostDays} day${lostDays !== 1 ? 's' : ''} since last task was scheduled`}
+              className={cn('text-[13px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded cursor-help', lostClass)}>
+              {lostDays}d idle
             </div>
           )}
         </div>
@@ -398,6 +436,25 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         {editingDL && (
           <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable anchorRef={deadlineBtnRef} />
         )}
+
+        {/* Inline notes */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] uppercase tracking-wider text-[#555] font-semibold">Notes</span>
+            <button onClick={() => setShowNotes(true)} title="Expand notes"
+              className="text-[#555] hover:text-[#aaa] transition-colors">
+              <Maximize2 size={11} />
+            </button>
+          </div>
+          <textarea
+            value={project.notes ?? ''}
+            onChange={e => updateProject(project.id, { notes: e.target.value })}
+            onDoubleClick={() => setShowNotes(true)}
+            placeholder="Project notes…"
+            rows={2}
+            className="w-full bg-[#0A0A0A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-2 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#333] leading-relaxed"
+          />
+        </div>
       </div>
 
       {/* Subprojects tree section */}

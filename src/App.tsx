@@ -6,8 +6,8 @@
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useEffect, useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { HorizonView } from './components/HorizonView';
-import { ThinkPad } from './components/ThinkPad';
 import { PomodoroBar } from './components/PomodoroBar';
 import { Task } from './store';
 import { useStore, THEMES, deriveThemeFromAccent } from './store';
@@ -55,9 +55,7 @@ export default function App() {
       }
       const target = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-      if (e.key === 'n' || e.key === 'N') {
-        document.getElementById('new-task-input')?.focus();
-      } else if (e.key === 'p' || e.key === 'P') {
+      if (e.key === 'p' || e.key === 'P') {
         newProjectTrigger.open();
       } else if (e.key === '?') {
         setShowShortcuts(prev => !prev);
@@ -74,6 +72,9 @@ export default function App() {
       },
     })
   );
+
+  const fireToast = (msg: string) =>
+    window.dispatchEvent(new CustomEvent('horizon:toast', { detail: msg }));
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -94,21 +95,18 @@ export default function App() {
     const draggedTask = tasks.find(t => t.id === taskId);
     if (!draggedTask) return;
 
-    if (overId === 'think-pad') {
-      updateTask(taskId, { date: null });
-      return;
-    }
-
     // overId is either a date string (column drop) or another task id (sortable reorder)
     const isDateDrop = /^\d{4}-\d{2}-\d{2}$/.test(overId);
 
     if (isDateDrop) {
       const targetDate = overId;
       if (draggedTask.date === targetDate) return; // same day, nothing to do
-      // Cross-day: move to end of target day
       const targetDayTasks = tasks.filter(t => t.date === targetDate && t.id !== taskId);
       const maxOrder = targetDayTasks.reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0);
       updateTask(taskId, { date: targetDate, sortOrder: maxOrder + 1000 });
+      if (draggedTask.deadline && targetDate > draggedTask.deadline) {
+        fireToast(`⚠️ Scheduled after deadline · due ${format(parseISO(draggedTask.deadline), 'MMM d')}`);
+      }
     } else {
       // Reorder within same day (overId = another task's id)
       const overTask = tasks.find(t => t.id === overId);
@@ -118,6 +116,9 @@ export default function App() {
         const targetDayTasks = tasks.filter(t => t.date === overTask.date && t.id !== taskId);
         const maxOrder = targetDayTasks.reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0);
         updateTask(taskId, { date: overTask.date, sortOrder: overTask.sortOrder != null ? overTask.sortOrder - 1 : maxOrder + 1000 });
+        if (draggedTask.deadline && overTask.date && overTask.date > draggedTask.deadline) {
+          fireToast(`⚠️ Scheduled after deadline · due ${format(parseISO(draggedTask.deadline), 'MMM d')}`);
+        }
       } else {
         // Same day reorder: swap sortOrders
         const dayTasks = tasks
@@ -136,11 +137,6 @@ export default function App() {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-full font-sans overflow-hidden" style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }}>
-        {/* Left Sidebar: Think Pad */}
-        <div className="w-80 flex flex-col shrink-0" style={{ background: 'var(--bg-0)', borderRight: '1px solid var(--border-1)' }}>
-          <ThinkPad />
-        </div>
-
         {/* Main Area: Horizon View */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <HorizonView />
