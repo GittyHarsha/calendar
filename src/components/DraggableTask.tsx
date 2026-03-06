@@ -610,6 +610,16 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
           )}
 
           {/* Badges — only show the 2 most important inline; rest in popup */}
+          {/* Zombie/stale badge — task sitting unfinished on a past date */}
+          {!task.completed && task.date && task.date < format(today, 'yyyy-MM-dd') && (() => {
+            const age = differenceInDays(today, parseISO(task.date));
+            if (age < 1) return null;
+            return (
+              <span className="text-[10px] font-mono shrink-0" style={{ color: age >= 7 ? '#ef4444' : '#F27D26' }}>
+                {age}d
+              </span>
+            );
+          })()}
           {task.taskStatus === 'blocked' && (
             <span className="text-[10px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ background: '#ef444420', color: '#ef4444' }}>🔒</span>
           )}

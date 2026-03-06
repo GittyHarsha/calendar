@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { startOfToday, parseISO, differenceInDays, format } from 'date-fns';
 import { useStore } from '../store';
 import { newProjectTrigger } from './MacroGoalsPanel';
-import { baseDateTrigger } from './HorizonView';
+import { baseDateTrigger, inboxTrigger } from './HorizonView';
 
 type ResultItem =
   | { kind: 'task';    id: string; title: string; projectColor: string | null; deadline: string | null }
@@ -90,10 +90,8 @@ export function CommandPalette() {
           document.getElementById(`task-${task.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 50);
       } else {
-        // No date — scroll to ThinkPad inbox
-        setTimeout(() => {
-          document.getElementById('thinkpad-inbox')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 50);
+        // No date — open Inbox panel where unscheduled tasks live
+        inboxTrigger.open();
       }
       close();
     } else if (item.kind === 'project') {

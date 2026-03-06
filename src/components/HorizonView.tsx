@@ -7,11 +7,16 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2, Inbox } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList } from 'lucide-react';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { InboxPanel } from './InboxPanel';
+import { DailyBriefing } from './DailyBriefing';
+import { WeeklyReview } from './WeeklyReview';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
+type QuickFilter = 'overdue' | 'high-priority' | 'this-week' | 'no-deadline' | null;
+
+export const inboxTrigger = { open: () => {} };
 
 function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
   const [idx, setIdx] = useState(0);
@@ -177,6 +182,7 @@ export function HorizonView() {
   const [baseDate, setBaseDate] = useState<Date>(today);
 
   React.useEffect(() => { baseDateTrigger.setDate = setBaseDate; }, []);
+  React.useEffect(() => { inboxTrigger.open = () => setShowInbox(true); }, []);
   const [showProjects, setShowProjects] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
 
@@ -184,8 +190,9 @@ export function HorizonView() {
   const inboxCount = tasks.filter(t => !t.completed && (t.date === null || t.date < todayStr)).length;
   const [showTheme, setShowTheme] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showBriefing, setShowBriefing] = useState(false);
+  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
   const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
-  type QuickFilter = 'overdue' | 'high-priority' | 'this-week' | 'no-deadline' | null;
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(null);
   const [horizonLengths, setHorizonLengths]= useState<Record<ViewMode, number | ''>>({
     daily: 90,
@@ -331,6 +338,30 @@ export function HorizonView() {
         {/* Cluster divider 2 */}
         <span className="w-px h-5 bg-white/10 mx-3 shrink-0" />
 
+        {/* Quick filters */}
+        <div className="flex items-center gap-1 mr-2">
+          {([
+            { id: 'overdue'       as const, label: 'Overdue', color: '#ef4444' },
+            { id: 'high-priority' as const, label: 'High',    color: '#ef4444' },
+            { id: 'this-week'     as const, label: 'Week',    color: '#3B82F6' },
+            { id: 'no-deadline'   as const, label: 'No due',  color: '#888'    },
+          ]).map(f => {
+            const active = quickFilter === f.id;
+            return (
+              <button key={f.id}
+                onClick={() => setQuickFilter(active ? null : f.id)}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-all"
+                style={{
+                  background: active ? f.color + '22' : 'transparent',
+                  color: active ? f.color : '#3A3A3A',
+                  border: `1px solid ${active ? f.color + '60' : '#222'}`,
+                }}>
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Right icon cluster */}
         <div className="flex items-center gap-0.5">
           {/* Hide done */}
@@ -371,6 +402,26 @@ export function HorizonView() {
                 {inboxCount}
               </span>
             )}
+          </button>
+
+          {/* Daily Briefing */}
+          <button onClick={() => setShowBriefing(p => !p)}
+            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
+              showBriefing ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={showBriefing ? { color: 'var(--accent)' } : undefined}
+            title="Daily Briefing">
+            <Sun size={12} />
+          </button>
+
+          {/* Weekly Review */}
+          <button onClick={() => setShowWeeklyReview(p => !p)}
+            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
+              showWeeklyReview ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={showWeeklyReview ? { color: 'var(--accent)' } : undefined}
+            title="Weekly Review">
+            <ClipboardList size={12} />
           </button>
 
           <span className="w-px h-4 bg-[#222] mx-0.5" />
@@ -451,18 +502,22 @@ export function HorizonView() {
               index={index}
               hideCompleted={hideCompleted}
               filterProjectId={filterProjectId}
+              quickFilter={quickFilter}
             />
           ))}
         </div>
       </div>
       {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} />}
+      {showBriefing && <DailyBriefing onClose={() => setShowBriefing(false)} />}
+      {showWeeklyReview && <WeeklyReview onClose={() => setShowWeeklyReview(false)} />}
     </div>
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter }) {
   const { tasks, projects } = useStore();
   const today = startOfToday();
+  const todayStr = format(today, 'yyyy-MM-dd');
   const startDateStr = format(startDate, 'yyyy-MM-dd');
   const endDateStr = format(endDate, 'yyyy-MM-dd');
 
@@ -479,6 +534,18 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
     return true;
   });
   const columnTasks = (hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks)
+    .filter(t => {
+      if (!quickFilter) return true;
+      if (quickFilter === 'overdue')       return t.date && t.date < todayStr;
+      if (quickFilter === 'high-priority') return t.priority === 'High';
+      if (quickFilter === 'this-week') {
+        const ws = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        const we = format(endOfWeek(today,   { weekStartsOn: 1 }), 'yyyy-MM-dd');
+        return t.date && t.date >= ws && t.date <= we;
+      }
+      if (quickFilter === 'no-deadline')   return !t.deadline;
+      return true;
+    })
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   // Ghost tasks: deadline falls in this column, but work date is elsewhere
   const ghostTasks = tasks.filter(t =>
