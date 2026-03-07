@@ -436,12 +436,9 @@ export function WidgetView() {
                 </div>
               )}
 
-              {/* Sessions count + keyboard hint */}
+              {/* Sessions count */}
               <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: 'var(--text-2)' }}>
                 {pomodoro.sessionsCompleted > 0 ? `◉ ×${pomodoro.sessionsCompleted}` : ''}
-              </div>
-              <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 9, color: 'var(--border-1)', letterSpacing: '0.08em' }}>
-                {isPaused ? 'space · resume' : 'space · pause'} &nbsp;·&nbsp; esc · stop
               </div>
 
               {/* Controls */}
@@ -476,9 +473,9 @@ export function WidgetView() {
                 style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px' }} />
             </svg>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸ PAUSED' : (isEyeRest ? 'MISC' : isWork ? 'FOCUS' : 'BREAK')}{pomodoro.sessionsCompleted > 0 ? ` · ◉ ×${pomodoro.sessionsCompleted}` : ''}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸' : (isEyeRest ? '—' : isWork ? '▶' : '☕')}{pomodoro.sessionsCompleted > 0 ? ` ◉×${pomodoro.sessionsCompleted}` : ''}</div>
               <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {isEyeRest ? '⏱ Misc' : (task?.title ?? '—') + (tracked > 0 ? ` · ⏱${fmtDuration(tracked)}` : '')}
+                {isEyeRest ? 'Untracked' : (task?.title ?? '—') + (tracked > 0 ? ` · ${fmtDuration(tracked)}` : '')}
               </div>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: isPaused ? `${pColor}80` : pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
