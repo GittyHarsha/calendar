@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, TaskStatus, useStore, fmtDuration, Subtask } from '../store';
 import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format, parseISO, startOfToday, differenceInDays } from 'date-fns';
+import { format, parseISO, startOfToday, differenceInDays, addDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
 import { DatePickerPopover } from './DatePickerPopover';
 import { exportTimeLogCSV } from '../utils/exportTimeLogs';
@@ -117,12 +117,11 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
           <div className="text-sm font-semibold text-white leading-snug flex-1 min-w-0 truncate">{task.title}</div>
           {confirmDelete ? (
             <span className="flex items-center gap-1 text-xs shrink-0">
-              <button onClick={() => { deleteTask(task.id); onClose(); }} className="text-red-400 hover:text-red-300 font-bold">Yes</button>
-              <span className="text-[#555]">/</span>
-              <button onClick={() => setConfirmDelete(false)} className="text-[#aaa] hover:text-white">No</button>
+              <button onClick={() => { deleteTask(task.id); onClose(); }} className="px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-bold transition-colors">Yes</button>
+              <button onClick={() => setConfirmDelete(false)} className="px-2 py-0.5 rounded border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:text-white transition-colors">No</button>
             </span>
           ) : (
-            <button onClick={() => setConfirmDelete(true)} className="shrink-0 text-[#555] hover:text-red-400 transition-colors">
+            <button onClick={() => setConfirmDelete(true)} className="shrink-0 p-1 rounded text-[#444] hover:text-red-400 hover:bg-red-400/10 transition-colors">
               <Trash2 size={13} />
             </button>
           )}
@@ -319,15 +318,16 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
               onClose();
             }}
             className={cn(
-              'flex items-center gap-1.5 text-xs transition-colors',
+              'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors font-medium',
               pomodoro.taskId === task.id && pomodoro.phase === 'work'
-                ? 'text-[var(--accent)]' : 'text-[#aaa] hover:text-[var(--accent)]'
+                ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
+                : 'border-[#2A2A2A] text-[#aaa] bg-[#111] hover:border-[var(--accent)] hover:text-[var(--accent)]'
             )}>
-            <Timer size={13} />
+            <Timer size={12} />
             {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
           </button>
           {(() => { const t = getTaskTime(task.id); return t > 0
-            ? <span className="text-xs text-[#666] font-mono">⏱ {fmtDuration(t)}</span>
+            ? <span className="text-xs text-[#555] font-mono">{fmtDuration(t)}</span>
             : null; })()}
         </div>
 
@@ -344,17 +344,18 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setShowTimeLog(v => !v)}
-                  className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
-                  <span>⏱ Time Log</span>
+                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:border-[#3A3A3A] hover:text-[#F0EFEB] transition-colors">
+                  <span>⏱</span>
+                  <span>Time Log</span>
                   {totalTime > 0 && (
-                    <span className="font-mono text-[#666]">{fmtDuration(totalTime)}</span>
+                    <span className="font-mono text-[#555]">{fmtDuration(totalTime)}</span>
                   )}
                 </button>
                 {taskEntries.length > 0 && (
                   <button
                     onClick={() => exportTimeLogCSV(tasks, timeEntries, projects)}
                     title="Export CSV"
-                    className="text-[#555] hover:text-[#aaa] transition-colors">
+                    className="text-[#444] hover:text-[#aaa] transition-colors p-1">
                     <Download size={12} />
                   </button>
                 )}
@@ -387,14 +388,14 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Notes (inline expandable) */}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <button onClick={() => setShowNotes(v => !v)}
-              className="flex items-center gap-1.5 text-xs text-[#aaa] hover:text-[#F0EFEB] transition-colors">
-              <AlignLeft size={13} />
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:border-[#3A3A3A] hover:text-[#F0EFEB] transition-colors flex-1">
+              <AlignLeft size={12} />
               {task.description ? 'Edit notes' : 'Add notes'}
             </button>
             <button onClick={onOpenNotes} title="Expand notes"
-              className="text-[#555] hover:text-[#aaa] transition-colors">
+              className="p-1.5 rounded-md border border-[#2A2A2A] bg-[#111] text-[#444] hover:text-[#aaa] hover:border-[#3A3A3A] transition-colors">
               <Maximize2 size={11} />
             </button>
           </div>
@@ -638,6 +639,17 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             <span className="text-[12px] text-[#888] font-mono shrink-0">
               {format(parseISO(task.date), 'MMM d')}
             </span>
+          )}
+
+          {/* Snooze to tomorrow — shown on hover for today's/past work-date tasks */}
+          {!task.completed && task.date && task.date <= format(today, 'yyyy-MM-dd') && (
+            <button
+              onClick={e => { e.stopPropagation(); updateTask(task.id, { date: format(addDays(today, 1), 'yyyy-MM-dd') }); }}
+              title="Move work date to tomorrow"
+              className="opacity-0 group-hover:opacity-100 shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#2A2A2A] bg-[#111] text-[#555] hover:text-[#aaa] hover:border-[#3A3A3A] transition-all"
+            >
+              →tmrw
+            </button>
           )}
         </div>
         {/* Subtask progress badge on card */}
