@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { differenceInCalendarDays, format, parseISO, startOfToday } from 'date-fns';
+import { differenceInCalendarDays, differenceInDays, format, parseISO, startOfToday } from 'date-fns';
 import { useStore, Task, Project, THEMES, WORK_DURATION, BREAK_DURATION, fmtDuration, deriveThemeFromAccent } from '../store';
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
@@ -22,14 +22,18 @@ function daysColor(dl: string, accent: string) {
   return '#eab308';
 }
 
-function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus }: {
+function TaskRow({ task, projects, fading, accent, isActive, isOverdue, onComplete, onFocus, onReschedule }: {
   task: Task; projects: Project[]; fading: boolean; accent: string;
-  isActive: boolean; onComplete: () => void; onFocus: () => void;
+  isActive: boolean; isOverdue: boolean; onComplete: () => void; onFocus: () => void; onReschedule: () => void;
 }) {
   const proj = projects.find(p => p.id === task.projectId);
   const [hovered, setHovered] = useState(false);
+  const today = startOfToday();
   const PRIORITY_COLOR: Record<string, string> = { High: '#ef4444', Medium: accent, Low: '#555' };
   const pColor = PRIORITY_COLOR[task.priority] ?? '#555';
+
+  // Stale age badge for overdue tasks
+  const staleAge = isOverdue && task.date ? differenceInDays(today, parseISO(task.date)) : 0;
 
   return (
     <div
@@ -51,7 +55,12 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
         <span title={task.title} style={{ flex: 1, fontSize: 13, color: hovered ? 'var(--text-1)' : 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>
           {task.title}
         </span>
-        {(task.subtasks?.length ?? 0) > 0 && (() => {
+        {/* Status badge (blocked/waiting) takes priority over subtask count */}
+        {task.taskStatus === 'blocked' ? (
+          <span title="Blocked" style={{ fontSize: 11, flexShrink: 0 }}>🔒</span>
+        ) : task.taskStatus === 'waiting' ? (
+          <span title="Waiting" style={{ fontSize: 11, flexShrink: 0 }}>⏳</span>
+        ) : (task.subtasks?.length ?? 0) > 0 ? (() => {
           const total = task.subtasks!.length;
           const done = task.subtasks!.filter((s: { done: boolean }) => s.done).length;
           return (
@@ -59,18 +68,33 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
               {done}/{total}
             </span>
           );
-        })()}
-        {task.deadline && (
+        })() : null}
+        {/* Stale age badge replaces deadline label for overdue tasks */}
+        {isOverdue && staleAge >= 1 ? (
+          <span style={{ fontSize: 11, fontWeight: 700, color: staleAge >= 7 ? '#ef4444' : '#f97316', flexShrink: 0 }}>
+            {staleAge}d
+          </span>
+        ) : !isOverdue && task.deadline ? (
           <span style={{ fontSize: 11, fontWeight: 700, color: daysColor(task.deadline, accent), flexShrink: 0 }}>
             {daysLabel(task.deadline)}
           </span>
-        )}
+        ) : null}
         {isActive && <span style={{ fontSize: 9, color: accent, flexShrink: 0 }}>▶</span>}
       </div>
 
       {/* Inline expansion on hover */}
       {hovered && (
         <div style={{ padding: '0 12px 8px 35px', display: 'flex', gap: 6 }}>
+          {isOverdue && (
+            <button onClick={onReschedule} style={{
+              flex: 1, padding: '4px 0', borderRadius: 5,
+              border: '1px solid #ef444455', background: '#ef444415',
+              color: '#ef4444', fontSize: 11, cursor: 'pointer',
+              fontFamily: 'Consolas, monospace', fontWeight: 600,
+            }}>
+              → Today
+            </button>
+          )}
           <button onClick={onFocus} style={{
             flex: 1, padding: '4px 0', borderRadius: 5,
             border: `1px solid ${accent}55`, background: `${accent}15`,
@@ -93,17 +117,21 @@ function TaskRow({ task, projects, fading, accent, isActive, onComplete, onFocus
   );
 }
 
-function Section({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
+function Section({ label, color, children, collapsed, onToggle }: { label: string; color: string; children: React.ReactNode; collapsed: boolean; onToggle: () => void }) {
   return (
     <div style={{ marginBottom: 4 }}>
-      <div style={{
-        padding: '5px 12px 4px 9px', borderLeft: `3px solid ${color}`,
-        fontSize: 10, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700,
-        background: `${color}10`,
-      }}>
+      <div
+        onClick={onToggle}
+        style={{
+          padding: '5px 12px 4px 9px', borderLeft: `3px solid ${color}`,
+          fontSize: 10, letterSpacing: '0.12em', color, textTransform: 'uppercase', fontWeight: 700,
+          background: `${color}10`,
+          cursor: 'pointer', userSelect: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
         {label}
+        <span style={{ fontSize: 9, opacity: 0.6 }}>{collapsed ? '▶' : '▾'}</span>
       </div>
-      {children}
+      {!collapsed && children}
     </div>
   );
 }
@@ -120,6 +148,7 @@ export function WidgetView() {
   const [atQuery, setAtQuery] = useState('');
   const [elapsed, setElapsed] = useState(0);
   const [showDone, setShowDone] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -322,11 +351,13 @@ export function WidgetView() {
     setSelectedProjectId(null);
   }
 
-  const rowProps = (t: Task) => ({
+  const rowProps = (t: Task, isOverdue = false) => ({
     task: t, projects, fading: fading.has(t.id),
     accent, isActive: pomodoro.taskId === t.id && pomodoro.phase === 'work',
+    isOverdue,
     onComplete: () => complete(t.id),
     onFocus: () => startPomodoro(t.id),
+    onReschedule: () => updateTask(t.id, { date: todayStr }),
   });
   const empty = overdue.length + dueToday.length + workToday.length + upNext.length + inbox.length === 0;
 
@@ -467,22 +498,22 @@ export function WidgetView() {
       {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
         {overdue.length > 0 && (
-          <Section label={`Overdue · ${overdue.length}`} color="#ef4444">
-            {overdue.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
+          <Section label={`Overdue · ${overdue.length}`} color="#ef4444" collapsed={!!collapsed['overdue']} onToggle={() => setCollapsed(c => ({ ...c, overdue: !c.overdue }))}>
+            {overdue.map(t => <TaskRow key={t.id} {...rowProps(t, true)} />)}
           </Section>
         )}
         {dueToday.length > 0 && (
-          <Section label={`Due today · ${dueToday.length}`} color={accent}>
+          <Section label={`Due today · ${dueToday.length}`} color={accent} collapsed={!!collapsed['dueToday']} onToggle={() => setCollapsed(c => ({ ...c, dueToday: !c.dueToday }))}>
             {dueToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
           </Section>
         )}
         {workToday.length > 0 && (
-          <Section label={`Today's work · ${workToday.length}`} color="#888">
+          <Section label={`Today's work · ${workToday.length}`} color="#888" collapsed={!!collapsed['workToday']} onToggle={() => setCollapsed(c => ({ ...c, workToday: !c.workToday }))}>
             {workToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
           </Section>
         )}
         {upNext.length > 0 && (
-          <Section label={`Up next · ${upNextAll.length}`} color="#444">
+          <Section label={`Up next · ${upNextAll.length}`} color="#444" collapsed={!!collapsed['upNext']} onToggle={() => setCollapsed(c => ({ ...c, upNext: !c.upNext }))}>
             {upNext.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
             {upNextMore > 0 && (
               <div style={{ padding: '3px 12px 6px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>+{upNextMore} more</div>
@@ -490,7 +521,7 @@ export function WidgetView() {
           </Section>
         )}
         {inbox.length > 0 && (
-          <Section label={`Inbox · ${inbox.length}`} color="#666">
+          <Section label={`Inbox · ${inbox.length}`} color="#666" collapsed={!!collapsed['inbox']} onToggle={() => setCollapsed(c => ({ ...c, inbox: !c.inbox }))}>
             {inbox.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
             {inboxMore > 0 && (
               <div style={{ padding: '3px 12px 6px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>+{inboxMore} more</div>
