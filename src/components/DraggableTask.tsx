@@ -646,7 +646,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             <button
               onClick={e => { e.stopPropagation(); updateTask(task.id, { date: format(addDays(today, 1), 'yyyy-MM-dd') }); }}
               title="Move work date to tomorrow"
-              className="opacity-0 group-hover:opacity-100 shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#2A2A2A] bg-[#111] text-[#555] hover:text-[#aaa] hover:border-[#3A3A3A] transition-all"
+              className="hidden group-hover:inline-flex shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#2A2A2A] bg-[#111] text-[#555] hover:text-[#aaa] hover:border-[#3A3A3A] transition-colors"
             >
               →tmrw
             </button>
