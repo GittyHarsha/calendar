@@ -605,7 +605,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
               className="flex-1 text-sm text-white bg-transparent border-b focus:outline-none" style={{ borderColor: 'var(--accent)' }} />
           ) : (
             <span onClick={() => setEditingTitle(true)}
-              className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate transition-colors',
+              className={cn('flex-1 text-sm leading-snug cursor-text select-none break-words transition-colors',
                 task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
               )} title={task.title}>{task.title}</span>
           )}

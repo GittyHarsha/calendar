@@ -200,6 +200,12 @@ export function HorizonView() {
     monthly: 12,
     yearly: 5
   });
+  const [colWidths, setColWidths] = useState<Record<ViewMode, number>>({
+    daily: 256,
+    weekly: 288,
+    monthly: 320,
+    yearly: 384,
+  });
   const projectsPanelRef = useRef<HTMLDivElement>(null);
   const inboxPanelRef = useRef<HTMLDivElement>(null);
 
@@ -333,6 +339,19 @@ export function HorizonView() {
             onClick={() => setHorizonLengths(prev => ({ ...prev, [viewMode]: Math.min(365, (prev[viewMode] as number) + 1) }))}
             className="w-4 h-4 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors text-[14px] leading-none"
             title="More periods">+</button>
+        </div>
+
+        {/* Column width stepper */}
+        <div className="flex items-center gap-1 ml-2 bg-[#0A0A0A] rounded-lg border border-[#252525] px-2 h-8">
+          <span className="text-[11px] text-[#444] select-none">⟺</span>
+          <button
+            onClick={() => setColWidths(prev => ({ ...prev, [viewMode]: Math.max(160, prev[viewMode] - 32) }))}
+            className="w-4 h-4 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors text-[14px] leading-none"
+            title="Narrower columns">−</button>
+          <button
+            onClick={() => setColWidths(prev => ({ ...prev, [viewMode]: Math.min(600, prev[viewMode] + 32) }))}
+            className="w-4 h-4 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors text-[14px] leading-none"
+            title="Wider columns">+</button>
         </div>
 
         {/* Cluster divider 2 */}
@@ -503,6 +522,7 @@ export function HorizonView() {
               hideCompleted={hideCompleted}
               filterProjectId={filterProjectId}
               quickFilter={quickFilter}
+              colWidth={colWidths[viewMode]}
             />
           ))}
         </div>
@@ -514,7 +534,7 @@ export function HorizonView() {
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number }) {
   const { tasks, projects } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -563,21 +583,18 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
   const isCurrent = today >= startDate && today <= endDate;
   const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
 
-  let widthClass = "w-64";
-  if (mode === 'weekly') widthClass = "w-72";
-  if (mode === 'monthly') widthClass = "w-80";
-  if (mode === 'yearly') widthClass = "w-96";
-
   return (
     <div 
       ref={setNodeRef}
       className={cn(
-        widthClass,
-        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative",
+        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative shrink-0",
         isOver && "bg-[#1A1A1A]",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
       )}
-      style={isCurrent ? { borderLeft: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined}
+      style={{
+        width: colWidth,
+        ...(isCurrent ? { borderLeft: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined),
+      }}
     >
       {/* Header */}
       <div className="p-3 border-b border-[#2A2A2A] shrink-0 relative"
