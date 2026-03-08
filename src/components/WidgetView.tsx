@@ -129,55 +129,59 @@ function FocusTimer({ rem, pct, pColor, isPaused, taskTitle, sessionsCompleted, 
       onMouseLeave={() => setHovered(false)}
       style={{
         flex: 1, boxSizing: 'border-box',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: `${pColor}08`, position: 'relative', cursor: 'default',
+        overflow: 'hidden',
       }}
     >
-      {/* Progress bar */}
+      {/* Progress bar along top */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--bg-2)' }}>
         <div style={{ height: '100%', width: `${pct * 100}%`, background: pColor, transition: 'width 0.5s linear' }} />
       </div>
 
-      {/* Timer — always visible */}
+      {/* Timer — always visible, centered */}
       <div style={{
         fontSize: 38, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
         letterSpacing: 2, color: isPaused ? `${pColor}55` : pColor,
-        lineHeight: 1, fontFamily: 'Consolas, monospace',
+        lineHeight: 1, fontFamily: 'Consolas, monospace', userSelect: 'none',
       }}>
         {fmtCountdown(rem)}
       </div>
 
-      {/* Task title — only on hover */}
-      {hovered && taskTitle && (
-        <div style={{
-          marginTop: 5, fontSize: 10, color: `${pColor}99`,
-          maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          textAlign: 'center', fontFamily: 'Consolas, monospace',
-        }}>
-          {taskTitle}
-        </div>
-      )}
+      {/* Bottom bar — fades in on hover, sits flush at the bottom */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '4px 8px',
+        background: `color-mix(in srgb, var(--bg-0) 90%, transparent)`,
+        opacity: hovered ? 1 : 0,
+        transition: 'opacity 0.15s',
+        pointerEvents: hovered ? 'auto' : 'none',
+      }}>
+        {/* Task title — left, truncated, full text on native tooltip */}
+        <span
+          title={taskTitle ?? undefined}
+          style={{
+            flex: 1, fontSize: 10, color: `${pColor}BB`,
+            fontFamily: 'Consolas, monospace',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            minWidth: 0,
+          }}
+        >
+          {sessionsCompleted > 0 && <span style={{ marginRight: 5, opacity: 0.5 }}>◉×{sessionsCompleted}</span>}
+          {taskTitle ?? ''}
+        </span>
 
-      {/* Sessions count — bottom-left, hover only */}
-      {hovered && sessionsCompleted > 0 && (
-        <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: 'var(--text-2)' }}>
-          ◉ ×{sessionsCompleted}
-        </div>
-      )}
-
-      {/* Controls — bottom-right, hover only */}
-      {hovered && (
-        <div style={{ position: 'absolute', bottom: 6, right: 8, display: 'flex', gap: 4 }}>
-          {isWork ? (
-            <button onClick={onPause} title={isPaused ? 'Resume' : 'Pause'}
-              style={{ ...miniBtn('var(--bg-2)'), opacity: 0.6 }}>{isPaused ? '▶' : '⏸'}</button>
-          ) : (
-            <button onClick={onSkip} title="Skip break"
-              style={{ ...miniBtn('var(--bg-2)'), opacity: 0.6 }}>▶</button>
-          )}
-          <button onClick={onStop} title="Stop" style={{ ...miniBtn('var(--bg-2)'), opacity: 0.6 }}>✕</button>
-        </div>
-      )}
+        {/* Controls — right */}
+        {isWork ? (
+          <button onClick={onPause} title={isPaused ? 'Resume' : 'Pause'}
+            style={{ ...miniBtn('var(--bg-2)'), flexShrink: 0 }}>{isPaused ? '▶' : '⏸'}</button>
+        ) : (
+          <button onClick={onSkip} title="Skip break"
+            style={{ ...miniBtn('var(--bg-2)'), flexShrink: 0 }}>▶</button>
+        )}
+        <button onClick={onStop} title="Stop" style={{ ...miniBtn('var(--bg-2)'), flexShrink: 0 }}>✕</button>
+      </div>
     </div>
   );
 }
