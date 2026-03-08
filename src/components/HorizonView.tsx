@@ -201,10 +201,10 @@ export function HorizonView() {
     yearly: 5
   });
   const [colWidths, setColWidths] = useState<Record<ViewMode, number>>({
-    daily: 320,
-    weekly: 360,
-    monthly: 400,
-    yearly: 480,
+    daily: 420,
+    weekly: 480,
+    monthly: 540,
+    yearly: 640,
   });
   const projectsPanelRef = useRef<HTMLDivElement>(null);
   const inboxPanelRef = useRef<HTMLDivElement>(null);
@@ -510,7 +510,7 @@ export function HorizonView() {
               filterProjectId={filterProjectId}
               quickFilter={quickFilter}
               colWidth={colWidths[viewMode]}
-              onResizeCol={(newWidth) => setColWidths(prev => ({ ...prev, [viewMode]: Math.max(160, Math.min(700, newWidth)) }))}
+              onResizeCol={(newWidth) => setColWidths(prev => ({ ...prev, [viewMode]: Math.max(160, Math.min(900, newWidth)) }))}
             />
           ))}
         </div>
