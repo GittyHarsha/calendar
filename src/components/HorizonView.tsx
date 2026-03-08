@@ -341,19 +341,6 @@ export function HorizonView() {
             title="More periods">+</button>
         </div>
 
-        {/* Column width stepper */}
-        <div className="flex items-center gap-1 ml-2 bg-[#0A0A0A] rounded-lg border border-[#252525] px-2 h-8">
-          <span className="text-[11px] text-[#444] select-none">⟺</span>
-          <button
-            onClick={() => setColWidths(prev => ({ ...prev, [viewMode]: Math.max(160, prev[viewMode] - 32) }))}
-            className="w-4 h-4 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors text-[14px] leading-none"
-            title="Narrower columns">−</button>
-          <button
-            onClick={() => setColWidths(prev => ({ ...prev, [viewMode]: Math.min(600, prev[viewMode] + 32) }))}
-            className="w-4 h-4 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors text-[14px] leading-none"
-            title="Wider columns">+</button>
-        </div>
-
         {/* Cluster divider 2 */}
         <span className="w-px h-5 bg-white/10 mx-3 shrink-0" />
 
@@ -523,6 +510,7 @@ export function HorizonView() {
               filterProjectId={filterProjectId}
               quickFilter={quickFilter}
               colWidth={colWidths[viewMode]}
+              onResizeCol={(newWidth) => setColWidths(prev => ({ ...prev, [viewMode]: Math.max(160, Math.min(700, newWidth)) }))}
             />
           ))}
         </div>
@@ -534,7 +522,7 @@ export function HorizonView() {
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void }) {
   const { tasks, projects } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -596,6 +584,25 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
         ...(isCurrent ? { borderLeft: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined),
       }}
     >
+      {/* Drag-to-resize handle on right edge */}
+      <div
+        className="absolute top-0 right-0 w-1.5 h-full z-20 cursor-col-resize group/resize"
+        onMouseDown={e => {
+          e.preventDefault();
+          const startX = e.clientX;
+          const startWidth = colWidth;
+          const onMove = (ev: MouseEvent) => onResizeCol(ev.clientX - startX + startWidth);
+          const onUp = (ev: MouseEvent) => {
+            onResizeCol(ev.clientX - startX + startWidth);
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+          };
+          window.addEventListener('mousemove', onMove);
+          window.addEventListener('mouseup', onUp);
+        }}
+      >
+        <div className="absolute right-0 top-0 w-px h-full opacity-0 group-hover/resize:opacity-100 transition-opacity" style={{ background: 'var(--accent)' }} />
+      </div>
       {/* Header */}
       <div className="p-3 border-b border-[#2A2A2A] shrink-0 relative"
         style={isCurrent ? { background: 'color-mix(in srgb, var(--accent) 10%, transparent)' } : undefined}>
