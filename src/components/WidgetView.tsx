@@ -273,7 +273,6 @@ export function WidgetView() {
   const inboxMore = active.filter(t => !t.date && !t.deadline).length - inbox.length;
 
   const doneToday = tasks.filter(t => t.completed && t.date === todayStr).length;
-  const topProjects = projects.filter(p => !p.parentId);
 
   function complete(id: string) {
     setFading(s => new Set(s).add(id));
@@ -388,7 +387,7 @@ export function WidgetView() {
       </div>}
 
       {!focusMode && showDone&& doneToday > 0 && (
-        <div style={{ borderBottom: '1px solid var(--border-1)', background: 'var(--bg-1)', padding: '4px 12px', maxHeight: 100, overflowY: 'auto', scrollbarWidth: 'none' }}>
+        <div className="widget-scroll" style={{ borderBottom: '1px solid var(--border-1)', background: 'var(--bg-1)', padding: '4px 12px', maxHeight: 100, overflowY: 'auto', scrollbarWidth: 'none' }}>
           {tasks.filter(t => t.completed && t.date === todayStr).map(t => (
             <div key={t.id} style={{ fontSize: 11, color: 'var(--text-2)', textDecoration: 'line-through', padding: '2px 0' }}>{t.title}</div>
           ))}
@@ -493,7 +492,7 @@ export function WidgetView() {
 
       {!focusMode && (<>
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
+      <div className="widget-scroll" style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
         {overdue.length > 0 && (
           <Section label={`Overdue · ${overdue.length}`} color="#ef4444" collapsed={!!collapsed['overdue']} onToggle={() => setCollapsed(c => ({ ...c, overdue: !c.overdue }))}>
             {overdue.map(t => <TaskRow key={t.id} {...rowProps(t, true)} />)}
@@ -532,32 +531,6 @@ export function WidgetView() {
           </div>
         )}
 
-        {/* Project pulse */}
-        {topProjects.length > 0 && (
-          <div style={{ margin: '8px 12px 0', paddingTop: 8, borderTop: '1px solid var(--border-1)' }}>
-            <div style={{ fontSize: 9, color: 'var(--text-2)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>Projects · {topProjects.length}</div>
-            <div style={{ maxHeight: 100, overflowY: 'auto', scrollbarWidth: 'none' }}>
-              {topProjects.map(p => {
-                const done = tasks.filter(t => t.projectId === p.id && t.completed).length;
-                const total = tasks.filter(t => t.projectId === p.id).length;
-                const pct = total > 0 ? (done / total) * 100 : 0;
-                const dl = p.deadline ? differenceInCalendarDays(parseISO(p.deadline), today) : null;
-                const pAccent = dl !== null && dl < 0 ? '#ef4444' : dl !== null && dl <= 7 ? accent : p.color;
-                return (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: pAccent, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 12, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-2)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{done}/{total}</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-2)', flexShrink: 0 }}>{Math.round(pct)}%</span>
-                    <div style={{ width: 60, height: 5, background: 'var(--bg-2)', borderRadius: 2, flexShrink: 0 }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: pAccent, borderRadius: 2 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
         <div style={{ height: 8 }} />
       </div>
 

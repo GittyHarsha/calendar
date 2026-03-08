@@ -23,6 +23,9 @@ body {
   height: 6px;
 }
 
+/* Widget scroll areas — no visible scrollbar */
+.widget-scroll::-webkit-scrollbar { display: none; }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
