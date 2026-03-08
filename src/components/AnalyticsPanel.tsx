@@ -335,26 +335,6 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
             ))}
           </div>
 
-          {/* All-time bonus */}
-          {tab === 'alltime' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-xl p-5 border" style={{ background: 'var(--bg-1)', borderColor: 'var(--border-1)' }}>
-                <div className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-2)' }}>Best Day</div>
-                <div className="text-2xl font-black" style={{ color: 'var(--text-1)', fontFamily: 'Consolas, monospace' }}>
-                  {allTimeStats.mostProductiveDay ? format(parseISO(allTimeStats.mostProductiveDay[0]), 'EEE, MMM d') : '—'}
-                </div>
-                {allTimeStats.mostProductiveDay && <div className="text-xs mt-1" style={{ color: 'var(--text-2)' }}>{fmtDuration(allTimeStats.mostProductiveDay[1])} focused</div>}
-              </div>
-              <div className="rounded-xl p-5 border" style={{ background: 'var(--bg-1)', borderColor: 'var(--border-1)' }}>
-                <div className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--text-2)' }}>Best Streak</div>
-                <div className="text-2xl font-black" style={{ color: 'var(--text-1)', fontFamily: 'Consolas, monospace' }}>
-                  {allTimeStats.longestStreak > 0 ? `${allTimeStats.longestStreak} days` : '—'}
-                </div>
-                <div className="text-xs mt-1" style={{ color: 'var(--text-2)' }}>consecutive active days</div>
-              </div>
-            </div>
-          )}
-
           {/* 2-col: Projects + Top Tasks */}
           <div className="grid grid-cols-2 gap-4">
             <AnalCard title="Time by Project">
