@@ -117,6 +117,71 @@ function TaskRow({ task, projects, fading, accent, isActive, isOverdue, onComple
   );
 }
 
+function FocusTimer({ rem, pct, pColor, isPaused, taskTitle, sessionsCompleted, onPause, onStop, isWork, onSkip }: {
+  rem: number; pct: number; pColor: string; isPaused: boolean;
+  taskTitle: string | null; sessionsCompleted: number;
+  onPause: () => void; onStop: () => void; isWork: boolean; onSkip: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        flex: 1, boxSizing: 'border-box',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        background: `${pColor}08`, position: 'relative', cursor: 'default',
+      }}
+    >
+      {/* Progress bar */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--bg-2)' }}>
+        <div style={{ height: '100%', width: `${pct * 100}%`, background: pColor, transition: 'width 0.5s linear' }} />
+      </div>
+
+      {/* Timer — always visible */}
+      <div style={{
+        fontSize: 38, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+        letterSpacing: 2, color: isPaused ? `${pColor}55` : pColor,
+        lineHeight: 1, fontFamily: 'Consolas, monospace',
+      }}>
+        {fmtCountdown(rem)}
+      </div>
+
+      {/* Task title — only on hover */}
+      {hovered && taskTitle && (
+        <div style={{
+          marginTop: 5, fontSize: 10, color: `${pColor}99`,
+          maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          textAlign: 'center', fontFamily: 'Consolas, monospace',
+        }}>
+          {taskTitle}
+        </div>
+      )}
+
+      {/* Sessions count — bottom-left, hover only */}
+      {hovered && sessionsCompleted > 0 && (
+        <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: 'var(--text-2)' }}>
+          ◉ ×{sessionsCompleted}
+        </div>
+      )}
+
+      {/* Controls — bottom-right, hover only */}
+      {hovered && (
+        <div style={{ position: 'absolute', bottom: 6, right: 8, display: 'flex', gap: 4 }}>
+          {isWork ? (
+            <button onClick={onPause} title={isPaused ? 'Resume' : 'Pause'}
+              style={{ ...miniBtn('var(--bg-2)'), opacity: 0.6 }}>{isPaused ? '▶' : '⏸'}</button>
+          ) : (
+            <button onClick={onSkip} title="Skip break"
+              style={{ ...miniBtn('var(--bg-2)'), opacity: 0.6 }}>▶</button>
+          )}
+          <button onClick={onStop} title="Stop" style={{ ...miniBtn('var(--bg-2)'), opacity: 0.6 }}>✕</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Section({ label, color, children, collapsed, onToggle }: { label: string; color: string; children: React.ReactNode; collapsed: boolean; onToggle: () => void }) {
   return (
     <div style={{ marginBottom: 4 }}>
@@ -361,7 +426,7 @@ export function WidgetView() {
   const empty = overdue.length + dueToday.length + workToday.length + upNext.length + inbox.length === 0;
 
   return (
-    <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13 }}>
+    <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13, overflow: 'hidden' }}>
       {/* Stats bar — hidden during focus session */}
       {!focusMode && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
         <span>{format(today, 'EEE, MMM d')}</span>
@@ -408,53 +473,10 @@ export function WidgetView() {
 
         if (focusMode) {
           return (
-            <div style={{
-              height: '100%', boxSizing: 'border-box',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              background: `${pColor}08`,
-              position: 'relative',
-            }}>
-              {/* Thin progress bar along the top */}
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: 'var(--bg-2)' }}>
-                <div style={{ height: '100%', width: `${pct * 100}%`, background: pColor, transition: 'width 0.5s linear' }} />
-              </div>
-
-              {/* Timer */}
-              <div style={{
-                fontSize: 38, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-                letterSpacing: 2, color: isPaused ? `${pColor}55` : pColor,
-                lineHeight: 1, fontFamily: 'Consolas, monospace',
-              }}>
-                {fmtCountdown(rem)}
-              </div>
-
-              {/* Task title */}
-              {task && (
-                <div style={{ marginTop: 6, fontSize: 11, color: `${pColor}99`, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                  {task.title}
-                </div>
-              )}
-
-              {/* Sessions count */}
-              <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: 'var(--text-2)' }}>
-                {pomodoro.sessionsCompleted > 0 ? `◉ ×${pomodoro.sessionsCompleted}` : ''}
-              </div>
-
-              {/* Controls */}
-              <div style={{
-                position: 'absolute', bottom: 6, right: 8,
-                display: 'flex', gap: 4,
-              }}>
-                {isWork ? (
-                  <button onClick={pausePomodoro} title={isPaused ? 'Resume' : 'Pause'}
-                    style={{ ...miniBtn('var(--bg-2)'), opacity: 0.5 }}>{isPaused ? '▶' : '⏸'}</button>
-                ) : (
-                  <button onClick={() => skipBreak()} title="Skip break"
-                    style={{ ...miniBtn('var(--bg-2)'), opacity: 0.5 }}>▶</button>
-                )}
-                <button onClick={stopPomodoro} title="Stop" style={{ ...miniBtn('var(--bg-2)'), opacity: 0.5 }}>✕</button>
-              </div>
-            </div>
+            <FocusTimer rem={rem} pct={pct} pColor={pColor} isPaused={isPaused}
+              taskTitle={task?.title ?? null}
+              sessionsCompleted={pomodoro.sessionsCompleted}
+              onPause={pausePomodoro} onStop={stopPomodoro} isWork={isWork} onSkip={skipBreak} />
           );
         }
 
