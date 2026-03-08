@@ -746,7 +746,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
               style={{ background: accent + '0A', borderColor: accent + '55' }}>
               {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
               <Flag size={9} style={{ color: accent, flexShrink: 0 }} className={overdue || urgent ? 'animate-pulse' : ''} />
-              <span className="flex-1 text-[12px] truncate" style={{ color: accent + 'CC' }} title={task.title}>{task.title}</span>
+              <span className="flex-1 text-sm truncate" style={{ color: accent + 'CC' }} title={task.title}>{task.title}</span>
               <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>{label}</span>
             </div>
           );

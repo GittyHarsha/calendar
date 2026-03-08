@@ -182,7 +182,7 @@ function TaskRow({ task, onToday, onTomorrow, projects, updateTask }: {
         }
 
         {/* Title */}
-        <span className="flex-1 text-[12px] text-[#C8C7C4] truncate leading-snug" title={task.title}>
+        <span className="flex-1 text-sm text-[#C8C7C4] truncate leading-snug" title={task.title}>
           {task.title}
         </span>
 
