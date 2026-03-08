@@ -201,10 +201,10 @@ export function HorizonView() {
     yearly: 5
   });
   const [colWidths, setColWidths] = useState<Record<ViewMode, number>>({
-    daily: 256,
-    weekly: 288,
-    monthly: 320,
-    yearly: 384,
+    daily: 320,
+    weekly: 360,
+    monthly: 400,
+    yearly: 480,
   });
   const projectsPanelRef = useRef<HTMLDivElement>(null);
   const inboxPanelRef = useRef<HTMLDivElement>(null);
