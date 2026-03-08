@@ -265,6 +265,12 @@ export function AnalyticsPanel({ onClose }: AnalyticsPanelProps) {
   const activeProjects = tab === 'daily' ? dailyProjectTimes : projectTimes;
   const activeTasks = tab === 'daily' ? dailyTopTasks : topTasks;
 
+  const handleCopyMd = () => {
+    copyMarkdownSummary(tasks, timeEntries, projects);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-hidden" style={{ background: 'var(--bg-0)', fontFamily: 'system-ui,-apple-system,sans-serif' }}>
 
