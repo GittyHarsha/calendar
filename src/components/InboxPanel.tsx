@@ -1,10 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import type { Task, Project } from '../store';
+import { type Priority, type Recurrence } from '../store';
 import { differenceInDays, format, parseISO, startOfToday } from 'date-fns';
-import { Flag, ArrowRight, Inbox, MoreHorizontal } from 'lucide-react';
+import { Flag, ArrowRight, Inbox, MoreHorizontal, Plus } from 'lucide-react';
 import { TaskPopup } from './DraggableTask';
 import { TaskNotesModal } from './TaskNotesModal';
+import { DatePickerPopover } from './DatePickerPopover';
 
 function deadlineColor(days: number | null): string {
   if (days === null) return '#555';
@@ -27,10 +29,6 @@ export function InboxPanel({ onClose }: { onClose: () => void }) {
   const { tasks, projects, updateTask, addTask } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
-
-  const [newTitle, setNewTitle] = useState('');
-
-  const inboxTasks = tasks.filter(t => t.date === null && !t.completed);
   const overdueTasks = tasks.filter(t => t.date !== null && t.date < todayStr && !t.completed);
 
   // Group inbox by urgency
@@ -110,21 +108,8 @@ export function InboxPanel({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {/* Quick-add at bottom */}
-      <form onSubmit={handleQuickAdd} className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-[#1E1E1E]">
-        <input
-          value={newTitle}
-          onChange={e => setNewTitle(e.target.value)}
-          placeholder="Quick add to inbox…"
-          className="flex-1 bg-transparent text-[12px] text-[#ccc] placeholder-[#444] focus:outline-none font-mono"
-        />
-        {newTitle && (
-          <button type="submit" className="text-[11px] font-bold uppercase tracking-wider px-2 py-1 rounded"
-            style={{ background: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent)' }}>
-            Add
-          </button>
-        )}
-      </form>
+      {/* Full add task form */}
+      <AddTaskForm onAdd={(t) => addTask(t)} projects={projects} />
     </div>
   );
 }

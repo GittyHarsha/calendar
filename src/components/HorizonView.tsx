@@ -559,9 +559,9 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   // Ghost tasks: deadline falls in this column, but work date is elsewhere
   const ghostTasks = tasks.filter(t =>
+    !t.completed &&
     t.deadline && t.deadline >= startDateStr && t.deadline <= endDateStr &&
     !(t.date && t.date >= startDateStr && t.date <= endDateStr) &&
-    (!hideCompleted || !t.completed) &&
     (!filterProjectIds || filterProjectIds.includes(t.projectId ?? ''))
   );
   const deadlineProjects = projects.filter(p => p.deadline && p.deadline >= startDateStr && p.deadline <= endDateStr);
