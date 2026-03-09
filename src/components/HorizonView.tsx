@@ -178,7 +178,7 @@ export function HorizonView() {
   const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
-  const [viewMode, setViewMode] = useState<ViewMode>('weekly');
+  const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [baseDate, setBaseDate] = useState<Date>(today);
 
   React.useEffect(() => { baseDateTrigger.setDate = setBaseDate; }, []);
