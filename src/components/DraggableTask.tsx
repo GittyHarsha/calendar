@@ -109,6 +109,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
       <div ref={popupRef}
         onMouseEnter={onMouseEnter}
         onMouseLeave={pickerOpen ? undefined : onMouseLeave}
+        data-no-inbox-close
         className="fixed z-[9999] w-72 rounded-xl border border-[#2A2A2A] shadow-2xl p-3 flex flex-col gap-3"
         style={{ top: pos.top, left: pos.left, opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? 'auto' : 'none', background: 'var(--bg-0)' }}>
 

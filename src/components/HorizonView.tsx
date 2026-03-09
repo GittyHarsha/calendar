@@ -227,9 +227,11 @@ export function HorizonView() {
   useEffect(() => {
     if (!showInbox) return;
     const handler = (e: MouseEvent) => {
-      if (inboxPanelRef.current && !inboxPanelRef.current.contains(e.target as Element)) {
-        setShowInbox(false);
-      }
+      const target = e.target as Element;
+      // Don't close if click is inside the inbox panel or inside a portal popup (TaskPopup etc.)
+      if (inboxPanelRef.current?.contains(target)) return;
+      if (target.closest('[data-no-inbox-close]')) return;
+      setShowInbox(false);
     };
     setTimeout(() => document.addEventListener('mousedown', handler), 0);
     return () => document.removeEventListener('mousedown', handler);
