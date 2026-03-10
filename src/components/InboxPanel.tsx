@@ -29,6 +29,8 @@ export function InboxPanel({ onClose }: { onClose: () => void }) {
   const { tasks, projects, updateTask, addTask } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
+
+  const inboxTasks = tasks.filter(t => t.date === null && !t.completed);
   const overdueTasks = tasks.filter(t => t.date !== null && t.date < todayStr && !t.completed);
 
   // Group inbox by urgency
@@ -42,13 +44,6 @@ export function InboxPanel({ onClose }: { onClose: () => void }) {
   const scheduleTomorrow = (id: string) => {
     const tomorrow = format(new Date(today.getTime() + 86400000), 'yyyy-MM-dd');
     updateTask(id, { date: tomorrow });
-  };
-
-  const handleQuickAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    addTask({ title: newTitle.trim(), projectId: null, date: null, deadline: null, deadlineHistory: [], priority: 'Medium' });
-    setNewTitle('');
   };
 
   const total = inboxTasks.length + overdueTasks.length;
@@ -108,9 +103,97 @@ export function InboxPanel({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {/* Full add task form */}
-      <AddTaskForm onAdd={(t) => addTask(t)} projects={projects} />
+      {/* Add task form */}
+      <AddTaskForm addTask={addTask} projects={projects} />
     </div>
+  );
+}
+
+function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStore>['addTask']; projects: Project[] }) {
+  const [title, setTitle] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [priority, setPriority] = useState<Priority>('Medium');
+  const [date, setDate] = useState('');
+  const [deadline, setDeadline] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) { setError(true); return; }
+    addTask({ title: title.trim(), projectId: projectId || null, date: date || null, deadline: deadline || null, deadlineHistory: [], priority });
+    setTitle(''); setProjectId(''); setPriority('Medium'); setDate(''); setDeadline(''); setError(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="shrink-0 flex flex-col gap-2 px-3 py-2.5 border-t border-[#1E1E1E]">
+      <div className="flex items-center gap-2">
+        <input
+          value={title}
+          onChange={e => { setTitle(e.target.value); setError(false); }}
+          placeholder="Add task to inbox…"
+          className={`flex-1 bg-transparent text-[12px] text-[#ccc] placeholder-[#444] focus:outline-none font-mono border-b ${error ? 'border-red-500' : 'border-[#2A2A2A] focus:border-[var(--accent)]'} transition-colors pb-0.5`}
+        />
+        <button
+          type="button"
+          onClick={() => setShowMore(p => !p)}
+          className="text-[10px] font-mono text-[#444] hover:text-[#888] transition-colors shrink-0"
+          title="More options"
+        >{showMore ? '− less' : '+ more'}</button>
+        {title && (
+          <button type="submit" className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded transition-colors"
+            style={{ background: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent)' }}>
+            <Plus size={11} className="inline" /> Add
+          </button>
+        )}
+      </div>
+
+      {showMore && (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <select
+              value={projectId}
+              onChange={e => setProjectId(e.target.value)}
+              className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] text-[#888] focus:outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">No Project</option>
+              {projects.filter(p => !p.parentId).map(p => (
+                <React.Fragment key={p.id}>
+                  <option value={p.id}>{p.name}</option>
+                  {projects.filter(sp => sp.parentId === p.id).map(sp => (
+                    <option key={sp.id} value={sp.id}>{'  ↳ ' + sp.name}</option>
+                  ))}
+                </React.Fragment>
+              ))}
+            </select>
+            <div className="flex gap-1">
+              {([['High', 'H', '#ef4444'], ['Medium', 'M', '#eab308'], ['Low', 'L', '#3B82F6']] as const).map(([val, label, color]) => (
+                <button key={val} type="button" onClick={() => setPriority(val as Priority)}
+                  className="w-6 h-6 rounded text-[10px] font-bold transition-all"
+                  style={{ background: priority === val ? color + '33' : '#0A0A0A', color: priority === val ? color : '#555', border: `1px solid ${priority === val ? color + '66' : '#2A2A2A'}` }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="relative flex gap-2">
+            <button type="button" onClick={() => { setShowDatePicker(p => !p); setShowDeadlinePicker(false); }}
+              className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] text-[#888] hover:border-[var(--accent)] transition-colors focus:outline-none">
+              {date ? `📅 ${format(new Date(date + 'T00:00:00'), 'MMM d')}` : '📅 Work date…'}
+            </button>
+            {showDatePicker && <DatePickerPopover value={date || null} onChange={d => { setDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />}
+            <button type="button" onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
+              className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] hover:border-[#ef4444] transition-colors focus:outline-none"
+              style={{ color: deadline ? '#ef4444' : '#555' }}>
+              {deadline ? `🚩 ${format(new Date(deadline + 'T00:00:00'), 'MMM d')}` : '🚩 Deadline…'}
+            </button>
+            {showDeadlinePicker && <DatePickerPopover value={deadline || null} onChange={d => { setDeadline(d ?? ''); setShowDeadlinePicker(false); }} onClose={() => setShowDeadlinePicker(false)} clearable />}
+          </div>
+        </div>
+      )}
+    </form>
   );
 }
 
