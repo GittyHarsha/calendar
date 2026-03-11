@@ -74,6 +74,156 @@ export function triggerTaskClick(colIndex: number, taskIndex: number): void {
   _columnTaskClickHandlers[colIndex]?.[taskIndex]?.();
 }
 
+/* ── Urgent Deadline Countdown Banner ─────────────────────────────── */
+
+type DeadlineItem = {
+  id: string;
+  name: string;
+  kind: 'task' | 'project';
+  daysUntil: number; // negative = overdue
+};
+
+function UrgentDeadlineBanner() {
+  const { projects, tasks } = useStore();
+  const today = startOfToday();
+  const [dismissedId, setDismissedId] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  const nearest = useMemo<DeadlineItem | null>(() => {
+    const candidates: DeadlineItem[] = [];
+
+    // Tasks with deadlines that are not completed
+    for (const t of tasks) {
+      if (t.completed || !t.deadline) continue;
+      const d = differenceInDays(parseISO(t.deadline), today);
+      if (d <= 7) candidates.push({ id: t.id, name: t.title, kind: 'task', daysUntil: d });
+    }
+
+    // Projects with deadlines
+    for (const p of projects) {
+      if (!p.deadline) continue;
+      const d = differenceInDays(parseISO(p.deadline), today);
+      if (d <= 7) candidates.push({ id: p.id, name: p.name, kind: 'project', daysUntil: d });
+    }
+
+    if (candidates.length === 0) return null;
+
+    // Most critical = smallest daysUntil (overdue first, then soonest)
+    candidates.sort((a, b) => a.daysUntil - b.daysUntil);
+    return candidates[0];
+  }, [tasks, projects, today]);
+
+  // Reset dismiss when the critical item changes
+  useEffect(() => {
+    if (nearest && nearest.id !== dismissedId) setVisible(true);
+  }, [nearest?.id]);
+
+  if (!nearest || dismissedId === nearest.id || !visible) return null;
+
+  const { daysUntil, name, kind } = nearest;
+  const label = kind === 'task' ? 'Task' : 'Project';
+
+  let icon: string;
+  let text: string;
+  let bg: string;
+
+  if (daysUntil < 0) {
+    icon = '🔴';
+    text = `${label}: ${name} overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''}`;
+    bg = 'linear-gradient(90deg, #dc2626 0%, #b91c1c 100%)';
+  } else if (daysUntil === 0) {
+    icon = '⏰';
+    text = `${label}: ${name} due TODAY`;
+    bg = 'linear-gradient(90deg, #ea580c 0%, #c2410c 100%)';
+  } else if (daysUntil <= 3) {
+    icon = '⚡';
+    text = `${label}: ${name} due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
+    bg = 'linear-gradient(90deg, #ca8a04 0%, #a16207 100%)';
+  } else {
+    icon = '⚡';
+    text = `${label}: ${name} due in ${daysUntil} days`;
+    bg = 'linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #1a1a1a) 0%, color-mix(in srgb, var(--accent) 50%, #1a1a1a) 100%)';
+  }
+
+  const handleClick = () => {
+    // Try to find and highlight the task/project element
+    const el =
+      document.querySelector(`[data-task-id="${nearest.id}"]`) as HTMLElement |
+      null ?? document.querySelector(`[data-project-id="${nearest.id}"]`) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      el.style.outline = '2px solid var(--accent)';
+      el.style.outlineOffset = '2px';
+      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 2000);
+    }
+  };
+
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedId(nearest.id);
+    setVisible(false);
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      style={{
+        height: 28,
+        background: bg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        cursor: 'pointer',
+        fontSize: 12,
+        fontWeight: 600,
+        color: '#fff',
+        letterSpacing: '0.02em',
+        position: 'relative',
+        flexShrink: 0,
+        animation: 'urgentBannerSlideDown 0.3s ease-out',
+        zIndex: 50,
+      }}
+    >
+      <span>{icon}</span>
+      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 'calc(100% - 60px)' }}>
+        {text}
+      </span>
+      <button
+        onClick={handleDismiss}
+        style={{
+          position: 'absolute',
+          right: 10,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'rgba(255,255,255,0.15)',
+          border: 'none',
+          borderRadius: 4,
+          color: '#fff',
+          cursor: 'pointer',
+          width: 18,
+          height: 18,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 11,
+          lineHeight: 1,
+          padding: 0,
+        }}
+        title="Dismiss"
+      >
+        ✕
+      </button>
+      <style>{`
+        @keyframes urgentBannerSlideDown {
+          from { transform: translateY(-100%); opacity: 0; }
+          to   { transform: translateY(0);     opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
   const [idx, setIdx] = useState(0);
   const [hovered, setHovered] = useState(false);
@@ -614,6 +764,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
   const projectsPanelRef = useRef<HTMLDivElement>(null);
   const inboxPanelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [navDirection, setNavDirection] = useState<'left' | 'right' | null>(null);
 
   // Auto-scroll to today's column on initial load
   useEffect(() => {
@@ -701,6 +852,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
   }
 
   const navigate = (dir: 1 | -1) => {
+    setNavDirection(dir > 0 ? 'right' : 'left');
     setBaseDate(prev => {
       if (viewMode === 'daily') return dir > 0 ? addDays(prev, currentLength) : subDays(prev, currentLength);
       if (viewMode === 'weekly') return dir > 0 ? addWeeks(prev, currentLength) : subWeeks(prev, currentLength);
@@ -711,6 +863,8 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
   return (
     <div className="flex flex-col h-full w-full" style={{ background: 'var(--bg-1)' }}>
+      {/* Urgent deadline countdown banner */}
+      <UrgentDeadlineBanner />
       {/* Toolbar */}
       <div className="h-10 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid color-mix(in srgb, var(--accent) 18%, var(--border-1))' }}>
         {/* Logo */}
@@ -1054,7 +1208,10 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
       {/* Timeline Scroll Container */}
       <div ref={scrollContainerRef} className="flex-1 overflow-x-auto flex relative min-h-0">
-        <div className="flex min-w-max h-full">
+        <div
+          className={cn('flex min-w-full h-full', navDirection === 'right' && 'nav-slide-right', navDirection === 'left' && 'nav-slide-left')}
+          onAnimationEnd={() => setNavDirection(null)}
+        >
           {columns.map((col, index) => (
             <TimeColumn 
               key={col.startDate.toISOString()} 
@@ -1380,13 +1537,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       ref={setColumnRefs}
       {...(isCurrent ? { 'data-today': '' } : undefined)}
       className={cn(
-        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative shrink-0",
+        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative",
         isOver && !isPastDeadline && "bg-[#1A1A1A]",
         isPastDeadline && "bg-[#ef4444]/10",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
       )}
       style={{
-        width: colWidth,
+        flex: `1 0 ${colWidth}px`,
         transition: 'opacity 0.3s, box-shadow 0.2s',
         ...(focusMode && !isCurrent ? { opacity: 0.2, pointerEvents: 'none' as const } : undefined),
         ...(isCurrent ? { borderLeft: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined),
