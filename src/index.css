@@ -92,6 +92,21 @@ body {
   animation: slide-down 0.2s ease;
 }
 
+@keyframes slide-in-right {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes slide-in-left {
+  from { transform: translateX(-20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.nav-slide-right {
+  animation: slide-in-right 200ms ease-out;
+}
+.nav-slide-left {
+  animation: slide-in-left 200ms ease-out;
+}
+
 @keyframes task-complete {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.35); }
@@ -134,6 +149,27 @@ body {
   animation: bounce-check 200ms ease-out;
 }
 
+/* ── Confetti burst celebration ── */
+@keyframes confetti-burst {
+  0%   { opacity: 1; transform: translate(-50%, -50%) rotate(0deg)   scale(1)   translate(0, 0); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) scale(1) translate(var(--distance), 0); }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) scale(0.4) translate(var(--distance), 6px); }
+}
+.confetti-burst {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+}
+.confetti-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  left: 0;
+  top: 0;
+  animation: confetti-burst 600ms ease-out forwards;
+}
+
 /* ── Focus-visible accessibility outlines ── */
 button:focus-visible,
 input:focus-visible,
@@ -153,8 +189,11 @@ textarea:focus-visible,
   .lost-pulse    { animation: none; }
   .animate-fade  { animation: none; opacity: 1; }
   .animate-slide-down { animation: none; opacity: 1; }
+  .nav-slide-right { animation: none; }
+  .nav-slide-left  { animation: none; }
   .animate-check { animation: none; }
   .bounce-check  { animation: none; }
+  .confetti-dot  { animation: none; opacity: 0; }
   *,
   *::before,
   *::after {

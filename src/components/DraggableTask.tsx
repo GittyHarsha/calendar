@@ -5,11 +5,12 @@ import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, TaskStatus, TaskLabel, useStore, fmtDuration, Subtask } from '../store';
 import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format, parseISO, startOfToday, differenceInDays, addDays, subDays } from 'date-fns';
+import { format, parseISO, startOfToday, differenceInDays, addDays, subDays, formatDistanceToNow } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
 import { DatePickerPopover } from './DatePickerPopover';
 import { exportTimeLogCSV } from '../utils/exportTimeLogs';
 import { useToast } from './Toast';
+import { ConfettiBurst } from './ConfettiBurst';
 
 let hoveredTaskId: string | null = null;
 export function getHoveredTaskId() { return hoveredTaskId; }
@@ -638,6 +639,25 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
             </div>
           );
         })()}
+
+        {/* Created age indicator */}
+        {(() => {
+          const creationDate = task.startedAt ?? task.date;
+          if (!creationDate) return null;
+          const parsed = parseISO(creationDate);
+          const isToday = differenceInDays(startOfToday(), parsed) === 0;
+          return (
+            <div style={{
+              textAlign: 'right',
+              fontSize: 10,
+              fontStyle: 'italic',
+              color: 'var(--text-2)',
+              paddingTop: 4,
+            }}>
+              {isToday ? 'Created today' : `Created ${formatDistanceToNow(parsed, { addSuffix: true })}`}
+            </div>
+          );
+        })()}
       </div>
 
       {editingStartDate && (
@@ -678,6 +698,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
   const [showNotes, setShowNotes] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
   const [completionNudge, setCompletionNudge] = useState<string | null>(null);
+  const [confettiBurst, setConfettiBurst] = useState<{ x: number; y: number } | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const timeBadgeRef = useRef<HTMLSpanElement>(null);
@@ -698,6 +719,11 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
     if (!wasCompleted) {
       setCheckAnim(true);
       setTimeout(() => setCheckAnim(false), 300);
+      // Confetti burst for High priority tasks
+      if ((task.priority ?? 'Low') === 'High' && cardRef.current) {
+        const rect = cardRef.current.getBoundingClientRect();
+        setConfettiBurst({ x: rect.left + 28, y: rect.top + rect.height / 2 });
+      }
       // Friction: if project has other incomplete tasks, nudge
       if (task.projectId) {
         const siblings = tasks.filter(t => t.projectId === task.projectId && !t.completed && t.id !== task.id);
@@ -1176,6 +1202,10 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           );
         })(),
         document.body
+      )}
+
+      {confettiBurst && (
+        <ConfettiBurst x={confettiBurst.x} y={confettiBurst.y} onDone={() => setConfettiBurst(null)} />
       )}
     </>
   );

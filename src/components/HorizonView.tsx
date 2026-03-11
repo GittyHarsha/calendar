@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore, fmtDuration, type Task, type Project } from '../store';
+import { ConfettiBurst } from './ConfettiBurst';
 import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears, getISOWeek, nextDay } from 'date-fns';
 
 type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -458,6 +459,17 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
   const [editing, setEditing] = useState(false);
   const [inputVal, setInputVal] = useState(String(dailyGoal));
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const [goalConfetti, setGoalConfetti] = useState<{ x: number; y: number } | null>(null);
+  const prevGoalMet = useRef(goalMet);
+
+  useEffect(() => {
+    if (goalMet && !prevGoalMet.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setGoalConfetti({ x: rect.left + rect.width / 2, y: rect.top });
+    }
+    prevGoalMet.current = goalMet;
+  }, [goalMet]);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -476,6 +488,7 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
 
   return (
     <span
+      ref={containerRef}
       className="flex items-center gap-1 cursor-pointer select-none"
       style={{ position: 'relative' }}
       onClick={() => { if (!editing) { setInputVal(String(dailyGoal)); setEditing(true); } }}
@@ -498,6 +511,9 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
         <span style={{ color: goalColor, fontSize: 10 }}>
           {doneCount}/{dailyGoal} ✓
         </span>
+      )}
+      {goalConfetti && (
+        <ConfettiBurst x={goalConfetti.x} y={goalConfetti.y} onDone={() => setGoalConfetti(null)} />
       )}
       {editing && (
         <span
