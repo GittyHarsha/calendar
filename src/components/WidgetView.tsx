@@ -341,11 +341,11 @@ export function WidgetView() {
   const inbox = active.filter(t => !t.date && !t.deadline && !overdueIds.has(t.id) && !dueTodayIds.has(t.id) && !workTodayIds.has(t.id)).slice(0, 3);
   const inboxMore = active.filter(t => !t.date && !t.deadline).length - inbox.length;
 
-  const doneToday = tasks.filter(t => t.completed && t.date === todayStr).length;
+  const doneToday = tasks.filter(t => t.completed && (t.completedAt === todayStr || (!t.completedAt && t.date === todayStr))).length;
 
   function complete(id: string) {
     setFading(s => new Set(s).add(id));
-    setTimeout(() => updateTask(id, { completed: true }), 260);
+    setTimeout(() => updateTask(id, { completed: true, completedAt: todayStr }), 260);
   }
 
   function handleQuickAddChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -457,7 +457,7 @@ export function WidgetView() {
 
       {!focusMode && showDone&& doneToday > 0 && (
         <div className="widget-scroll" style={{ borderBottom: '1px solid var(--border-1)', background: 'var(--bg-1)', padding: '4px 12px', maxHeight: 100, overflowY: 'auto', scrollbarWidth: 'none' }}>
-          {tasks.filter(t => t.completed && t.date === todayStr).map(t => (
+          {tasks.filter(t => t.completed && (t.completedAt === todayStr || (!t.completedAt && t.date === todayStr))).map(t => (
             <div key={t.id} style={{ fontSize: 11, color: 'var(--text-2)', textDecoration: 'line-through', padding: '2px 0' }}>{t.title}</div>
           ))}
         </div>

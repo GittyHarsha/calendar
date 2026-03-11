@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { format, parseISO, addDays, subDays } from 'date-fns';
-import { ChevronLeft, ChevronRight, GitCompare, X, Search, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GitCompare, X, Search, BookOpen, Maximize2, Minimize2 } from 'lucide-react';
 import { useStore, JournalEntry } from '../store';
 
 // ─── Simple line-based diff ───────────────────────────────────────────────────
@@ -63,83 +64,100 @@ function fmtNavDate(dateStr: string): string {
 }
 
 // ─── Task / project report for a date ────────────────────────────────────────
-function DailyReport({ dateStr, tasks, projects }: {
+function fmtMs(ms: number): string {
+  if (ms <= 0) return '—';
+  const m = Math.round(ms / 60000);
+  if (m < 1) return '<1m';
+  if (m < 60) return `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60 > 0 ? `${m % 60}m` : ''}`.trim();
+}
+
+function DailyReport({ dateStr, tasks, projects, timeEntries }: {
   dateStr: string;
   tasks: ReturnType<typeof useStore>['tasks'];
   projects: ReturnType<typeof useStore>['projects'];
+  timeEntries: ReturnType<typeof useStore>['timeEntries'];
 }) {
-  const completed = tasks.filter(t => t.completedAt === dateStr);
-  const pendingCount = tasks.filter(t => t.date != null && t.date <= dateStr && !t.completed).length;
+  // Tasks scheduled for this specific day
+  const scheduled = tasks.filter(t => t.date === dateStr);
 
-  // project completion snapshot for this date
-  const projStats = projects
-    .filter(p => !p.parentId)
-    .map(p => {
-      const pTasks = tasks.filter(t => t.projectId === p.id);
-      const donePTasks = pTasks.filter(t => t.completed);
-      return { ...p, total: pTasks.length, done: donePTasks.length };
-    })
-    .filter(p => p.total > 0);
+  // Time entries logged on this day
+  const dayEntries = timeEntries.filter(e => e.startedAt.slice(0, 10) === dateStr);
+  const timeForTask = (id: string) => dayEntries.filter(e => e.taskId === id).reduce((s, e) => s + e.duration, 0);
+
+  // Tasks completed today but not scheduled today (ad-hoc wins)
+  const adHocDone = tasks.filter(t => t.completedAt === dateStr && t.date !== dateStr);
 
   return (
     <div className="flex flex-col gap-4 mt-1">
-      {/* Completed today */}
-      {completed.length > 0 && (
+      {/* Scheduled tasks */}
+      {scheduled.length > 0 ? (
+        <section>
+          <h4 style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 8 }}>
+            Tasks · {scheduled.length} scheduled
+          </h4>
+          <div className="flex flex-col" style={{ gap: 6 }}>
+            {scheduled.map(t => {
+              const proj = projects.find(p => p.id === t.projectId);
+              const ms = timeForTask(t.id);
+              return (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  {/* Status */}
+                  <span style={{
+                    fontSize: 13, flexShrink: 0, width: 14, textAlign: 'center',
+                    color: t.completed ? '#4ade80' : 'var(--text-2)',
+                  }}>
+                    {t.completed ? '✓' : '○'}
+                  </span>
+                  {/* Project dot */}
+                  {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0, display: 'inline-block' }} />}
+                  {/* Title */}
+                  <span style={{
+                    flex: 1, color: t.completed ? 'var(--text-2)' : 'var(--text-1)',
+                    textDecoration: t.completed ? 'line-through' : 'none',
+                    opacity: t.completed ? 0.6 : 1,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {t.title}
+                  </span>
+                  {/* Time spent */}
+                  <span style={{ fontSize: 11, fontFamily: 'Consolas, monospace', color: ms > 0 ? 'var(--accent)' : '#444', flexShrink: 0 }}>
+                    {fmtMs(ms)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : (
+        <p style={{ fontSize: 12, color: '#444', fontStyle: 'italic' }}>No tasks scheduled for this day.</p>
+      )}
+
+      {/* Ad-hoc completed (not scheduled today) */}
+      {adHocDone.length > 0 && (
         <section>
           <h4 style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4ade80', marginBottom: 6 }}>
-            ✓ Completed · {completed.length}
+            Also completed · {adHocDone.length}
           </h4>
-          <div className="flex flex-col gap-1">
-            {completed.map(t => {
+          <div className="flex flex-col" style={{ gap: 5 }}>
+            {adHocDone.map(t => {
               const proj = projects.find(p => p.id === t.projectId);
+              const ms = timeForTask(t.id);
               return (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-2)' }}>
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <span style={{ color: '#4ade80', flexShrink: 0, width: 14, textAlign: 'center' }}>✓</span>
                   {proj && <span style={{ width: 6, height: 6, borderRadius: '50%', background: proj.color, flexShrink: 0, display: 'inline-block' }} />}
-                  <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{t.title}</span>
-                  {proj && <span style={{ fontSize: 10, color: proj.color, opacity: 0.8 }}>{proj.name}</span>}
+                  <span style={{ flex: 1, color: 'var(--text-2)', textDecoration: 'line-through', opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {t.title}
+                  </span>
+                  <span style={{ fontSize: 11, fontFamily: 'Consolas, monospace', color: ms > 0 ? 'var(--accent)' : '#444', flexShrink: 0 }}>
+                    {fmtMs(ms)}
+                  </span>
                 </div>
               );
             })}
           </div>
         </section>
-      )}
-
-      {/* Incomplete tasks count */}
-      {pendingCount > 0 && (
-        <section>
-          <h4 style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 0 }}>
-            ○ Incomplete · {pendingCount}
-          </h4>
-        </section>
-      )}
-
-      {/* Projects */}
-      {projStats.length > 0 && (
-        <section>
-          <h4 style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 6 }}>
-            Projects
-          </h4>
-          <div className="flex flex-col gap-2">
-            {projStats.map(p => {
-              const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-              return (
-                <div key={p.id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
-                    <span style={{ color: p.color, fontWeight: 600 }}>{p.name}</span>
-                    <span style={{ color: 'var(--text-2)', fontFamily: 'monospace' }}>{p.done}/{p.total} · {pct}%</span>
-                  </div>
-                  <div style={{ height: 3, background: 'var(--border-1)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: p.color, borderRadius: 2, transition: 'width 0.3s' }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {completed.length === 0 && pendingCount === 0 && (
-        <p style={{ fontSize: 12, color: '#444', fontStyle: 'italic' }}>No tasks for this day.</p>
       )}
     </div>
   );
@@ -284,13 +302,14 @@ function DiffView({ prevEntry, currEntry, prevDate, currDate, tasks, projects }:
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 export function JournalPanel({ onClose }: { onClose: () => void }) {
-  const { tasks, projects, journalEntries, setJournalEntry } = useStore();
+  const { tasks, projects, journalEntries, timeEntries, setJournalEntry } = useStore();
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const [dateStr, setDateStr] = useState(todayStr);
   const [showDiff, setShowDiff] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPrompts, setShowPrompts] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [draftText, setDraftText] = useState('');
   const [draftWins, setDraftWins] = useState('');
   const [draftBlockers, setDraftBlockers] = useState('');
@@ -320,6 +339,14 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
     if (showSearch) searchInputRef.current?.focus();
   }, [showSearch]);
 
+  // Escape to exit maximize
+  useEffect(() => {
+    if (!isMaximized) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsMaximized(false); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isMaximized]);
+
   // Search results
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -328,6 +355,16 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
       .filter(e => [e.text, e.wins, e.blockers, e.tomorrow].join(' ').toLowerCase().includes(q))
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [journalEntries, searchQuery]);
+
+  const writingStreak = useMemo(() => {
+    let streak = 0;
+    for (let i = 0; ; i++) {
+      const d = format(subDays(new Date(), i), 'yyyy-MM-dd');
+      if (journalEntries[d]?.text?.trim()) streak++;
+      else break;
+    }
+    return streak;
+  }, [journalEntries]);
 
   const saveText = useCallback((text: string) => {
     setJournalEntry(dateStr, { text });
@@ -369,11 +406,14 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
 
   const isFuture = dateStr > todayStr;
 
-  return (
+  const panel = (
     <div
       data-no-inbox-close
       className="flex flex-col"
-      style={{ background: 'var(--bg-0)', maxHeight: '78vh', minWidth: 420, width: 480 }}
+      style={isMaximized
+        ? { position: 'fixed', inset: 0, zIndex: 50, background: 'var(--bg-0)', width: '100%', height: '100%' }
+        : { background: 'var(--bg-0)', maxHeight: '78vh', minWidth: 420, width: 480 }
+      }
     >
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px', borderBottom: '1px solid var(--border-1)', flexShrink: 0 }}>
@@ -400,6 +440,11 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
               style={{ fontSize: 10, fontFamily: 'Consolas, monospace', background: 'none', border: '1px solid #333', color: '#888', borderRadius: 4, padding: '1px 6px', cursor: 'pointer' }}>
               today
             </button>
+          )}
+          {writingStreak >= 1 && (
+            <span style={{ fontSize: 10, fontFamily: 'Consolas, monospace', color: '#4ade80' }}>
+              ✍ {writingStreak}d
+            </span>
           )}
         </div>
 
@@ -442,6 +487,12 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
             }}>
             <GitCompare size={11} />
             Diff
+          </button>
+          <button
+            onClick={() => setIsMaximized(m => !m)}
+            title={isMaximized ? 'Minimize (Esc)' : 'Maximize'}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, borderRadius: 4 }}>
+            {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
           <button onClick={onClose}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, borderRadius: 4 }}>
@@ -559,7 +610,7 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                   placeholder={isFuture ? 'You cannot journal future dates.' : showPrompts ? 'Free notes…' : "What's on your mind today?"}
                   disabled={isFuture}
                   style={{
-                    width: '100%', minHeight: showPrompts ? 100 : 160, background: 'var(--bg-1)', border: '1px solid var(--border-1)',
+                    width: '100%', minHeight: showPrompts ? 100 : isMaximized ? 300 : 160, background: 'var(--bg-1)', border: '1px solid var(--border-1)',
                     borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text-1)',
                     fontFamily: 'inherit', resize: 'vertical', outline: 'none', lineHeight: 1.6,
                     boxSizing: 'border-box', opacity: isFuture ? 0.4 : 1,
@@ -578,7 +629,7 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                 <h3 style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', margin: 0 }}>
                   Activity Report · {fmtNavDate(dateStr)}
                 </h3>
-                <DailyReport dateStr={dateStr} tasks={tasks} projects={projects} />
+                <DailyReport dateStr={dateStr} tasks={tasks} projects={projects} timeEntries={timeEntries} />
               </>
             )}
           </>
@@ -586,4 +637,6 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+
+  return isMaximized ? ReactDOM.createPortal(panel, document.body) : panel;
 }

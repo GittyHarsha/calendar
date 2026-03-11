@@ -119,6 +119,8 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [error, setError] = useState(false);
+  const dateButtonRef = useRef<HTMLButtonElement>(null);
+  const deadlineButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,17 +181,17 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
             </div>
           </div>
           <div className="relative flex gap-2">
-            <button type="button" onClick={() => { setShowDatePicker(p => !p); setShowDeadlinePicker(false); }}
+            <button type="button" ref={dateButtonRef} onClick={() => { setShowDatePicker(p => !p); setShowDeadlinePicker(false); }}
               className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] text-[#888] hover:border-[var(--accent)] transition-colors focus:outline-none">
               {date ? `📅 ${format(new Date(date + 'T00:00:00'), 'MMM d')}` : '📅 Work date…'}
             </button>
-            {showDatePicker && <DatePickerPopover value={date || null} onChange={d => { setDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable />}
-            <button type="button" onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
+            {showDatePicker && <DatePickerPopover value={date || null} onChange={d => { setDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable anchorRef={dateButtonRef} />}
+            <button type="button" ref={deadlineButtonRef} onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
               className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] hover:border-[#ef4444] transition-colors focus:outline-none"
               style={{ color: deadline ? '#ef4444' : '#555' }}>
               {deadline ? `🚩 ${format(new Date(deadline + 'T00:00:00'), 'MMM d')}` : '🚩 Deadline…'}
             </button>
-            {showDeadlinePicker && <DatePickerPopover value={deadline || null} onChange={d => { setDeadline(d ?? ''); setShowDeadlinePicker(false); }} onClose={() => setShowDeadlinePicker(false)} clearable />}
+            {showDeadlinePicker && <DatePickerPopover value={deadline || null} onChange={d => { setDeadline(d ?? ''); setShowDeadlinePicker(false); }} onClose={() => setShowDeadlinePicker(false)} clearable anchorRef={deadlineButtonRef} />}
           </div>
         </div>
       )}
@@ -238,7 +240,7 @@ function TaskRow({ task, onToday, onTomorrow, projects, updateTask }: {
       <div className="group flex items-center gap-2 px-4 py-1.5 hover:bg-[#111] transition-colors">
         {/* Complete button */}
         <button
-          onClick={() => updateTask(task.id, { completed: true })}
+          onClick={() => updateTask(task.id, { completed: true, completedAt: format(today, 'yyyy-MM-dd') })}
           title="Mark complete"
           className="shrink-0 w-3.5 h-3.5 rounded-full border border-[#444] hover:border-[var(--accent)] transition-colors"
         />

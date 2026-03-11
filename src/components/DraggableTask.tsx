@@ -1,14 +1,18 @@
-import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, TaskStatus, useStore, fmtDuration, Subtask } from '../store';
 import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format, parseISO, startOfToday, differenceInDays, addDays } from 'date-fns';
+import { format, parseISO, startOfToday, differenceInDays, addDays, subDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
 import { DatePickerPopover } from './DatePickerPopover';
 import { exportTimeLogCSV } from '../utils/exportTimeLogs';
+import { useToast } from './Toast';
+
+let hoveredTaskId: string | null = null;
+export function getHoveredTaskId() { return hoveredTaskId; }
 
 const PRIORITY_NEXT: Record<Priority, Priority> = { High: 'Medium', Medium: 'Low', Low: 'High' };
 const PRIORITY_BORDER: Record<Priority, string> = {
@@ -26,12 +30,111 @@ const PRIORITY_COLOR: Record<Priority, string> = { High: '#ef4444', Medium: '#ea
 
 function deadlineAccent(days: number | null) {
   if (days === null) return null;
-  if (days < 0)  return { color: '#ef4444', label: `${Math.abs(days)}d overdue` };
-  if (days === 0) return { color: '#F27D26', label: 'due today' };
-  if (days === 1) return { color: '#F27D26', label: 'due tmrw' };
-  if (days <= 7)  return { color: '#f97316', label: `due in ${days}d` };
-  if (days <= 14) return { color: '#eab308', label: `due in ${days}d` };
-  return { color: '#555', label: `due in ${days}d` };
+  if (days < 0)  return { color: '#ef4444', label: `${Math.abs(days)}d overdue`, bold: false };
+  if (days === 0) return { color: '#f97316', label: 'Due today', bold: true };
+  if (days === 1) return { color: '#eab308', label: 'Due tomorrow', bold: false };
+  if (days <= 7)  return { color: 'var(--text-1, #C8C7C4)', label: `Due ${format(addDays(startOfToday(), days), 'EEE')}`, bold: false };
+  return { color: 'var(--text-2, #888)', label: `in ${days}d`, bold: false };
+}
+
+function formatEstimate(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  return `${mins / 60}h`;
+}
+
+const TIME_PRESETS = [
+  { label: '15m', value: 15 },
+  { label: '30m', value: 30 },
+  { label: '45m', value: 45 },
+  { label: '1h', value: 60 },
+  { label: '1.5h', value: 90 },
+  { label: '2h', value: 120 },
+  { label: '3h', value: 180 },
+  { label: '4h', value: 240 },
+];
+
+function TimeEstimatePicker({ anchorRef, value, onChange, onClose }: {
+  anchorRef: React.RefObject<HTMLElement | null>;
+  value: number | null | undefined;
+  onChange: (minutes: number | null) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (!anchorRef.current || !ref.current) return;
+    const anchor = anchorRef.current.getBoundingClientRect();
+    const menu = ref.current.getBoundingClientRect();
+    let top = anchor.bottom + 4;
+    let left = anchor.left;
+    if (top + menu.height > window.innerHeight - 8) top = anchor.top - menu.height - 4;
+    if (left + menu.width > window.innerWidth - 8) left = window.innerWidth - menu.width - 8;
+    if (left < 8) left = 8;
+    setPos({ top, left });
+  }, [anchorRef]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    const keyHandler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
+  }, [onClose]);
+
+  return ReactDOM.createPortal(
+    <div ref={ref} style={{
+      position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999,
+      background: 'var(--bg-1)', border: '1px solid var(--border-1)',
+      borderRadius: 8, padding: 4,
+      boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+      display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2,
+    }}>
+      {TIME_PRESETS.map(opt => (
+        <button key={opt.value}
+          onClick={(e) => { e.stopPropagation(); onChange(opt.value); onClose(); }}
+          className="transition-colors"
+          style={{
+            padding: '4px 6px', fontSize: 10, fontFamily: 'var(--font-mono, monospace)',
+            color: value === opt.value ? 'var(--accent)' : 'var(--text-2)',
+            background: value === opt.value ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent',
+            border: 'none', borderRadius: 4, cursor: 'pointer', textAlign: 'center',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget).style.background = 'var(--bg-2)';
+            (e.currentTarget).style.color = 'var(--text-1)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget).style.background = value === opt.value ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'transparent';
+            (e.currentTarget).style.color = value === opt.value ? 'var(--accent)' : 'var(--text-2)';
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+      {value != null && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onChange(null); onClose(); }}
+          className="transition-colors"
+          style={{
+            padding: '4px 6px', fontSize: 10, color: 'var(--text-2)',
+            background: 'transparent', border: 'none', borderRadius: 4,
+            cursor: 'pointer', textAlign: 'center', gridColumn: '1 / -1',
+          }}
+          onMouseEnter={e => { (e.currentTarget).style.background = 'var(--bg-2)'; (e.currentTarget).style.color = 'var(--text-1)'; }}
+          onMouseLeave={e => { (e.currentTarget).style.background = 'transparent'; (e.currentTarget).style.color = 'var(--text-2)'; }}
+        >
+          Clear
+        </button>
+      )}
+    </div>,
+    document.body
+  );
 }
 
 export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter, onMouseLeave }: {
@@ -43,6 +146,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
   onMouseLeave: () => void;
 }) {
   const { projects, tasks, timeEntries, updateTask, updateRecurringTask, deleteTask, startPomodoro, getTaskTime, pomodoro, addSubtask, updateSubtask, deleteSubtask } = useStore();
+  const { showToast } = useToast();
   const [editingDate, setEditingDate] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [editingStartDate, setEditingStartDate] = useState(false);
@@ -118,7 +222,16 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
           <div className="text-sm font-semibold text-white leading-snug flex-1 min-w-0 truncate">{task.title}</div>
           {confirmDelete ? (
             <span className="flex items-center gap-1 text-xs shrink-0">
-              <button onClick={() => { deleteTask(task.id); onClose(); }} className="px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-bold transition-colors">Yes</button>
+              <button onClick={() => {
+                const deletedTask = { ...task };
+                deleteTask(task.id);
+                onClose();
+                showToast('Task deleted', () => {
+                  useStore.setState((state) => ({
+                    tasks: [...state.tasks, deletedTask],
+                  }));
+                });
+              }} className="px-2 py-0.5 rounded border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-bold transition-colors">Yes</button>
               <button onClick={() => setConfirmDelete(false)} className="px-2 py-0.5 rounded border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:text-white transition-colors">No</button>
             </span>
           ) : (
@@ -194,7 +307,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs" style={{ color: dl ? dl.color : '#666' }}>
             <Flag size={13} />
-            <span>{dl ? dl.label : 'Deadline'}</span>
+            <span style={dl?.bold ? { fontWeight: 700 } : undefined}>{dl ? dl.label : 'Deadline'}</span>
             {(task.deadlineHistory?.length ?? 0) > 0 && (
               <span className="text-[13px] font-bold px-1 py-0.5 rounded"
                 title={`Shifted ${task.deadlineHistory.length}× (was: ${task.deadlineHistory.map(d => format(parseISO(d), 'MMM d')).join(' → ')})`}
@@ -492,8 +605,9 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
   );
 }
 
-export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task; showDate?: boolean }) {
+export function DraggableTask({ task, showDate, isFocused = false, isSelected = false, onToggleSelect, isSuggested = false }: { key?: React.Key; task: Task; showDate?: boolean; isFocused?: boolean; isSelected?: boolean; onToggleSelect?: (taskId: string) => void; isSuggested?: boolean }) {
   const { projects, tasks, updateTask, setHoveredProjectId, getTaskTime, pomodoro } = useStore();
+  const { showToast } = useToast();
   const project = projects.find(p => p.id === task.projectId);
   const parentProject = project?.parentId ? projects.find(p => p.id === project.parentId) : null;
   const projectLabel = parentProject ? `${parentProject.name} › ${project!.name}` : project?.name;
@@ -507,8 +621,12 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   const [showNotes, setShowNotes] = useState(false);
   const [checkAnim, setCheckAnim] = useState(false);
   const [completionNudge, setCompletionNudge] = useState<string | null>(null);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const timeBadgeRef = useRef<HTMLSpanElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showNotesTooltip, setShowNotesTooltip] = useState(false);
+  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleClose = () => {
     closeTimer.current = setTimeout(() => setShowPopup(false), 80);
@@ -518,7 +636,9 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   };
 
   const handleToggleComplete = () => {
-    if (!task.completed) {
+    const wasCompleted = task.completed;
+    const prevCompletedAt = task.completedAt;
+    if (!wasCompleted) {
       setCheckAnim(true);
       setTimeout(() => setCheckAnim(false), 300);
       // Friction: if project has other incomplete tasks, nudge
@@ -531,7 +651,11 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
         }
       }
     }
-    updateTask(task.id, { completed: !task.completed });
+    updateTask(task.id, { completed: !wasCompleted, completedAt: !wasCompleted ? format(startOfToday(), 'yyyy-MM-dd') : null });
+    showToast(
+      wasCompleted ? 'Task uncompleted' : 'Task completed',
+      () => updateTask(task.id, { completed: wasCompleted, completedAt: prevCompletedAt ?? null }),
+    );
   };
 
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({ id: task.id, data: { date: task.date } });
@@ -540,6 +664,38 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
   const today = startOfToday();
   const deadlineDays = task.deadline ? differenceInDays(parseISO(task.deadline), today) : null;
   const dl = deadlineAccent(deadlineDays);
+  const isOverdue = !task.completed && deadlineDays !== null && deadlineDays < 0;
+  const daysStale = !task.completed && task.date ? differenceInDays(startOfToday(), parseISO(task.date)) : 0;
+
+  // Dependency status: count completed vs total dependencies
+  const depStatus = useMemo(() => {
+    if (!task.dependencies?.length) return null;
+    const total = task.dependencies.length;
+    const done = task.dependencies.filter(depId => {
+      const dep = tasks.find(t => t.id === depId);
+      return dep?.completed;
+    }).length;
+    return { done, total, allMet: done === total };
+  }, [task.dependencies, tasks]);
+
+  // Streak: count consecutive days (ending at task's date or today) with a same-title completed task
+  const streak = useMemo(() => {
+    if (task.completed) return 0;
+    const anchor = task.date ? parseISO(task.date) : today;
+    const titleLower = task.title.toLowerCase();
+    const completedDates = new Set(
+      tasks
+        .filter(t => t.completed && t.date && t.title.toLowerCase() === titleLower)
+        .map(t => t.date!)
+    );
+    let count = 0;
+    for (let i = 0; i < 365; i++) {
+      const d = format(subDays(anchor, i), 'yyyy-MM-dd');
+      if (completedDates.has(d)) count++;
+      else break;
+    }
+    return count;
+  }, [task.completed, task.title, task.date, tasks]);
 
   const saveTitle = () => {
     if (titleVal.trim()) updateTask(task.id, { title: titleVal.trim() });
@@ -547,33 +703,86 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
     setEditingTitle(false);
   };
 
+  // Priority left-border glow (overdue pulse animation handles its own border)
+  const priorityGlowStyle: React.CSSProperties = isOverdue ? {} :
+    !task.completed && priority === 'High' ? { borderLeft: '3px solid #ef4444' } :
+    !task.completed && priority === 'Medium' ? { borderLeft: '3px solid #F27D26' } :
+    {};
+  const highGlowShadow = !task.completed && priority === 'High' ? 'inset 3px 0 8px -3px rgba(239,68,68,0.3), ' : '';
+
   // Combined ref: dnd + card
   const setRefs = (el: HTMLDivElement | null) => {
     (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
     setNodeRef(el);
   };
 
+  // Auto-scroll focused task into view
+  useEffect(() => {
+    if (isFocused && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isFocused]);
+
   return (
     <>
       <div
         ref={setRefs}
-        onMouseEnter={() => { cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true); }}
-        onMouseLeave={() => { setHoveredProjectId(null); scheduleClose(); }}
+        data-task-id={task.id}
+        onClick={(e) => {
+          if (e.shiftKey && onToggleSelect) {
+            e.stopPropagation();
+            onToggleSelect(task.id);
+            return;
+          }
+          setShowPopup(prev => !prev);
+        }}
+        onMouseEnter={() => {
+          hoveredTaskId = task.id; cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true);
+          if (task.description) {
+            tooltipTimer.current = setTimeout(() => setShowNotesTooltip(true), 500);
+          }
+        }}
+        onMouseLeave={() => {
+          hoveredTaskId = null; setHoveredProjectId(null); scheduleClose();
+          if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
+          setShowNotesTooltip(false);
+        }}
         className={cn(
-          'relative group flex flex-col border border-[#222] border-l-2 rounded transition-all overflow-hidden cursor-grab',
+          'relative group flex flex-col border border-l-2 rounded transition-all overflow-hidden cursor-grab',
           'hover:-translate-y-px',
-          task.completed ? 'border-l-[#333]' : PRIORITY_BORDER[priority],
+          isSelected ? 'border-[color:var(--accent)]' : 'border-[#222]',
+          task.completed ? 'border-l-[#333]' : isOverdue ? '' : PRIORITY_BORDER[priority],
+          isOverdue && 'overdue-pulse',
           isDragging ? 'opacity-40 scale-[0.98]' : '',
           task.completed && 'opacity-40'
         )}
         style={{
-          background: task.completed ? '#141414' : PRIORITY_BG[priority] || '#141414',
-          ...(showPopup && !isDragging ? { boxShadow: '0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)' } : { boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }),
+          background: isSuggested
+            ? 'color-mix(in srgb, var(--accent) 6%, ' + (PRIORITY_BG[priority] || '#141414') + ')'
+            : isSelected
+            ? 'color-mix(in srgb, var(--accent) 8%, ' + (task.completed ? '#141414' : (PRIORITY_BG[priority] || '#141414')) + ')'
+            : task.completed ? '#141414' : PRIORITY_BG[priority] || '#141414',
+          ...(isSelected
+            ? { boxShadow: `${highGlowShadow}0 0 0 2px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 20%, transparent)` }
+            : isFocused ? { boxShadow: `${highGlowShadow}0 0 0 2px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 15%, transparent)` }
+            : isSuggested ? { boxShadow: `${highGlowShadow}0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 2px 12px color-mix(in srgb, var(--accent) 10%, transparent)` }
+            : showPopup && !isDragging ? { boxShadow: `${highGlowShadow}0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)` } : { boxShadow: `${highGlowShadow}0 1px 3px rgba(0,0,0,0.3)` }),
           transform: CSS.Transform.toString(transform),
           transition,
+          ...(daysStale >= 3 ? { filter: `saturate(${Math.max(0.3, 1 - daysStale * 0.05)})` } : {}),
+          ...priorityGlowStyle,
         }}
       >
         <div className={cn('flex items-center gap-2 px-2', task.completed ? 'py-0.5' : 'py-1.5')}>
+          {/* Selection checkbox indicator */}
+          {isSelected && (
+            <div className="shrink-0 w-3.5 h-3.5 rounded flex items-center justify-center -ml-0.5"
+              style={{ background: 'var(--accent)' }}>
+              <svg width={10} height={10} viewBox="0 0 10 10" fill="none">
+                <path d="M2 5.5L4 7.5L8 3" stroke="#000" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          )}
           <div {...attributes} {...listeners}
             className="opacity-30 group-hover:opacity-60 cursor-grab text-[#888] shrink-0 -ml-1">
             <GripVertical size={13} />
@@ -601,14 +810,70 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
           {/* Title */}
           {editingTitle ? (
             <input autoFocus value={titleVal} onChange={e => setTitleVal(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
               onBlur={saveTitle}
               onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleVal(task.title); setEditingTitle(false); } }}
-              className="flex-1 text-sm text-white bg-transparent border-b focus:outline-none" style={{ borderColor: 'var(--accent)' }} />
+              className="flex-1 text-sm bg-transparent border-none focus:outline-none"
+              style={{ color: task.completed ? '#555' : '#C8C7C4' }} />
           ) : (
-            <span onClick={() => setEditingTitle(true)}
-              className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate transition-colors',
-                task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
-              )} title={task.title}>{task.title}</span>
+            <>
+              {isSuggested && (
+                <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded"
+                  style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent)' }}
+                  title="Suggested next task">⚡Next</span>
+              )}
+              <span onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); setTitleVal(task.title); }}
+                className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate transition-colors',
+                  task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
+                )} title={task.title}>{task.title}</span>
+            </>
+          )}
+
+          {/* Streak badge */}
+          {streak >= 2 && !task.completed && (
+            <span className="text-[9px] font-semibold shrink-0 px-1 py-0.5 rounded"
+              style={{ background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>
+              🔥{streak}
+            </span>
+          )}
+
+          {/* Notes indicator */}
+          {task.description && (
+            <span className="text-[9px] shrink-0 opacity-40 group-hover:opacity-60 transition-opacity">📝</span>
+          )}
+
+          {/* Time estimate badge */}
+          {!task.completed && (
+            <span
+              ref={timeBadgeRef}
+              onClick={(e) => { e.stopPropagation(); setShowTimePicker(prev => !prev); }}
+              className="text-[9px] font-mono shrink-0 px-1 py-0.5 rounded cursor-pointer transition-colors hover:opacity-100"
+              style={{
+                background: task.estimatedMinutes ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'rgba(136,136,136,0.08)',
+                color: task.estimatedMinutes ? 'var(--accent)' : '#555',
+                opacity: task.estimatedMinutes ? 1 : 0.6,
+              }}
+              title={task.estimatedMinutes ? `Estimated: ${formatEstimate(task.estimatedMinutes)}` : 'Set time estimate'}
+            >
+              {task.estimatedMinutes ? formatEstimate(task.estimatedMinutes) : '⏱'}
+            </span>
+          )}
+
+          {/* Dependency badge */}
+          {depStatus && !task.completed && (
+            <span
+              className="text-[9px] font-semibold shrink-0 px-1 py-0.5 rounded"
+              style={{
+                background: depStatus.allMet ? 'rgba(34,197,94,0.12)' : 'rgba(249,115,22,0.12)',
+                color: depStatus.allMet ? '#22c55e' : '#f97316',
+              }}
+              title={depStatus.allMet
+                ? `All ${depStatus.total} dependencies completed`
+                : `${depStatus.done} of ${depStatus.total} dependencies completed`}
+            >
+              {depStatus.allMet ? '🔗 ✓' : `🔗 ${depStatus.done}/${depStatus.total}`}
+            </span>
           )}
 
           {/* Badges — only show the 2 most important inline; rest in popup */}
@@ -622,6 +887,11 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
               </span>
             );
           })()}
+          {daysStale >= 3 && (
+            <span className="text-[10px] font-mono shrink-0 px-1 py-0.5 rounded" style={{ color: '#ef4444', opacity: 0.6, background: '#ef444415' }}>
+              {daysStale}d stale
+            </span>
+          )}
           {task.taskStatus === 'blocked' && (
             <span className="text-[10px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ background: '#ef444420', color: '#ef4444' }}>🔒</span>
           )}
@@ -632,7 +902,7 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: 'var(--accent)' }}>▶</span>
           )}
           {dl && (
-            <span className="text-[12px] font-mono shrink-0" style={{ color: dl.color }}>
+            <span className="text-[10px] font-mono shrink-0" style={{ color: dl.color, fontWeight: dl.bold ? 700 : undefined }}>
               <Flag size={9} className="inline mr-0.5" style={{ color: dl.color }} />{dl.label}
             </span>
           )}
@@ -642,26 +912,27 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             </span>
           )}
 
-          {/* Snooze to tomorrow — shown on hover for today's/past work-date tasks */}
-          {!task.completed && task.date && task.date <= format(today, 'yyyy-MM-dd') && (
-            <button
-              onClick={e => { e.stopPropagation(); updateTask(task.id, { date: format(addDays(today, 1), 'yyyy-MM-dd') }); }}
-              title="Move work date to tomorrow"
-              className="hidden group-hover:inline-flex shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#2A2A2A] bg-[#111] text-[#555] hover:text-[#aaa] hover:border-[#3A3A3A] transition-colors"
-            >
-              →tmrw
-            </button>
-          )}
         </div>
-        {/* Subtask progress badge on card */}
+        {/* Subtask progress ring on card */}
         {(task.subtasks?.length ?? 0) > 0 && !task.completed && (() => {
           const total = task.subtasks!.length;
           const done = task.subtasks!.filter(s => s.done).length;
+          const pct = done / total;
+          const r = 5;
+          const C = 2 * Math.PI * r;
           return (
-            <div className="px-2 pb-1" style={{ marginTop: -4 }}>
-              <span className="text-[11px] font-mono" style={{ color: '#555', fontFamily: 'Consolas, monospace' }}>
-                ◻ {done}/{total}
-              </span>
+            <div className="px-2 pb-1 flex items-center gap-1" style={{ marginTop: -4 }}>
+              <svg width={14} height={14} style={{ flexShrink: 0 }}>
+                <circle cx={7} cy={7} r={r} fill="none" stroke="#555" strokeWidth={2} />
+                <circle cx={7} cy={7} r={r} fill="none"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  strokeDasharray={C}
+                  strokeDashoffset={C * (1 - pct)}
+                  strokeLinecap="round"
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: '7px 7px' }} />
+              </svg>
+              <span className="text-[9px] font-mono text-[#555]">{done}/{total}</span>
             </div>
           );
         })()}
@@ -671,6 +942,41 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
             <span className="text-[11px] font-mono" style={{ color: '#555' }}>↻ {task.recurrence}</span>
           </div>
         )}
+        {/* Snooze to tomorrow — absolute button on hover for incomplete tasks */}
+        {!task.completed && (
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              const prevDate = task.date;
+              updateTask(task.id, { date: format(addDays(new Date(), 1), 'yyyy-MM-dd') });
+              showToast('Snoozed to tomorrow', () => updateTask(task.id, { date: prevDate }));
+            }}
+            title="Snooze to tomorrow"
+            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-mono px-1 py-0.5 rounded text-[#555] hover:text-[#ccc] hover:bg-[#2A2A2A] cursor-pointer z-10"
+          >
+            »
+          </button>
+        )}
+        {/* Deadline progress bar */}
+        {task.deadline && !task.completed && (() => {
+          const totalDays = differenceInDays(parseISO(task.deadline), parseISO(task.startedAt || task.date || task.deadline));
+          const daysLeft = differenceInDays(parseISO(task.deadline), startOfToday());
+          const pct = Math.max(0, Math.min(1, daysLeft / Math.max(1, totalDays)));
+          const color = pct > 0.5 ? '#3B82F6' : pct > 0.2 ? '#eab308' : pct > 0 ? '#F27D26' : '#ef4444';
+          return (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                width: `${pct * 100}%`,
+                height: 2,
+                borderRadius: 9999,
+                backgroundColor: color,
+              }}
+            />
+          );
+        })()}
       </div>
 
       {showPopup && !isDragging && !editingTitle && (
@@ -681,12 +987,63 @@ export function DraggableTask({ task, showDate }: { key?: React.Key; task: Task;
           onMouseLeave={scheduleClose}
         />
       )}
+      {showTimePicker && !task.completed && (
+        <TimeEstimatePicker
+          anchorRef={timeBadgeRef}
+          value={task.estimatedMinutes}
+          onChange={(mins) => updateTask(task.id, { estimatedMinutes: mins })}
+          onClose={() => setShowTimePicker(false)}
+        />
+      )}
       {showNotes && <TaskNotesModal task={task} onClose={() => setShowNotes(false)} />}
       {completionNudge && (
         <div className="mt-1 px-2 py-1 rounded text-[11px] font-mono animate-fade"
           style={{ background: 'rgba(234,179,8,0.08)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)' }}>
           ↑ {completionNudge}
         </div>
+      )}
+      {showNotesTooltip && !isDragging && task.description && cardRef.current && ReactDOM.createPortal(
+        (() => {
+          const rect = cardRef.current!.getBoundingClientRect();
+          const preview = task.description!.length > 150
+            ? task.description!.slice(0, 150) + '...'
+            : task.description!;
+          return (
+            <div style={{
+              position: 'fixed',
+              top: rect.top - 8,
+              left: rect.left + rect.width / 2,
+              transform: 'translateX(-50%) translateY(-100%)',
+              background: '#1a1a2e',
+              color: 'white',
+              padding: '8px 12px',
+              borderRadius: 8,
+              fontSize: 11,
+              maxWidth: 250,
+              zIndex: 50,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              animation: 'fadeIn 200ms ease',
+              pointerEvents: 'none',
+              lineHeight: 1.4,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}>
+              {preview}
+              <div style={{
+                position: 'absolute',
+                bottom: -6,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 0,
+                height: 0,
+                borderLeft: '6px solid transparent',
+                borderRight: '6px solid transparent',
+                borderTop: '6px solid #1a1a2e',
+              }} />
+            </div>
+          );
+        })(),
+        document.body
       )}
     </>
   );

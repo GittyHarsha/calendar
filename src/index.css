@@ -57,6 +57,15 @@ body {
 }
 .deadline-alarm { animation: deadline-alarm 1.2s ease-in-out infinite; }
 
+@keyframes overdue-pulse {
+  0%, 100% { border-left-color: #ef4444; }
+  50%      { border-left-color: rgba(239, 68, 68, 0.25); }
+}
+.overdue-pulse {
+  border-left: 3px solid #ef4444;
+  animation: overdue-pulse 2s ease-in-out infinite;
+}
+
 @keyframes lost-pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.55; }
@@ -112,6 +121,7 @@ textarea:focus-visible,
   .accent-glow   { animation: none; }
   .deadline-warn { animation: none; }
   .deadline-alarm { animation: none; }
+  .overdue-pulse { animation: none; }
   .lost-pulse    { animation: none; }
   .animate-fade  { animation: none; opacity: 1; }
   .animate-slide-down { animation: none; opacity: 1; }
@@ -175,6 +185,9 @@ textarea:focus-visible,
 
 [data-theme="dawn"] .text-white { color: #1A1714 !important; }
 [data-theme="dawn"] .placeholder-\[\#555\]::placeholder { color: #A09890 !important; }
+
+/* Quick-add input placeholder */
+.quick-add-input::placeholder { color: var(--text-2, #686868); opacity: 0.7; }
 
 /* Scrollbar */
 [data-theme="dawn"] ::-webkit-scrollbar-thumb { background: color-mix(in srgb, #DC4A0E 30%, #CFC7BC); }

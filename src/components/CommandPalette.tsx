@@ -7,7 +7,8 @@ import { baseDateTrigger, inboxTrigger } from './HorizonView';
 type ResultItem =
   | { kind: 'task';    id: string; title: string; projectColor: string | null; deadline: string | null }
   | { kind: 'project'; id: string; name: string; taskCount: number; color: string }
-  | { kind: 'action';  id: string; label: string };
+  | { kind: 'action';  id: string; label: string }
+  | { kind: 'deadline'; id: string; title: string; projectColor: string | null; projectName: string | null; deadline: string; daysLeft: number; date: string | null };
 
 const ACTIONS: ResultItem[] = [
   { kind: 'action', id: 'today',        label: 'Go to today' },
@@ -47,12 +48,41 @@ export function CommandPalette() {
   const close = useCallback(() => setOpen(false), []);
 
   // Build filtered results
-  const results: ResultItem[] = React.useMemo(() => {
+  const { deadlineItems, results } = React.useMemo(() => {
     const q = query.trim().toLowerCase();
+    const today = startOfToday();
+
+    // Deadline section: 5 nearest-deadline incomplete tasks
+    const nearestDeadlines: (ResultItem & { kind: 'deadline' })[] = tasks
+      .filter(t => !t.completed && t.deadline != null)
+      .map(t => {
+        const daysLeft = differenceInDays(parseISO(t.deadline!), today);
+        const project = projects.find(p => p.id === t.projectId);
+        return {
+          kind: 'deadline' as const,
+          id: t.id,
+          title: t.title,
+          projectColor: project?.color ?? null,
+          projectName: project?.name ?? null,
+          deadline: t.deadline!,
+          daysLeft,
+          date: t.date,
+        };
+      })
+      .sort((a, b) => a.daysLeft - b.daysLeft)
+      .slice(0, 5);
+
+    const filteredDeadlines: ResultItem[] = q
+      ? nearestDeadlines.filter(d =>
+          d.title.toLowerCase().includes(q) ||
+          (d.projectName?.toLowerCase().includes(q) ?? false)
+        )
+      : nearestDeadlines;
+
     const matchedTasks: ResultItem[] = tasks
       .filter(t => !q || t.title.toLowerCase().includes(q))
       .map(t => ({
-        kind: 'task',
+        kind: 'task' as const,
         id: t.id,
         title: t.title,
         projectColor: projects.find(p => p.id === t.projectId)?.color ?? null,
@@ -62,7 +92,7 @@ export function CommandPalette() {
     const matchedProjects: ResultItem[] = projects
       .filter(p => !q || p.name.toLowerCase().includes(q))
       .map(p => ({
-        kind: 'project',
+        kind: 'project' as const,
         id: p.id,
         name: p.name,
         taskCount: tasks.filter(t => t.projectId === p.id).length,
@@ -73,8 +103,16 @@ export function CommandPalette() {
       !q || a.label.toLowerCase().includes(q)
     );
 
-    return [...matchedTasks, ...matchedProjects, ...matchedActions];
+    return {
+      deadlineItems: filteredDeadlines,
+      results: [...matchedTasks, ...matchedProjects, ...matchedActions],
+    };
   }, [query, tasks, projects]);
+
+  const allItems = React.useMemo(
+    () => [...deadlineItems, ...results],
+    [deadlineItems, results],
+  );
 
   // Keep selectedIdx in bounds
   useEffect(() => {
@@ -93,6 +131,14 @@ export function CommandPalette() {
         // No date — open Inbox panel where unscheduled tasks live
         inboxTrigger.open();
       }
+      close();
+    } else if (item.kind === 'deadline') {
+      const task = tasks.find(t => t.id === item.id);
+      const targetDate = task?.date ? parseISO(task.date) : parseISO(item.deadline);
+      baseDateTrigger.setDate(targetDate);
+      setTimeout(() => {
+        document.getElementById(`task-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
       close();
     } else if (item.kind === 'project') {
       close();
@@ -114,12 +160,12 @@ export function CommandPalette() {
     if (e.key === 'Escape') { close(); return; }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIdx(i => Math.min(i + 1, results.length - 1));
+      setSelectedIdx(i => Math.min(i + 1, allItems.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIdx(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
-      const item = results[selectedIdx];
+      const item = allItems[selectedIdx];
       if (item) execute(item);
     }
   };
@@ -180,13 +226,72 @@ export function CommandPalette() {
           onKeyDown={handleKeyDown}
         />
         <div style={listStyle}>
-          {results.length === 0 && (
+          {allItems.length === 0 && (
             <div style={{ padding: '12px 10px', color: 'var(--text-2)', fontSize: '13px' }}>
               No results
             </div>
           )}
-          {results.map((item, idx) => {
+          {deadlineItems.length > 0 && (
+            <div style={{ padding: '8px 10px 4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-2)', letterSpacing: '0.5px' }}>
+              🔥 Upcoming Deadlines
+            </div>
+          )}
+          {deadlineItems.map((item, idx) => {
             const isSelected = idx === selectedIdx;
+            const dl = item as ResultItem & { kind: 'deadline' };
+            const badgeColor = dl.daysLeft < 0 ? '#ef4444'
+              : dl.daysLeft <= 3 ? '#f97316'
+              : dl.daysLeft <= 7 ? '#eab308'
+              : '#3b82f6';
+            const badgeLabel = dl.daysLeft < 0 ? `${Math.abs(dl.daysLeft)}d overdue`
+              : dl.daysLeft === 0 ? 'today'
+              : `${dl.daysLeft}d left`;
+            const rowStyle: React.CSSProperties = {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              background: isSelected ? 'var(--bg-2)' : 'transparent',
+              transition: 'background 0.1s',
+            };
+            return (
+              <div
+                key={`dl-${dl.id}`}
+                style={rowStyle}
+                onClick={() => execute(dl)}
+                onMouseEnter={() => setSelectedIdx(idx)}
+              >
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: dl.projectColor ?? 'var(--text-2)',
+                }} />
+                <span style={{ flex: 1, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {dl.title}
+                </span>
+                <span style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  color: badgeColor,
+                  border: `1px solid ${badgeColor}`,
+                  borderRadius: '4px',
+                  padding: '1px 6px',
+                  flexShrink: 0,
+                }}>
+                  {badgeLabel}
+                </span>
+                {dl.projectName && (
+                  <span style={{ fontSize: '10px', color: 'var(--text-2)', flexShrink: 0 }}>
+                    {dl.projectName}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          {results.map((item, idx) => {
+            const globalIdx = deadlineItems.length + idx;
+            const isSelected = globalIdx === selectedIdx;
             const rowStyle: React.CSSProperties = {
               display: 'flex',
               alignItems: 'center',
@@ -204,7 +309,7 @@ export function CommandPalette() {
                   key={item.id}
                   style={rowStyle}
                   onClick={() => execute(item)}
-                  onMouseEnter={() => setSelectedIdx(idx)}
+                  onMouseEnter={() => setSelectedIdx(globalIdx)}
                 >
                   <span style={{
                     width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
@@ -236,7 +341,7 @@ export function CommandPalette() {
                   key={item.id}
                   style={rowStyle}
                   onClick={() => execute(item)}
-                  onMouseEnter={() => setSelectedIdx(idx)}
+                  onMouseEnter={() => setSelectedIdx(globalIdx)}
                 >
                   <span style={{
                     width: 8, height: 8, borderRadius: '2px', flexShrink: 0,
@@ -259,7 +364,7 @@ export function CommandPalette() {
                 key={item.id}
                 style={rowStyle}
                 onClick={() => execute(item)}
-                onMouseEnter={() => setSelectedIdx(idx)}
+                onMouseEnter={() => setSelectedIdx(globalIdx)}
               >
                 <span style={{
                   width: 8, height: 8, flexShrink: 0,

@@ -4,29 +4,39 @@
  */
 
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, closestCorners, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { HorizonView } from './components/HorizonView';
+import { HorizonView, getColumnTaskCounts, triggerTaskClick, bulkSelectionTrigger } from './components/HorizonView';
 import { PomodoroBar } from './components/PomodoroBar';
 import { Task } from './store';
 import { useStore, THEMES, deriveThemeFromAccent } from './store';
 import { newProjectTrigger } from './components/MacroGoalsPanel';
+import { getHoveredTaskId } from './components/DraggableTask';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
+import { ToastProvider } from './components/Toast';
 
 export default function App() {
-  const { tasks, projects, updateTask, theme, customAccent, undo } = useStore();
+  const { tasks, projects, updateTask, reorderTask, theme, customAccent, undo } = useStore();
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [infoToast, setInfoToast] = useState<string | null>(null);
 
-  // Listen for toast events fired by child components
+  // Keyboard navigation state
+  const [focusedColumn, setFocusedColumn] = useState<number | null>(null);
+  const [focusedTask, setFocusedTask] = useState<number>(0);
+
+  const clearNavFocus = useCallback(() => {
+    setFocusedColumn(null);
+    setFocusedTask(0);
+  }, []);
+
+  // Listen for info-only toast events fired by child components (e.g. drag warnings)
   useEffect(() => {
     const handler = (e: Event) => {
       const msg = (e as CustomEvent<string>).detail;
-      setToast(msg);
-      setTimeout(() => setToast(null), 3000);
+      setInfoToast(msg);
+      setTimeout(() => setInfoToast(null), 3000);
     };
     window.addEventListener('horizon:toast', handler);
     return () => window.removeEventListener('horizon:toast', handler);
@@ -55,7 +65,64 @@ export default function App() {
       }
       const target = e.target as HTMLElement;
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
-      if (e.key === 'p' || e.key === 'P') {
+
+      // Arrow key navigation
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
+        const counts = getColumnTaskCounts();
+        const totalCols = counts.length;
+        if (totalCols === 0) return;
+
+        if (e.key === 'Escape') {
+          clearNavFocus();
+          bulkSelectionTrigger.clear();
+          return;
+        }
+
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          setFocusedColumn(prev => {
+            if (prev === null) return 0;
+            const next = e.key === 'ArrowRight'
+              ? Math.min(prev + 1, totalCols - 1)
+              : Math.max(prev - 1, 0);
+            return next;
+          });
+          setFocusedTask(0);
+          return;
+        }
+
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          setFocusedColumn(prev => prev ?? 0);
+          setFocusedTask(prev => {
+            const colIdx = focusedColumn ?? 0;
+            const maxTask = Math.max(0, (counts[colIdx] ?? 1) - 1);
+            if (e.key === 'ArrowDown') return Math.min(prev + 1, maxTask);
+            return Math.max(prev - 1, 0);
+          });
+          return;
+        }
+
+        if (e.key === 'Enter' && focusedColumn !== null) {
+          e.preventDefault();
+          triggerTaskClick(focusedColumn, focusedTask);
+          return;
+        }
+        return;
+      }
+
+      if (e.key === 't' || e.key === 'T') {
+        const tid = getHoveredTaskId();
+        if (tid) {
+          const t = tasks.find(tk => tk.id === tid);
+          if (t) {
+            updateTask(tid, {
+              completed: !t.completed,
+              completedAt: !t.completed ? format(new Date(), 'yyyy-MM-dd') : null,
+            });
+          }
+        }
+      } else if (e.key === 'p' || e.key === 'P') {
         newProjectTrigger.open();
       } else if (e.key === '?') {
         setShowShortcuts(prev => !prev);
@@ -63,7 +130,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [undo]);
+  }, [undo, tasks, updateTask, focusedColumn, clearNavFocus]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -98,48 +165,67 @@ export default function App() {
     // overId is either a date string (column drop) or another task id (sortable reorder)
     const isDateDrop = /^\d{4}-\d{2}-\d{2}$/.test(overId);
 
+    // Helper: compute sortOrder to place a task at the position of `targetIdx`
+    // in a sorted list, using the average of its neighbors' sortOrders.
+    const calcSortOrder = (sorted: Task[], targetIdx: number): number => {
+      const above = targetIdx > 0 ? (sorted[targetIdx - 1].sortOrder ?? 0) : null;
+      const below = targetIdx < sorted.length ? (sorted[targetIdx].sortOrder ?? 0) : null;
+      if (above !== null && below !== null) return (above + below) / 2;
+      if (above !== null) return above + 1000;
+      if (below !== null) return below - 1000;
+      return Date.now();
+    };
+
     if (isDateDrop) {
       const targetDate = overId;
       if (draggedTask.date === targetDate) return; // same day, nothing to do
-      const targetDayTasks = tasks.filter(t => t.date === targetDate && t.id !== taskId);
-      const maxOrder = targetDayTasks.reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0);
-      updateTask(taskId, { date: targetDate, sortOrder: maxOrder + 1000 });
+      // Cross-column: place at end of target column
+      const targetDayTasks = tasks
+        .filter(t => t.date === targetDate && t.id !== taskId)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      const newOrder = calcSortOrder(targetDayTasks, targetDayTasks.length);
+      updateTask(taskId, { date: targetDate, sortOrder: newOrder });
       if (draggedTask.deadline && targetDate > draggedTask.deadline) {
         fireToast(`⚠️ Scheduled after deadline · due ${format(parseISO(draggedTask.deadline), 'MMM d')}`);
       }
     } else {
-      // Reorder within same day (overId = another task's id)
+      // overId = another task's id
       const overTask = tasks.find(t => t.id === overId);
       if (!overTask) return;
+
       if (draggedTask.date !== overTask.date) {
-        // Cross-day via task hover — just move to that date
-        const targetDayTasks = tasks.filter(t => t.date === overTask.date && t.id !== taskId);
-        const maxOrder = targetDayTasks.reduce((m, t) => Math.max(m, t.sortOrder ?? 0), 0);
-        updateTask(taskId, { date: overTask.date, sortOrder: overTask.sortOrder != null ? overTask.sortOrder - 1 : maxOrder + 1000 });
+        // Cross-column via task hover: place at the target task's position
+        const targetDayTasks = tasks
+          .filter(t => t.date === overTask.date && t.id !== taskId)
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+        const targetIdx = targetDayTasks.findIndex(t => t.id === overId);
+        const newOrder = targetIdx !== -1
+          ? calcSortOrder(targetDayTasks, targetIdx)
+          : calcSortOrder(targetDayTasks, targetDayTasks.length);
+        updateTask(taskId, { date: overTask.date, sortOrder: newOrder });
         if (draggedTask.deadline && overTask.date && overTask.date > draggedTask.deadline) {
           fireToast(`⚠️ Scheduled after deadline · due ${format(parseISO(draggedTask.deadline), 'MMM d')}`);
         }
       } else {
-        // Same day reorder: swap sortOrders
+        // Same column reorder: calculate new sortOrder from neighbors
         const dayTasks = tasks
-          .filter(t => t.date === draggedTask.date)
+          .filter(t => t.date === draggedTask.date && t.id !== taskId)
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-        const oldIdx = dayTasks.findIndex(t => t.id === taskId);
-        const newIdx = dayTasks.findIndex(t => t.id === overId);
-        if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return;
-        const reordered = arrayMove(dayTasks, oldIdx, newIdx);
-        const updates = reordered.map((t, i) => ({ id: t.id, sortOrder: i * 1000 }));
-        updates.forEach(u => updateTask(u.id, { sortOrder: u.sortOrder }));
+        const targetIdx = dayTasks.findIndex(t => t.id === overId);
+        if (targetIdx === -1) return;
+        const newOrder = calcSortOrder(dayTasks, targetIdx);
+        reorderTask(taskId, newOrder);
       }
     }
   };
 
   return (
+    <ToastProvider>
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-screen w-full font-sans overflow-hidden" style={{ background: 'var(--bg-1)', color: 'var(--text-1)' }}>
         {/* Main Area: Horizon View */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          <HorizonView />
+          <HorizonView focusedColumn={focusedColumn} focusedTask={focusedTask} />
         </div>
       </div>
 
@@ -167,12 +253,13 @@ export default function App() {
       <PomodoroBar />
       <CommandPalette />
       {showShortcuts && <KeyboardShortcuts onClose={() => setShowShortcuts(false)} />}
-      {toast && (
+      {infoToast && (
         <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-[99999] px-4 py-2 rounded-lg text-sm font-medium shadow-xl pointer-events-none transition-all"
           style={{ background: 'var(--bg-2)', border: '1px solid var(--border-1)', color: 'var(--text-1)' }}>
-          {toast}
+          {infoToast}
         </div>
       )}
     </DndContext>
+    </ToastProvider>
   );
 }

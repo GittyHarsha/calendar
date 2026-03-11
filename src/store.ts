@@ -40,6 +40,7 @@ export type Task = {
   sortOrder?: number;
   estimatedMinutes?: number | null;
   taskStatus?: TaskStatus;
+  dependencies?: string[];
 };
 
 export type TimeEntry = {
@@ -163,6 +164,7 @@ type EpochState = {
   
   addTask: (task: Omit<Task, 'id' | 'completed'>, recurrence?: Recurrence, startDate?: string) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
+  reorderTask: (taskId: string, newOrder: number) => void;
   updateRecurringTask: (taskId: string, updates: Partial<Task>, scope: 'one' | 'all') => void;
   deleteTask: (id: string) => void;
   undo: () => void;
@@ -180,6 +182,8 @@ type EpochState = {
   getTaskTime: (taskId: string) => number;
   getProjectTime: (projectId: string) => number;
 
+  dailyGoal: number;
+  setDailyGoal: (n: number) => void;
   weeklyIntention: string;
   setTheme: (theme: ThemeKey) => void;
   setCustomAccent: (hex: string | null) => void;
@@ -235,6 +239,7 @@ export const useStore = create<EpochState>()(
   thinkPadNotes: 'Brainstorming:\n- Need to figure out the landing page copy.\n- Ask Sarah about the API integration.',
   hoveredProjectId: null,
   hideCompleted: false,
+  dailyGoal: 5,
   weeklyIntention: '',
   journalEntries: {},
   
@@ -315,6 +320,10 @@ export const useStore = create<EpochState>()(
       }
       return { ...t, ...updates };
     })
+  })),
+
+  reorderTask: (taskId, newOrder) => set((state) => ({
+    tasks: state.tasks.map(t => t.id === taskId ? { ...t, sortOrder: newOrder } : t)
   })),
 
   updateRecurringTask: (taskId, updates, scope) => set((state) => {
@@ -458,6 +467,7 @@ export const useStore = create<EpochState>()(
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
       setWeeklyIntention: (text) => set({ weeklyIntention: text }),
+      setDailyGoal: (n) => set({ dailyGoal: Math.max(1, Math.min(20, n)) }),
       setJournalEntry: (date, patch) => set((state) => ({
         journalEntries: {
           ...state.journalEntries,
@@ -477,6 +487,7 @@ export const useStore = create<EpochState>()(
         thinkPadNotes: state.thinkPadNotes,
         hideCompleted: state.hideCompleted,
         pomodoro: state.pomodoro,
+        dailyGoal: state.dailyGoal,
         weeklyIntention: state.weeklyIntention,
         journalEntries: state.journalEntries,
       }),

@@ -1,22 +1,77 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '../store';
-import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears } from 'date-fns';
-import { useDroppable } from '@dnd-kit/core';
+import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears, getISOWeek, nextDay } from 'date-fns';
+
+type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+const DATE_KEYWORD_DAY_MAP: Record<string, DayIndex> = {
+  '/sun': 0, '/sunday': 0,
+  '/mon': 1, '/monday': 1,
+  '/tue': 2, '/tuesday': 2,
+  '/wed': 3, '/wednesday': 3,
+  '/thu': 4, '/thursday': 4,
+  '/fri': 5, '/friday': 5,
+  '/sat': 6, '/saturday': 6,
+};
+
+/** Parse a `/keyword` date shortcut at the end of a quick-add title. */
+function parseDateKeyword(input: string, defaultDate: Date): { title: string; date: Date } {
+  const match = input.match(/\s+(\/\S+)$/i);
+  if (!match) return { title: input.trim(), date: defaultDate };
+
+  const keyword = match[1].toLowerCase();
+  const today = startOfToday();
+  let resolved: Date | null = null;
+
+  if (keyword === '/today') {
+    resolved = today;
+  } else if (keyword === '/tomorrow' || keyword === '/tmr') {
+    resolved = addDays(today, 1);
+  } else if (keyword === '/next-week') {
+    resolved = nextDay(today, 1);
+  } else if (keyword in DATE_KEYWORD_DAY_MAP) {
+    resolved = nextDay(today, DATE_KEYWORD_DAY_MAP[keyword]);
+  }
+
+  if (resolved) {
+    const title = input.slice(0, match.index!).trim();
+    return { title: title || input.trim(), date: resolved };
+  }
+
+  return { title: input.trim(), date: defaultDate };
+}
+import { useDroppable, useDndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList, BookOpen, Crosshair } from 'lucide-react';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { InboxPanel } from './InboxPanel';
 import { DailyBriefing } from './DailyBriefing';
 import { WeeklyReview } from './WeeklyReview';
+import { JournalPanel } from './JournalPanel';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type QuickFilter = 'overdue' | 'high-priority' | 'this-week' | 'no-deadline' | null;
 
 export const inboxTrigger = { open: () => {} };
+
+// Bulk selection trigger so App.tsx can clear selection on Escape
+export const bulkSelectionTrigger = { clear: () => {} };
+
+// Shared state for keyboard nav: column task counts and click triggers
+let _columnTaskCounts: number[] = [];
+let _columnTaskClickHandlers: Array<Array<() => void>> = [];
+
+export function getColumnTaskCounts(): number[] {
+  return _columnTaskCounts;
+}
+
+export function triggerTaskClick(colIndex: number, taskIndex: number): void {
+  _columnTaskClickHandlers[colIndex]?.[taskIndex]?.();
+}
 
 function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
   const [idx, setIdx] = useState(0);
@@ -80,7 +135,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
   return (
     <div className="relative group border-b border-[#1E1E1E] shrink-0" style={{ background: 'var(--bg-0)' }}>
       {/* "Projects" label on far left */}
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase tracking-widest text-[#3A3A3A] z-10 pointer-events-none select-none">Projects</span>
+      <span className="absolute left-2 top-3 text-[9px] font-bold uppercase tracking-widest text-[#3A3A3A] z-10 pointer-events-none select-none">Projects</span>
       {/* Clear filter button */}
       {filterProjectId && (
         <button
@@ -118,6 +173,12 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
           const isFiltered = filterProjectId === p.id;
 
           const ids = descendantIds(p.id);
+          const allProjectTasks = tasks.filter(t => ids.includes(t.projectId ?? ''));
+          const totalTasks = allProjectTasks.length;
+          const completedTasks = allProjectTasks.filter(t => t.completed).length;
+          const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+          const progressColor = totalTasks === 0 ? '#333' : progressPct >= 75 ? '#22c55e' : progressPct >= 50 ? '#eab308' : '#ef4444';
+
           const upcomingTasks = tasks
             .filter(t => ids.includes(t.projectId ?? '') && t.deadline && !t.completed)
             .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
@@ -131,38 +192,103 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
             return { label: lbl, sublabel: `${shifts > 0 ? `↻${shifts} ` : ''}${t.title}`, accent: a, urgent: ov || urg };
           });
 
+          // Direct children (subprojects)
+          const subprojects = projects.filter(sp => sp.parentId === p.id);
+
           return (
             <button key={p.id}
               onClick={() => onFilterProject(isFiltered ? null : p.id)}
-              className="flex items-stretch gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
+              className="flex flex-col gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
               style={{
-                height: 88,
+                minWidth: 280,
                 background: `${p.color}12`,
                 border: isFiltered ? `2px solid ${p.color}` : `1px solid ${noDeadline ? '#252525' : accent + '50'}`,
                 boxShadow: isFiltered ? `0 0 8px ${p.color}40` : undefined,
               }}>
-              {/* Left accent bar */}
-              <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
-              {/* Project deadline */}
-              <div className="flex flex-col justify-center gap-0.5 px-3 py-2 min-w-[110px]">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Goal</span>
-                <span className="text-[12px] font-bold text-white truncate max-w-[110px]" title={p.name}>{p.name}</span>
-                <div className="flex items-baseline gap-1.5 mt-0.5">
-                  {(overdue || urgent) && <AlertTriangle size={9} style={{ color: accent }} />}
-                  <span className="text-[22px] font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
-                    {noDeadline ? '—' : Math.abs(days!)}
-                  </span>
-                  <span className="text-[10px] font-mono uppercase" style={{ color: noDeadline ? '#333' : accent }}>
-                    {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
-                  </span>
+
+              {/* ── Top row: parent deadline + task carousel ── */}
+              <div className="flex items-stretch gap-0 flex-1">
+                {/* Left accent bar */}
+                <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
+                {/* Project deadline */}
+                <div className="flex flex-col justify-center gap-0.5 px-3 py-3 min-w-[140px]">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Goal</span>
+                  <span className="text-[14px] font-bold text-white truncate max-w-[140px]" title={p.name}>{p.name}</span>
+                  <div className="flex items-baseline gap-1.5 mt-1">
+                    {(overdue || urgent) && <AlertTriangle size={10} style={{ color: accent }} className={overdue ? 'animate-pulse' : ''} />}
+                    <span className="text-[52px] font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
+                      {noDeadline ? '—' : Math.abs(days!)}
+                    </span>
+                    <span className="text-[12px] font-mono uppercase font-bold" style={{ color: noDeadline ? '#333' : accent }}>
+                      {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
+                    </span>
+                  </div>
+                </div>
+                {/* Divider */}
+                <div className="w-px self-stretch bg-[#1E1E1E]" />
+                {/* Tasks carousel */}
+                <div className="flex flex-col justify-center px-3 py-2 w-[180px] overflow-hidden">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-1">Tasks</span>
+                  <TaskCarousel items={taskItems} />
                 </div>
               </div>
-              {/* Divider */}
-              <div className="w-px self-stretch bg-[#1E1E1E]" />
-              {/* Tasks carousel */}
-              <div className="flex flex-col justify-center px-3 py-2 w-[150px] overflow-hidden">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-1">Tasks</span>
-                <TaskCarousel items={taskItems} />
+
+              {/* ── Subprojects row ── */}
+              {subprojects.length > 0 && (
+                <>
+                  <div className="h-px mx-2" style={{ background: '#1E1E1E' }} />
+                  <div className="flex flex-wrap gap-2 px-3 py-2.5">
+                    {subprojects.map(sp => {
+                      const spDays = sp.deadline ? differenceInDays(parseISO(sp.deadline), today) : null;
+                      const spOverdue = spDays !== null && spDays < 0;
+                      const spUrgent = spDays !== null && spDays >= 0 && spDays <= 7;
+                      const spSoon = spDays !== null && spDays > 7 && spDays <= 30;
+                      const spAccent = spOverdue ? '#ef4444' : spUrgent ? 'var(--accent)' : spSoon ? '#eab308' : '#3B82F6';
+                      const spPending = tasks.filter(t => t.projectId === sp.id && !t.completed).length;
+                      return (
+                        <div key={sp.id}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px]"
+                          style={{
+                            background: `${sp.color}18`,
+                            border: `1px solid ${spDays === null ? '#252525' : spAccent + '55'}`,
+                          }}>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: sp.color }} />
+                          <span className="font-semibold truncate max-w-[100px]" style={{ color: '#C8C7C4' }} title={sp.name}>{sp.name}</span>
+                          {spDays !== null && (
+                            <>
+                              {(spOverdue || spUrgent) && <AlertTriangle size={9} style={{ color: spAccent }} className={spOverdue ? 'animate-pulse' : ''} />}
+                              <span className="font-mono font-bold shrink-0 text-[13px]" style={{ color: spAccent }}>
+                                {spOverdue ? `${Math.abs(spDays)}d over` : spDays === 0 ? 'today' : `${spDays}d`}
+                              </span>
+                            </>
+                          )}
+                          {spPending > 0 && (
+                            <span className="text-[11px] font-mono" style={{ color: '#555' }}>{spPending} left</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* ── Progress bar ── */}
+              <div className="px-2 pb-1.5 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <div className="flex-1 rounded-full overflow-hidden" style={{ height: 3, background: '#ffffff15' }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progressPct}%`,
+                        background: progressColor,
+                        transition: 'width 0.3s ease, background 0.3s ease',
+                      }}
+                    />
+                  </div>
+                  <span className="text-[9px] font-mono shrink-0" style={{ color: totalTasks === 0 ? '#444' : progressColor }}>
+                    {totalTasks === 0 ? 'No tasks' : `${progressPct}%`}
+                  </span>
+                </div>
               </div>
             </button>
           );
@@ -174,25 +300,148 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
 
 export const baseDateTrigger = { setDate: (_d: Date) => {} };
 
-export function HorizonView() {
-  const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro } = useStore();
+function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, radius, circumference, dashOffset, setDailyGoal }: {
+  doneCount: number; dailyGoal: number; goalMet: boolean; ringSize: number; strokeW: number;
+  radius: number; circumference: number; dashOffset: number; setDailyGoal: (n: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState(String(dailyGoal));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const commitGoal = () => {
+    const n = parseInt(inputVal, 10);
+    if (!isNaN(n) && n >= 1 && n <= 20) setDailyGoal(n);
+    setEditing(false);
+  };
+
+  const goalColor = goalMet ? '#22c55e' : 'var(--accent, #a78bfa)';
+
+  return (
+    <span
+      className="flex items-center gap-1 cursor-pointer select-none"
+      style={{ position: 'relative' }}
+      onClick={() => { if (!editing) { setInputVal(String(dailyGoal)); setEditing(true); } }}
+      title={goalMet ? 'Daily goal reached!' : `${doneCount}/${dailyGoal} — click to change goal`}
+    >
+      <svg width={ringSize} height={ringSize} style={{ display: 'block', transform: 'rotate(-90deg)' }}>
+        <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
+          stroke="var(--border-1, #333)" strokeWidth={strokeW} />
+        <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
+          stroke={goalColor} strokeWidth={strokeW}
+          strokeDasharray={circumference} strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.4s ease, stroke 0.3s ease' }} />
+      </svg>
+      {goalMet ? (
+        <span style={{ color: '#22c55e', fontSize: 10, filter: 'drop-shadow(0 0 3px rgba(34,197,94,0.5))' }}>
+          {doneCount}/{dailyGoal} 🎯
+        </span>
+      ) : (
+        <span style={{ color: goalColor, fontSize: 10 }}>
+          {doneCount}/{dailyGoal} ✓
+        </span>
+      )}
+      {editing && (
+        <span
+          style={{
+            position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)',
+            marginBottom: 4, background: 'var(--bg-2, #191919)', border: '1px solid var(--border-1, #333)',
+            borderRadius: 4, padding: '2px 4px', zIndex: 100, display: 'flex', alignItems: 'center', gap: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+          }}
+          onClick={e => e.stopPropagation()}
+        >
+          <span style={{ fontSize: 9, color: 'var(--text-2, #888)', whiteSpace: 'nowrap' }}>Goal:</span>
+          <input
+            ref={inputRef}
+            type="number" min={1} max={20}
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') commitGoal(); if (e.key === 'Escape') setEditing(false); }}
+            onBlur={commitGoal}
+            style={{
+              width: 32, fontSize: 10, fontFamily: 'monospace', textAlign: 'center',
+              background: 'var(--bg-1, #0f0f0f)', color: 'var(--text-1, #eee)',
+              border: '1px solid var(--border-1, #333)', borderRadius: 3, padding: '1px 2px',
+              outline: 'none',
+            }}
+          />
+        </span>
+      )}
+    </span>
+  );
+}
+
+export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: number | null; focusedTask: number }) {
+  const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro, updateTask, deleteTask, dailyGoal, setDailyGoal } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [baseDate, setBaseDate] = useState<Date>(today);
 
+  // Bulk task selection state
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+
+  const clearSelection = useCallback(() => setSelectedTaskIds(new Set()), []);
+
+  const toggleTaskSelection = useCallback((taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  // Register clear trigger for App.tsx Escape key
+  React.useEffect(() => { bulkSelectionTrigger.clear = clearSelection; }, [clearSelection]);
+
   React.useEffect(() => { baseDateTrigger.setDate = setBaseDate; }, []);
   React.useEffect(() => { inboxTrigger.open = () => setShowInbox(true); }, []);
   const [showProjects, setShowProjects] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
+  const [showJournal, setShowJournal] = useState(false);
+  const journalPanelRef = useRef<HTMLDivElement>(null);
 
   // Inbox badge: unscheduled + overdue incomplete tasks
   const inboxCount = tasks.filter(t => !t.completed && (t.date === null || t.date < todayStr)).length;
+  // Live urgency counts
+  const overdueCount = tasks.filter(t => !t.completed && t.date && t.date < todayStr).length;
+  const todayCount   = tasks.filter(t => !t.completed && t.date === todayStr).length;
+  const weekDeadlineCount = tasks.filter(t => {
+    if (t.completed || !t.deadline) return false;
+    const d = differenceInDays(parseISO(t.deadline), today);
+    return d >= 0 && d <= 7;
+  }).length;
   const [showTheme, setShowTheme] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showBriefing, setShowBriefing] = useState(false);
   const [showWeeklyReview, setShowWeeklyReview] = useState(false);
-  const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
+  const [focusMode, setFocusMode] = useState(false);
+  const [filterProjectId, setFilterProjectId] = useState<string | null>(() => {
+    const saved = localStorage.getItem('calendar-filter-project');
+    return saved || null;
+  });
+  // Persist project filter to localStorage
+  useEffect(() => {
+    if (filterProjectId) localStorage.setItem('calendar-filter-project', filterProjectId);
+    else localStorage.removeItem('calendar-filter-project');
+  }, [filterProjectId]);
+
+  // Validate saved project still exists
+  useEffect(() => {
+    if (filterProjectId && !projects.find(p => p.id === filterProjectId)) {
+      setFilterProjectId(null);
+    }
+  }, [filterProjectId, projects]);
+
   const [quickFilter, setQuickFilter] = useState<QuickFilter>(null);
   const [horizonLengths, setHorizonLengths]= useState<Record<ViewMode, number | ''>>({
     daily: 90,
@@ -201,13 +450,28 @@ export function HorizonView() {
     yearly: 5
   });
   const [colWidths, setColWidths] = useState<Record<ViewMode, number>>({
-    daily: 420,
-    weekly: 480,
+    daily: 240,
+    weekly: 280,
     monthly: 540,
     yearly: 640,
   });
   const projectsPanelRef = useRef<HTMLDivElement>(null);
   const inboxPanelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to today's column on initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const todayEl = scrollContainerRef.current?.querySelector('[data-today]');
+      todayEl?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Smooth-scroll to start when navigating dates
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
+  }, [baseDate]);
 
   // Close projects panel when clicking outside
   useEffect(() => {
@@ -228,14 +492,29 @@ export function HorizonView() {
     if (!showInbox) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Element;
-      // Don't close if click is inside the inbox panel or inside a portal popup (TaskPopup etc.)
+      // Don't close if click is inside the inbox panel or inside a portal popup (TaskPopup, DatePicker etc.)
       if (inboxPanelRef.current?.contains(target)) return;
       if (target.closest('[data-no-inbox-close]')) return;
+      if (target.closest('[data-date-picker-portal]')) return;
       setShowInbox(false);
     };
     setTimeout(() => document.addEventListener('mousedown', handler), 0);
     return () => document.removeEventListener('mousedown', handler);
   }, [showInbox]);
+
+  // Close journal panel when clicking outside
+  useEffect(() => {
+    if (!showJournal) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (journalPanelRef.current?.contains(target)) return;
+      if (target.closest('[data-no-inbox-close]')) return;
+      if (target.closest('[data-date-picker-portal]')) return;
+      setShowJournal(false);
+    };
+    setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showJournal]);
 
   const currentLength = Math.max(1, typeof horizonLengths[viewMode] === 'number' ? (horizonLengths[viewMode] as number) : 1);
 
@@ -346,6 +625,31 @@ export function HorizonView() {
         {/* Cluster divider 2 */}
         <span className="w-px h-5 bg-white/10 mx-3 shrink-0" />
 
+        {/* Live urgency counts */}
+        <div className="flex items-center gap-2 mr-3 shrink-0">
+          {overdueCount > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-mono font-bold animate-pulse"
+              style={{ color: '#ef4444' }}
+              title={`${overdueCount} overdue`}>
+              ● {overdueCount} overdue
+            </span>
+          )}
+          {todayCount > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-mono font-bold"
+              style={{ color: '#F27D26' }}
+              title={`${todayCount} due today`}>
+              ◐ {todayCount} today
+            </span>
+          )}
+          {weekDeadlineCount > 0 && (
+            <span className="flex items-center gap-1 text-[11px] font-mono"
+              style={{ color: '#eab308' }}
+              title={`${weekDeadlineCount} deadlines this week`}>
+              ◇ {weekDeadlineCount} this week
+            </span>
+          )}
+        </div>
+
         {/* Quick filters */}
         <div className="flex items-center gap-1 mr-2">
           {([
@@ -383,6 +687,17 @@ export function HorizonView() {
             <span className="font-mono uppercase tracking-widest text-[10px]">Done</span>
           </button>
 
+          {/* Focus mode */}
+          <button onClick={() => setFocusMode(f => !f)}
+            className={cn('h-7 px-2 flex items-center gap-1.5 rounded text-[11px] transition-colors',
+              focusMode ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={focusMode ? { color: 'var(--accent)' } : undefined}
+            title={focusMode ? 'Disable focus mode' : 'Focus on today'}>
+            <Crosshair size={13} />
+            <span className="font-mono uppercase tracking-widest text-[10px]">Focus</span>
+          </button>
+
           {/* Goals */}
           <button onClick={() => { setShowProjects(p => !p); setShowInbox(false); }}
             className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
@@ -410,6 +725,9 @@ export function HorizonView() {
                 {inboxCount}
               </span>
             )}
+            {overdueCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-1 h-1 rounded-full bg-red-500 animate-pulse" />
+            )}
           </button>
 
           {/* Daily Briefing */}
@@ -430,6 +748,16 @@ export function HorizonView() {
             style={showWeeklyReview ? { color: 'var(--accent)' } : undefined}
             title="Weekly Review">
             <ClipboardList size={12} />
+          </button>
+
+          {/* Journal */}
+          <button onClick={() => setShowJournal(p => !p)}
+            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
+              showJournal ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            )}
+            style={showJournal ? { color: 'var(--accent)' } : undefined}
+            title="Daily Journal">
+            <BookOpen size={12} />
           </button>
 
           <span className="w-px h-4 bg-[#222] mx-0.5" />
@@ -481,6 +809,69 @@ export function HorizonView() {
         </div>
       </div>
 
+      {/* Project color legend strip */}
+      {(() => {
+        const topLevel = projects.filter(p => !p.parentId);
+        if (topLevel.length === 0) return null;
+        return (
+          <div
+            className="shrink-0 flex items-center gap-3 px-4 overflow-x-auto"
+            style={{
+              background: 'var(--bg-0)',
+              borderBottom: '1px solid color-mix(in srgb, var(--accent) 10%, var(--border-1))',
+              height: 26,
+              scrollbarWidth: 'none',
+            }}
+          >
+            {/* All reset */}
+            <button
+              onClick={() => setFilterProjectId(null)}
+              className="flex items-center gap-1.5 shrink-0 transition-opacity"
+              style={{ opacity: filterProjectId === null ? 1 : 0.45 }}
+            >
+              <span
+                style={{
+                  width: filterProjectId === null ? 10 : 8,
+                  height: filterProjectId === null ? 10 : 8,
+                  borderRadius: '50%',
+                  background: 'var(--text-2, #686868)',
+                  display: 'inline-block',
+                  boxShadow: filterProjectId === null ? '0 0 0 2px var(--bg-0), 0 0 0 3.5px var(--text-2)' : 'none',
+                  transition: 'all 150ms ease',
+                }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>All</span>
+            </button>
+
+            {topLevel.map(p => {
+              const active = filterProjectId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setFilterProjectId(active ? null : p.id)}
+                  className="flex items-center gap-1.5 shrink-0 transition-opacity"
+                  style={{ opacity: filterProjectId === null || active ? 1 : 0.4 }}
+                  title={p.name}
+                >
+                  <span
+                    style={{
+                      width: active ? 10 : 8,
+                      height: active ? 10 : 8,
+                      borderRadius: '50%',
+                      background: p.color,
+                      display: 'inline-block',
+                      boxShadow: active ? `0 0 0 2px var(--bg-0), 0 0 0 3.5px ${p.color}` : 'none',
+                      transition: 'all 150ms ease',
+                    }}
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>{p.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Goals overlay panel */}
       {showProjects && (
         <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
@@ -495,11 +886,18 @@ export function HorizonView() {
         </div>
       )}
 
+      {/* Journal overlay panel */}
+      {showJournal && (
+        <div ref={journalPanelRef} className="absolute top-11 right-0 z-40 border border-[#2A2A2A] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+          <JournalPanel onClose={() => setShowJournal(false)} />
+        </div>
+      )}
+
       {/* Always-visible project deadlines strip */}
       <ProjectDeadlinesStrip onOpenGoals={() => setShowProjects(true)} filterProjectId={filterProjectId} onFilterProject={setFilterProjectId} />
 
       {/* Timeline Scroll Container */}
-      <div className="flex-1 overflow-x-auto flex relative min-h-0">
+      <div ref={scrollContainerRef} className="flex-1 overflow-x-auto flex relative min-h-0">
         <div className="flex min-w-max h-full">
           {columns.map((col, index) => (
             <TimeColumn 
@@ -513,10 +911,138 @@ export function HorizonView() {
               quickFilter={quickFilter}
               colWidth={colWidths[viewMode]}
               onResizeCol={(newWidth) => setColWidths(prev => ({ ...prev, [viewMode]: Math.max(160, Math.min(900, newWidth)) }))}
+              focusMode={focusMode}
+              isFocused={focusedColumn === index}
+              focusedTaskIndex={focusedColumn === index ? focusedTask : -1}
+              totalColumns={columns.length}
+              selectedTaskIds={selectedTaskIds}
+              onToggleTaskSelection={toggleTaskSelection}
             />
           ))}
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      {selectedTaskIds.size > 0 && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-2.5 rounded-full shadow-lg"
+          style={{ background: 'var(--bg-2)', border: '1px solid var(--border-1)' }}
+        >
+          <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+            {selectedTaskIds.size} selected
+          </span>
+          <div className="w-px h-5" style={{ background: 'var(--border-1)' }} />
+          <button
+            onClick={() => {
+              selectedTaskIds.forEach(id => updateTask(id, { completed: true, completedAt: format(today, 'yyyy-MM-dd') }));
+              clearSelection();
+            }}
+            className="text-sm px-3 py-1 rounded-md transition-colors hover:brightness-125"
+            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}
+          >✓ Complete all</button>
+          <button
+            onClick={() => {
+              const tomorrow = format(addDays(today, 1), 'yyyy-MM-dd');
+              selectedTaskIds.forEach(id => updateTask(id, { date: tomorrow }));
+              clearSelection();
+            }}
+            className="text-sm px-3 py-1 rounded-md transition-colors hover:brightness-125"
+            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--text-1)' }}
+          >→ Move to tomorrow</button>
+          <button
+            onClick={() => {
+              selectedTaskIds.forEach(id => deleteTask(id));
+              clearSelection();
+            }}
+            className="text-sm px-3 py-1 rounded-md transition-colors hover:brightness-125"
+            style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}
+          >🗑 Delete all</button>
+          <button
+            onClick={clearSelection}
+            className="text-sm px-2 py-1 rounded-md transition-colors"
+            style={{ color: 'var(--text-2)' }}
+          >✕</button>
+        </div>
+      )}
+
+      {/* Today summary footer */}
+      {(() => {
+        const todayTasks = tasks.filter(t => t.date === todayStr && !t.completed);
+        const todayDone = tasks.filter(t => t.completedAt === todayStr);
+        const todayEst = todayTasks.reduce((s, t) => s + (t.estimatedMinutes ?? 0), 0);
+        const estLabel = todayEst >= 60
+          ? `~${Math.floor(todayEst / 60)}h ${todayEst % 60}m`
+          : todayEst > 0 ? `~${todayEst}m` : '';
+        const parts = [
+          `${todayTasks.length} tasks`,
+          ...(estLabel ? [`${estLabel} estimated`] : []),
+          `${todayDone.length} done`,
+          ...(overdueCount > 0 ? [`${overdueCount} overdue`] : []),
+        ];
+
+        // Sparkline: daily completed counts for past 7 days
+        const sparkDays = Array.from({ length: 7 }, (_, i) => format(subDays(today, 6 - i), 'yyyy-MM-dd'));
+        const sparkCounts = sparkDays.map(d => tasks.filter(t => t.completedAt === d).length);
+        const sparkMax = Math.max(...sparkCounts, 1);
+        const svgW = 60;
+        const svgH = 16;
+        const pad = 1.5;
+        const sparkPoints = sparkCounts.map((v, i) => {
+          const x = (i / 6) * (svgW - pad * 2) + pad;
+          const y = svgH - pad - (v / sparkMax) * (svgH - pad * 2);
+          return `${x},${y}`;
+        }).join(' ');
+        const lastPt = sparkPoints.split(' ').pop()!.split(',');
+
+        // Daily goal progress
+        const doneCount = todayDone.length;
+        const goalMet = doneCount >= dailyGoal;
+        const progress = Math.min(doneCount / dailyGoal, 1);
+        const ringSize = 20;
+        const strokeW = 2;
+        const radius = (ringSize - strokeW) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const dashOffset = circumference * (1 - progress);
+
+        return (
+          <div
+            className="h-6 shrink-0 flex items-center justify-center gap-2 text-[10px] font-mono text-[#555]"
+            style={{ background: 'var(--bg-0)', borderTop: '1px solid color-mix(in srgb, var(--accent) 18%, var(--border-1))' }}
+          >
+            <span>Today: {parts.join(' · ')}</span>
+            <DailyGoalIndicator
+              doneCount={doneCount}
+              dailyGoal={dailyGoal}
+              goalMet={goalMet}
+              ringSize={ringSize}
+              strokeW={strokeW}
+              radius={radius}
+              circumference={circumference}
+              dashOffset={dashOffset}
+              setDailyGoal={setDailyGoal}
+            />
+            <span className="flex items-center gap-0.5">
+              <span style={{ fontSize: 9, opacity: 0.6 }}>7d</span>
+              <svg width={svgW} height={svgH} style={{ display: 'block' }}>
+                <polyline
+                  points={sparkPoints}
+                  fill="none"
+                  stroke="var(--accent, #4ade80)"
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle
+                  cx={lastPt[0]}
+                  cy={lastPt[1]}
+                  r={2}
+                  fill="var(--accent, #4ade80)"
+                />
+              </svg>
+            </span>
+          </div>
+        );
+      })()}
       {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} />}
       {showBriefing && <DailyBriefing onClose={() => setShowBriefing(false)} />}
       {showWeeklyReview && <WeeklyReview onClose={() => setShowWeeklyReview(false)} />}
@@ -524,12 +1050,20 @@ export function HorizonView() {
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void }) {
-  const { tasks, projects } = useStore();
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol, focusMode, isFocused, focusedTaskIndex, totalColumns, selectedTaskIds, onToggleTaskSelection }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void; focusMode: boolean; isFocused: boolean; focusedTaskIndex: number; totalColumns: number; selectedTaskIds: Set<string>; onToggleTaskSelection: (taskId: string) => void }) {
+  const { tasks, projects, updateTask, addTask } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
   const startDateStr = format(startDate, 'yyyy-MM-dd');
   const endDateStr = format(endDate, 'yyyy-MM-dd');
+  const [quickAddValue, setQuickAddValue] = useState('');
+  const isPastColumn = endDate < today;
+  const weekNumber = getISOWeek(startDate);
+  const weekBadge = (
+    <span style={{ fontSize: '9px', fontFamily: 'monospace', color: 'var(--text-2, #666)', opacity: 0.7, marginLeft: 4 }}>
+      W{weekNumber}
+    </span>
+  );
 
   // Compute all descendant project IDs for the active filter
   const getDescendantIds = (id: string): string[] => {
@@ -557,6 +1091,35 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       return true;
     })
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  // Suggested next task — only for today's column, among incomplete tasks
+  const suggestedTaskId = useMemo(() => {
+    if (!isCurrent) return null;
+    const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const weekEnd = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
+    let bestId: string | null = null;
+    let bestScore = -1;
+    for (const t of columnTasks) {
+      if (t.completed) continue;
+      let score = 0;
+      if (t.priority === 'High') score += 30;
+      else if (t.priority === 'Medium') score += 15;
+      if (t.deadline) {
+        if (t.deadline === todayStr) score += 25;
+        else if (t.deadline === tomorrowStr) score += 20;
+        else if (t.deadline >= weekStart && t.deadline <= weekEnd) score += 10;
+      }
+      if (t.estimatedMinutes != null && t.estimatedMinutes <= 30) score += 15;
+      if (t.date) {
+        const age = differenceInDays(today, parseISO(t.date));
+        if (age >= 3) score += 10;
+      }
+      if (score > bestScore) { bestScore = score; bestId = t.id; }
+    }
+    return bestScore > 0 ? bestId : null;
+  }, [isCurrent, columnTasks, todayStr, today]);
+
   // Ghost tasks: deadline falls in this column, but work date is elsewhere
   const ghostTasks = tasks.filter(t =>
     !t.completed &&
@@ -566,24 +1129,70 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
   );
   const deadlineProjects = projects.filter(p => p.deadline && p.deadline >= startDateStr && p.deadline <= endDateStr);
 
+  // Register task counts and click handlers for keyboard navigation
+  useEffect(() => {
+    if (index === 0) {
+      _columnTaskCounts = new Array(totalColumns).fill(0);
+      _columnTaskClickHandlers = new Array(totalColumns).fill(null).map(() => []);
+    }
+    _columnTaskCounts[index] = columnTasks.length;
+    _columnTaskClickHandlers[index] = columnTasks.map(task => () => {
+      // Simulate clicking on the task — trigger the popup via DOM
+      const el = document.querySelector(`[data-task-id="${task.id}"]`) as HTMLElement | null;
+      el?.click();
+    });
+  }, [index, totalColumns, columnTasks]);
+
+  // Auto-scroll focused column into view
+  const columnRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isFocused && columnRef.current) {
+      columnRef.current.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }
+  }, [isFocused]);
+
   const { setNodeRef, isOver } = useDroppable({
     id: startDateStr,
   });
 
+  const { active } = useDndContext();
+  const activeTask = active?.id ? tasks.find(t => t.id === active.id) : null;
+  const isPastDeadline = isOver && activeTask?.deadline && activeTask.deadline < startDateStr;
+
   const isCurrent = today >= startDate && today <= endDate;
   const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
 
+  // Capacity heatmap tint for header (daily/weekly only)
+  const activeCount = columnTasks.filter(t => !t.completed).length;
+  const capacityBg = (mode === 'daily' || mode === 'weekly')
+    ? activeCount >= 7 ? 'rgba(239, 68, 68, 0.07)'
+      : activeCount >= 4 ? 'rgba(234, 179, 8, 0.06)'
+      : activeCount >= 1 ? 'rgba(74, 222, 128, 0.05)'
+      : undefined
+    : undefined;
+
+  // Combined ref: droppable + keyboard nav scroll
+  const setColumnRefs = (el: HTMLDivElement | null) => {
+    setNodeRef(el);
+    (columnRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+  };
+
   return (
     <div 
-      ref={setNodeRef}
+      ref={setColumnRefs}
+      {...(isCurrent ? { 'data-today': '' } : undefined)}
       className={cn(
         "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative shrink-0",
-        isOver && "bg-[#1A1A1A]",
+        isOver && !isPastDeadline && "bg-[#1A1A1A]",
+        isPastDeadline && "bg-[#ef4444]/10",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
       )}
       style={{
         width: colWidth,
+        transition: 'opacity 0.3s, box-shadow 0.2s',
+        ...(focusMode && !isCurrent ? { opacity: 0.2, pointerEvents: 'none' as const } : undefined),
         ...(isCurrent ? { borderLeft: '2px solid var(--accent)', background: 'color-mix(in srgb, var(--accent) 5%, transparent)' } : undefined),
+        ...(isFocused ? { boxShadow: 'inset 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent)' } : undefined),
       }}
     >
       {/* Drag-to-resize handle on right edge */}
@@ -606,8 +1215,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
         <div className="absolute right-0 top-0 w-px h-full opacity-0 group-hover/resize:opacity-100 transition-opacity" style={{ background: 'var(--accent)' }} />
       </div>
       {/* Header */}
-      <div className="p-3 border-b border-[#2A2A2A] shrink-0 relative"
-        style={isCurrent ? { background: 'color-mix(in srgb, var(--accent) 10%, transparent)' } : undefined}>
+      <div className="px-3 py-1.5 border-b border-[#2A2A2A] shrink-0 relative"
+        style={{
+          ...(isCurrent ? { background: 'color-mix(in srgb, var(--accent) 10%, transparent)' } : undefined),
+          ...(capacityBg ? { background: isCurrent ? `linear-gradient(${capacityBg}, ${capacityBg}), color-mix(in srgb, var(--accent) 10%, transparent)` : capacityBg } : undefined),
+          ...(isFocused && !isCurrent ? { background: 'color-mix(in srgb, var(--accent) 6%, transparent)' } : undefined),
+          transition: 'background 0.2s',
+        }}>
         {isCurrent && (
           <div className="absolute top-0 right-0 text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1.5"
             style={{ background: 'var(--accent)' }}>
@@ -642,23 +1256,25 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
                 "text-lg font-mono",
                 isCurrent ? "text-white" : "text-[#aaa]"
               )}>
-                {format(startDate, 'dd')}
+                {format(startDate, 'dd')}{weekBadge}
               </span>
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM yyyy')}
             </div>
+            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
           </>
         )}
         {mode === 'weekly' && (
           <>
             <div className="text-sm font-bold uppercase tracking-wider"
               style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
-              Week of {format(startDate, 'MMM d')}
+              Week of {format(startDate, 'MMM d')}{weekBadge}
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
             </div>
+            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
           </>
         )}
         {mode === 'monthly' && (
@@ -670,6 +1286,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'yyyy')}
             </div>
+            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
           </>
         )}
         {mode === 'yearly' && (
@@ -681,6 +1298,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               Jan – Dec
             </div>
+            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
           </>
         )}
       </div>
@@ -718,12 +1336,48 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
 
       {/* Tasks Area */}
       <div className="flex-1 p-2 overflow-y-auto flex flex-col gap-2">
+        {isOver && (
+          <div className="flex justify-center">
+            <span className="text-[10px] font-mono bg-accent text-black px-2 py-0.5 rounded-full shadow-sm">
+              {format(startDate, 'EEE, MMM d')}
+            </span>
+          </div>
+        )}
+        {/* Overdue tasks — only shown in today's column */}
+        {isCurrent && (() => {
+          const overdueTasks = tasks.filter(t =>
+            !t.completed && t.date && t.date < todayStr &&
+            (!filterProjectIds || filterProjectIds.includes(t.projectId ?? ''))
+          );
+          if (overdueTasks.length === 0) return null;
+          return (
+            <>
+              <div className="flex items-center gap-2 select-none">
+                <span className="text-[9px] font-black uppercase tracking-widest animate-pulse" style={{ color: '#ef4444' }}>● Overdue · {overdueTasks.length}</span>
+                <button
+                  onClick={() => overdueTasks.forEach(t => updateTask(t.id, { date: todayStr }))}
+                  className="text-[10px] font-mono text-[#666] hover:text-[#ef4444] transition-colors ml-auto"
+                  title="Move all overdue to today"
+                >→ today</button>
+                <div className="h-px flex-1" style={{ background: '#ef444430' }} />
+              </div>
+              {overdueTasks.map(t => {
+                return (
+                  <div key={`overdue-${t.id}`} style={{ opacity: 0.85 }}>
+                    <DraggableTask task={t} showDate={mode !== 'daily'} isSelected={selectedTaskIds.has(t.id)} onToggleSelect={onToggleTaskSelection} />
+                  </div>
+                );
+              })}
+              <div className="h-px" style={{ background: '#ef444420' }} />
+            </>
+          );
+        })()}
         <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {columnTasks.map(task => {
+          {columnTasks.map((task, taskIdx) => {
             const isPastUnfinished = !task.completed && task.date && task.date < format(today, 'yyyy-MM-dd');
             return (
               <div key={task.id} style={isPastUnfinished ? { opacity: 0.6 } : undefined}>
-                <DraggableTask task={task} showDate={mode !== 'daily'} />
+                <DraggableTask task={task} showDate={mode !== 'daily'} isFocused={isFocused && focusedTaskIndex === taskIdx} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={onToggleTaskSelection} isSuggested={task.id === suggestedTaskId} />
               </div>
             );
           })}
@@ -753,6 +1407,46 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </div>
           );
         })}
+        {/* Quick-add input — hidden for past columns */}
+        {!isPastColumn && (
+          <input
+            type="text"
+            className="quick-add-input"
+            value={quickAddValue}
+            onChange={e => setQuickAddValue(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && quickAddValue.trim()) {
+                const { title, date } = parseDateKeyword(quickAddValue, startDate);
+                addTask({
+                  title,
+                  date: format(date, 'yyyy-MM-dd'),
+                  projectId: filterProjectId ?? null,
+                  deadline: null,
+                  deadlineHistory: [],
+                  startedAt: null,
+                });
+                setQuickAddValue('');
+              }
+              if (e.key === 'Escape') {
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+            placeholder="＋ Add task..."
+            style={{
+              background: 'transparent',
+              border: 'none',
+              borderBottom: '1px solid transparent',
+              outline: 'none',
+              color: 'var(--text-0, var(--text-1))',
+              fontSize: 12,
+              padding: '4px 4px 3px',
+              width: '100%',
+              caretColor: 'var(--accent)',
+            }}
+            onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--accent)'; }}
+            onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; }}
+          />
+        )}
         {columnTasks.length === 0 && ghostTasks.length === 0 && (() => {
           const hiddenCount = allColumnTasks.length - columnTasks.length;
           if (hideCompleted && hiddenCount > 0) {
@@ -768,7 +1462,9 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className={cn(
               'flex-1 flex flex-col items-center justify-center gap-2 select-none border border-dashed rounded-lg transition-all duration-200 min-h-[60px] px-3 cursor-pointer',
               isOver
-                ? 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
+                ? isPastDeadline
+                  ? 'border-[#ef4444]/50 bg-[#ef4444]/5 text-[#ef4444]/60 scale-[1.01]'
+                  : 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
                 : 'border-[#282828] text-[#444] bg-[#0A0A0A]/40 hover:border-[#3A3A3A] hover:text-[#666]'
             )}
               onClick={() => {
