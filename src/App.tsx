@@ -235,13 +235,18 @@ export default function App() {
           const PRIORITY_BORDER: Record<string, string> = { High: '#ef4444', Medium: '#eab308', Low: '#2A2A2A' };
           const borderColor = PRIORITY_BORDER[activeTask.priority ?? 'Low'];
           return (
-            <div className="p-2 rounded shadow-2xl text-sm cursor-grabbing flex items-center gap-2 opacity-95"
+            <div className="p-2 rounded text-sm flex items-center gap-2"
               style={{
                 background: 'var(--bg-2)',
-                border: `1px solid var(--border-1)`,
-                borderLeft: `2px solid ${borderColor}`,
+                border: '2px solid var(--accent)',
+                borderLeft: `3px solid ${borderColor}`,
                 color: 'var(--text-1)',
                 maxWidth: 240,
+                opacity: 0.92,
+                cursor: 'grabbing',
+                boxShadow: '0 12px 24px rgba(0,0,0,0.4)',
+                transform: 'scale(1.05) rotate(2deg)',
+                transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
               }}>
               {proj && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: proj.color }} />}
               <span className="truncate text-[13px]">{activeTask.title}</span>

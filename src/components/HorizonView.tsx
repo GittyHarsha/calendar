@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useStore } from '../store';
+import { useStore, fmtDuration, type Task, type Project } from '../store';
 import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears, getISOWeek, nextDay } from 'date-fns';
 
 type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -380,8 +380,116 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
   );
 }
 
+/** Compact time tracking stat for the today summary footer with project breakdown popup. */
+function TimeTrackingSummary({ todayStr, projects, tasks, timeEntries }: {
+  todayStr: string;
+  projects: Project[];
+  tasks: { id: string; projectId: string | null }[];
+  timeEntries: { taskId: string; startedAt: string; duration: number }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Time entries that started today
+  const todayEntries = useMemo(
+    () => timeEntries.filter(e => e.startedAt.startsWith(todayStr)),
+    [timeEntries, todayStr],
+  );
+
+  const totalMs = useMemo(
+    () => todayEntries.reduce((s, e) => s + e.duration, 0),
+    [todayEntries],
+  );
+
+  // Per-project breakdown
+  const projectBreakdown = useMemo(() => {
+    const taskProjectMap = new Map<string, string | null>();
+    for (const t of tasks) taskProjectMap.set(t.id, t.projectId);
+    const projectMap = new Map<string, { project: Project | null; ms: number }>();
+    for (const e of todayEntries) {
+      const pid = taskProjectMap.get(e.taskId) ?? null;
+      const key = pid ?? '__none__';
+      if (!projectMap.has(key)) {
+        projectMap.set(key, { project: pid ? projects.find(p => p.id === pid) ?? null : null, ms: 0 });
+      }
+      projectMap.get(key)!.ms += e.duration;
+    }
+    return [...projectMap.values()].filter(x => x.ms > 0).sort((a, b) => b.ms - a.ms);
+  }, [todayEntries, tasks, projects]);
+
+  if (totalMs === 0) return null;
+
+  const maxMs = projectBreakdown.length > 0 ? projectBreakdown[0].ms : 1;
+
+  return (
+    <div ref={ref} className="relative flex items-center">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-0.5 cursor-pointer hover:brightness-125 transition-colors"
+        style={{ color: 'var(--accent)', fontSize: 10, fontFamily: 'inherit' }}
+        title="Time tracked today — click for breakdown"
+      >
+        ⏱ {fmtDuration(totalMs)}
+      </button>
+
+      {open && projectBreakdown.length > 0 && (
+        <div
+          className="absolute bottom-full mb-1 right-0 rounded-md shadow-lg z-50 py-1.5 px-2 text-[10px] font-mono"
+          style={{
+            background: 'var(--bg-1)',
+            border: '1px solid var(--border-1)',
+            minWidth: 180,
+            animation: 'fade-in 0.12s ease-out',
+          }}
+        >
+          <div className="mb-1" style={{ color: 'var(--text-2)', fontSize: 9 }}>
+            Time tracked today
+          </div>
+          {projectBreakdown.map(({ project, ms }) => {
+            const color = project?.color ?? 'var(--text-2)';
+            const barPct = Math.max((ms / maxMs) * 100, 4);
+            return (
+              <div key={project?.id ?? '__none__'} className="flex items-center gap-1.5 py-0.5">
+                <span
+                  className="shrink-0 rounded-full"
+                  style={{ width: 6, height: 6, background: color }}
+                />
+                <span className="truncate" style={{ color: 'var(--text-1)', maxWidth: 90 }}>
+                  {project?.name ?? 'No project'}
+                </span>
+                <div className="flex-1 flex items-center" style={{ minWidth: 40 }}>
+                  <div
+                    className="rounded-full"
+                    style={{ height: 4, width: `${barPct}%`, background: color, opacity: 0.7 }}
+                  />
+                </div>
+                <span className="shrink-0 tabular-nums" style={{ color: 'var(--text-2)' }}>
+                  {fmtDuration(ms)}
+                </span>
+              </div>
+            );
+          })}
+          <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--border-1)', color: 'var(--accent)' }}>
+            Total: {fmtDuration(totalMs)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: number | null; focusedTask: number }) {
-  const { projects, tasks, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro, updateTask, deleteTask, dailyGoal, setDailyGoal } = useStore();
+  const { projects, tasks, timeEntries, hideCompleted, toggleHideCompleted, startPomodoro, pomodoro, stopPomodoro, updateTask, deleteTask, dailyGoal, setDailyGoal } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
@@ -1090,6 +1198,12 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
                 />
               </svg>
             </span>
+            <TimeTrackingSummary
+              todayStr={todayStr}
+              projects={projects}
+              tasks={tasks}
+              timeEntries={timeEntries}
+            />
           </div>
         );
       })()}
@@ -1127,20 +1241,31 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
     if (filterProjectIds && !filterProjectIds.includes(t.projectId ?? '')) return false;
     return true;
   });
+  const quickFilterFn = (t: Task) => {
+    if (!quickFilter) return true;
+    if (quickFilter === 'overdue')       return t.date && t.date < todayStr;
+    if (quickFilter === 'high-priority') return t.priority === 'High';
+    if (quickFilter === 'this-week') {
+      const ws = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      const we = format(endOfWeek(today,   { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      return t.date && t.date >= ws && t.date <= we;
+    }
+    if (quickFilter === 'no-deadline')   return !t.deadline;
+    return true;
+  };
+
   const columnTasks = (hideCompleted ? allColumnTasks.filter(t => !t.completed) : allColumnTasks)
-    .filter(t => {
-      if (!quickFilter) return true;
-      if (quickFilter === 'overdue')       return t.date && t.date < todayStr;
-      if (quickFilter === 'high-priority') return t.priority === 'High';
-      if (quickFilter === 'this-week') {
-        const ws = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
-        const we = format(endOfWeek(today,   { weekStartsOn: 1 }), 'yyyy-MM-dd');
-        return t.date && t.date >= ws && t.date <= we;
-      }
-      if (quickFilter === 'no-deadline')   return !t.deadline;
-      return true;
-    })
+    .filter(quickFilterFn)
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  // Completed tasks for collapsible section
+  const completedColumnTasks = allColumnTasks.filter(t => t.completed).filter(quickFilterFn)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const completedCount = completedColumnTasks.length;
+
+  // Expandable completed section state
+  const [completedExpanded, setCompletedExpanded] = useState(false);
+  const completedSectionRef = useRef<HTMLDivElement>(null);
 
   // Suggested next task — only for today's column, among incomplete tasks
   const suggestedTaskId = useMemo(() => {
@@ -1388,9 +1513,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             )}
           </>
         )}
+        {/* Completed count badge */}
+        {completedCount > 0 && (
+          <span className="text-[10px] font-mono font-semibold mt-0.5 inline-flex items-center gap-0.5" style={{ color: '#4ade80' }} title={`${completedCount} completed task${completedCount !== 1 ? 's' : ''}`}>
+            ✓{completedCount}
+          </span>
+        )}
       </div>
-
-      {/* Deadlines Section */}
       {deadlineProjects.length > 0 && (
         <div className="p-2 border-b border-[#2A2A2A] bg-[#1A1A1A]/80 flex flex-col gap-1.5">
           {deadlineProjects.map(p => {
@@ -1538,33 +1667,96 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; }}
           />
         )}
-        {columnTasks.length === 0 && ghostTasks.length === 0 && (() => {
-          const hiddenCount = allColumnTasks.length - columnTasks.length;
-          if (hideCompleted && hiddenCount > 0) {
-            return (
-              <div className="flex-1 flex flex-col items-center justify-center gap-1 select-none min-h-[60px] px-3">
-                <span className="text-[11px] font-mono text-[#444] text-center">
-                  {hiddenCount} completed task{hiddenCount !== 1 ? 's' : ''} hidden
-                </span>
+        {/* Collapsible completed tasks section */}
+        {hideCompleted && completedCount > 0 && (
+          <div className="mt-1">
+            <button
+              onClick={() => setCompletedExpanded(prev => !prev)}
+              className="w-full flex items-center gap-1.5 px-1.5 py-1 rounded text-[11px] font-mono transition-colors hover:bg-[#1A1A1A] group select-none"
+              style={{ color: '#666' }}
+            >
+              <span style={{ fontSize: 8, transition: 'transform 200ms', transform: completedExpanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+              <span>{completedCount} completed</span>
+            </button>
+            <div
+              ref={completedSectionRef}
+              style={{
+                maxHeight: completedExpanded ? `${completedColumnTasks.length * 60 + 20}px` : '0px',
+                overflow: 'hidden',
+                transition: 'max-height 300ms ease, opacity 300ms ease',
+                opacity: completedExpanded ? 1 : 0,
+              }}
+            >
+              <div className="flex flex-col gap-1 pt-1">
+                {completedColumnTasks.map(task => (
+                  <div key={`done-${task.id}`} style={{ opacity: 0.5 }}>
+                    <DraggableTask task={task} showDate={mode !== 'daily'} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={onToggleTaskSelection} />
+                  </div>
+                ))}
               </div>
-            );
+            </div>
+          </div>
+        )}
+        {columnTasks.length === 0 && ghostTasks.length === 0 && (() => {
+          if (hideCompleted && completedCount > 0) {
+            return null;
           }
+          // Contextual empty state messages
+          const pastAllDone = isPastColumn && allColumnTasks.length > 0 && allColumnTasks.every(t => t.completed);
+          const pastNothingScheduled = isPastColumn && allColumnTasks.length === 0;
+
+          let emptyIcon = '+';
+          let emptyMessage = 'Open day';
+          let emptyHint = 'Ready for planning';
+
+          if (isOver) {
+            emptyIcon = '↓';
+            emptyMessage = 'drop here';
+            emptyHint = '';
+          } else if (isCurrent) {
+            emptyIcon = '📋';
+            emptyMessage = 'Nothing planned today';
+            emptyHint = 'Drag tasks here or press + to add';
+          } else if (pastAllDone) {
+            emptyIcon = '✨';
+            emptyMessage = 'All done!';
+            emptyHint = 'Great work';
+          } else if (pastNothingScheduled) {
+            emptyIcon = '·';
+            emptyMessage = 'No tasks were scheduled';
+            emptyHint = '';
+          } else if (isWeekend) {
+            emptyIcon = '🌿';
+            emptyMessage = 'Weekend';
+            emptyHint = 'Rest or catch up?';
+          }
+
           return (
             <div className={cn(
-              'flex-1 flex flex-col items-center justify-center gap-2 select-none border border-dashed rounded-lg transition-all duration-200 min-h-[60px] px-3 cursor-pointer',
+              'flex-1 flex flex-col items-center justify-center gap-1 select-none border border-dashed rounded-lg transition-all duration-200 min-h-[60px] px-3',
               isOver
                 ? isPastDeadline
                   ? 'border-[#ef4444]/50 bg-[#ef4444]/5 text-[#ef4444]/60 scale-[1.01]'
                   : 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
-                : 'border-[#282828] text-[#444] bg-[#0A0A0A]/40 hover:border-[#3A3A3A] hover:text-[#666]'
+                : 'border-[#282828] text-[#444] bg-[#0A0A0A]/40 hover:border-[#3A3A3A] hover:text-[#666]',
+              !isPastColumn && 'cursor-pointer'
             )}
-              onClick={() => {
+              style={{ animation: 'fade-in 0.3s ease' }}
+              onClick={isPastColumn ? undefined : () => {
                 window.dispatchEvent(new CustomEvent('horizon:prefill-date', { detail: startDateStr }));
                 document.getElementById('new-task-input')?.focus();
               }}
             >
-              <span className="text-base leading-none">{isOver ? '↓' : '+'}</span>
-              <span className="text-[11px] font-mono text-center leading-tight">{isOver ? 'drop here' : 'Drop a task or click +'}</span>
+              <span className="leading-none" style={{ fontSize: 16, opacity: 0.7 }}>{emptyIcon}</span>
+              <span className="text-center leading-tight" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2, #666)' }}>{emptyMessage}</span>
+              {emptyHint && (
+                <span className="text-center leading-tight" style={{ fontSize: 10, color: 'var(--text-2, #666)', opacity: 0.6 }}>{emptyHint}</span>
+              )}
+              {!isOver && !isPastColumn && (
+                <span className="text-center leading-tight mt-1" style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--text-2, #666)', opacity: 0.4 }}>
+                  {isCurrent ? 'Press + to quick add' : 'Drag from another day'}
+                </span>
+              )}
             </div>
           );
         })()}

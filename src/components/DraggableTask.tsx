@@ -28,6 +28,17 @@ const PRIORITY_BG: Record<Priority, string> = {
 const PRIORITY_LABEL: Record<Priority, string> = { High: 'High', Medium: 'Medium', Low: 'Low' };
 const PRIORITY_COLOR: Record<Priority, string> = { High: '#ef4444', Medium: '#eab308', Low: '#666' };
 
+// Cycle: undefined → Low → Medium → High → undefined
+const PRIORITY_CYCLE: Record<string, Priority | undefined> = {
+  none: 'Low', Low: 'Medium', Medium: 'High', High: undefined,
+};
+const PRIORITY_BADGE: Record<string, { text: string; color: string }> = {
+  High:   { text: '!!!', color: '#ef4444' },
+  Medium: { text: '!!',  color: '#eab308' },
+  Low:    { text: '!',   color: '#666' },
+  none:   { text: '·',   color: '#444' },
+};
+
 function deadlineAccent(days: number | null) {
   if (days === null) return null;
   if (days < 0)  return { color: '#ef4444', label: `${Math.abs(days)}d overdue`, bold: false };
@@ -706,6 +717,16 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
 
   const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({ id: task.id, data: { date: task.date } });
   const priority: Priority = task.priority ?? 'Low';
+  const [priorityFlash, setPriorityFlash] = useState(false);
+
+  const cyclePriority = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const key = task.priority ?? 'none';
+    const next = PRIORITY_CYCLE[key];
+    updateTask(task.id, { priority: next });
+    setPriorityFlash(true);
+    setTimeout(() => setPriorityFlash(false), 200);
+  };
 
   const today = startOfToday();
   const deadlineDays = task.deadline ? differenceInDays(parseISO(task.deadline), today) : null;
@@ -878,6 +899,24 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
                   style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent)' }}
                   title="Suggested next task">⚡Next</span>
               )}
+              {!task.completed && (
+                <span
+                  onClick={cyclePriority}
+                  onMouseDown={e => e.stopPropagation()}
+                  className="shrink-0 cursor-pointer select-none"
+                  style={{
+                    fontSize: '9px',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    color: (PRIORITY_BADGE[task.priority ?? 'none']).color,
+                    transition: 'color 200ms, text-shadow 200ms',
+                    textShadow: priorityFlash
+                      ? `0 0 6px ${(PRIORITY_BADGE[task.priority ?? 'none']).color}`
+                      : 'none',
+                  }}
+                  title="Click to change priority"
+                >{(PRIORITY_BADGE[task.priority ?? 'none']).text}</span>
+              )}
               <span onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); setTitleVal(task.title); }}
                 className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate transition-colors',
                   task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
@@ -896,6 +935,16 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           {/* Notes indicator */}
           {task.description && (
             <span className="text-[9px] shrink-0 opacity-40 group-hover:opacity-60 transition-opacity">📝</span>
+          )}
+
+          {/* Recurrence badge */}
+          {task.recurrence && task.recurrence !== 'none' && !task.completed && (
+            <span className="text-[9px] shrink-0 px-1 py-0.5 rounded-full"
+              style={{ background: 'rgba(136,136,136,0.10)', color: '#888' }}
+              title={`Repeats ${task.recurrence}`}
+            >
+              🔁 {task.recurrence === 'daily' ? 'D' : task.recurrence === 'weekly' ? 'W' : 'M'}
+            </span>
           )}
 
           {/* Time estimate badge */}
