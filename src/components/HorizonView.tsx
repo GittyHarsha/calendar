@@ -1440,6 +1440,9 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
   const [completedExpanded, setCompletedExpanded] = useState(false);
   const completedSectionRef = useRef<HTMLDivElement>(null);
 
+  // Must be computed before suggestedTaskId useMemo which depends on it
+  const isCurrent = today >= startDate && today <= endDate;
+
   // Suggested next task — only for today's column, among incomplete tasks
   const suggestedTaskId = useMemo(() => {
     if (!isCurrent) return null;
@@ -1507,7 +1510,6 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
   const activeTask = active?.id ? tasks.find(t => t.id === active.id) : null;
   const isPastDeadline = isOver && activeTask?.deadline && activeTask.deadline < startDateStr;
 
-  const isCurrent = today >= startDate && today <= endDate;
   const isWeekend = startDate.getDay() === 0 || startDate.getDay() === 6;
 
   // Capacity heatmap tint for header (daily/weekly only)

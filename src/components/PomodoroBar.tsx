@@ -18,7 +18,6 @@ export function PomodoroBar() {
           completeWorkSession, startBreak, skipBreak } = useStore();
 
   const [elapsed, setElapsed] = useState(0);
-  const [showBreakModal, setShowBreakModal] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Tick
@@ -81,7 +80,7 @@ export function PomodoroBar() {
   }, [showTaskDropdown]);
 
   // ── Idle state ──────────────────────────────────────────────────────────────
-  if (pomodoro.phase === 'idle' && !showBreakModal) {
+  if (pomodoro.phase === 'idle') {
     const todayStr = startOfToday().toISOString().slice(0, 10);
     const todayEntries = timeEntries.filter(e => e.startedAt.slice(0, 10) === todayStr);
     const todaySessions = todayEntries.length;
@@ -189,7 +188,7 @@ export function PomodoroBar() {
 
   return (
     <>
-      {!showBreakModal && (
+      {(
         <div
           style={{
             position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
@@ -259,23 +258,13 @@ export function PomodoroBar() {
               >▶</button>
             )}
             <button
-              onClick={() => { stopPomodoro(); setShowBreakModal(false); }}
+              onClick={() => { stopPomodoro(); }}
               style={ctrlBtn('var(--bg-2)')}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)'; }}
             >✕</button>
           </div>
         </div>
-      )}
-
-      {showBreakModal && (
-        <BreakModal
-          sessionsCompleted={pomodoro.sessionsCompleted}
-          taskTitle={isEyeRest ? '⏱ Misc' : (task?.title ?? '—')}
-          onStartBreak={() => { startBreak(); setShowBreakModal(false); }}
-          onSkipBreak={() => { skipBreak(); setShowBreakModal(false); }}
-          onStop={() => { stopPomodoro(); setShowBreakModal(false); }}
-        />
       )}
     </>
   );

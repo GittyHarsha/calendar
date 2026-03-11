@@ -585,7 +585,6 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                         <textarea
                           value={value}
                           onChange={onChange}
-                          onBlur={onBlur}
                           placeholder={placeholder}
                           rows={2}
                           style={{
@@ -595,7 +594,7 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                             boxSizing: 'border-box',
                           }}
                           onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                          onBlur={e => (e.target.style.borderColor = 'var(--border-1)')}
+                          onBlur={e => { e.target.style.borderColor = 'var(--border-1)'; onBlur(); }}
                         />
                       </div>
                     ))}
