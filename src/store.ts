@@ -29,6 +29,7 @@ export type Task = {
   deadline: string | null;
   deadlineHistory: string[];
   completed: boolean;
+  completedAt?: string | null;
   startedAt?: string | null;
   priority?: Priority;
   description?: string;
@@ -134,6 +135,14 @@ export function fmtDuration(ms: number): string {
   return `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
+export type JournalEntry = {
+  date: string;         // yyyy-MM-dd
+  text: string;         // free-form writing
+  wins?: string;        // what went well
+  blockers?: string;    // what got in the way
+  tomorrow?: string;    // top priority for tomorrow
+};
+
 type EpochState = {
   projects: Project[];
   tasks: Task[];
@@ -145,8 +154,8 @@ type EpochState = {
   thinkPadNotes: string;
   hoveredProjectId: string | null;
   hideCompleted: boolean;
+  journalEntries: Record<string, JournalEntry>;
 
-  
   // Actions
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -178,6 +187,7 @@ type EpochState = {
   setHoveredProjectId: (id: string | null) => void;
   toggleHideCompleted: () => void;
   setWeeklyIntention: (text: string) => void;
+  setJournalEntry: (date: string, patch: Partial<Omit<JournalEntry, 'date'>>) => void;
 };
 
 const today = startOfToday();
@@ -226,6 +236,7 @@ export const useStore = create<EpochState>()(
   hoveredProjectId: null,
   hideCompleted: false,
   weeklyIntention: '',
+  journalEntries: {},
   
   addProject: (project) => set((state) => ({
     projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
@@ -447,6 +458,12 @@ export const useStore = create<EpochState>()(
       setHoveredProjectId: (id) => set({ hoveredProjectId: id }),
       toggleHideCompleted: () => set((state) => ({ hideCompleted: !state.hideCompleted })),
       setWeeklyIntention: (text) => set({ weeklyIntention: text }),
+      setJournalEntry: (date, patch) => set((state) => ({
+        journalEntries: {
+          ...state.journalEntries,
+          [date]: { date, text: '', wins: '', blockers: '', tomorrow: '', ...state.journalEntries[date], ...patch },
+        },
+      })),
 
     }),
     {
@@ -461,6 +478,7 @@ export const useStore = create<EpochState>()(
         hideCompleted: state.hideCompleted,
         pomodoro: state.pomodoro,
         weeklyIntention: state.weeklyIntention,
+        journalEntries: state.journalEntries,
       }),
     }
   )
