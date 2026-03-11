@@ -849,61 +849,43 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           setShowNotesTooltip(false);
         }}
         className={cn(
-          'task-card relative group flex flex-col border border-l-2 rounded transition-all overflow-hidden cursor-grab',
-          'hover:-translate-y-px',
+          'relative group flex flex-col border border-l-2 rounded cursor-grab',
           isSelected ? 'border-[color:var(--accent)]' : 'border-[#222]',
           task.completed ? 'border-l-[#333]' : isOverdue ? '' : PRIORITY_BORDER[priority],
           isOverdue && 'overdue-pulse',
-          isDragging ? 'opacity-40 scale-[0.98] dragging' : '',
+          isDragging ? 'opacity-40 scale-[0.98]' : '',
           task.completed && 'opacity-40'
         )}
         style={{
-          background: isSuggested
-            ? 'color-mix(in srgb, var(--accent) 6%, ' + cardBaseBg + ')'
-            : isSelected
-            ? 'color-mix(in srgb, var(--accent) 8%, ' + cardBaseBg + ')'
-            : cardBaseBg,
-          ...(isSelected
-            ? { boxShadow: `${highGlowShadow}0 0 0 2px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 20%, transparent)` }
-            : isFocused ? { boxShadow: `${highGlowShadow}0 0 0 2px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 15%, transparent)` }
-            : isSuggested ? { boxShadow: `${highGlowShadow}0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 2px 12px color-mix(in srgb, var(--accent) 10%, transparent)` }
-            : showPopup && !isDragging ? { boxShadow: `${highGlowShadow}0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--accent) 12%, transparent)` } : { boxShadow: `${highGlowShadow}0 1px 3px rgba(0,0,0,0.3)` }),
+          background: isSelected
+            ? 'color-mix(in srgb, var(--accent) 8%, var(--bg-2))'
+            : task.completed ? '#141414' : 'var(--bg-2)',
+          boxShadow: (isSelected || isFocused)
+            ? '0 0 0 2px var(--accent)'
+            : '0 1px 3px rgba(0,0,0,0.3)',
           transform: CSS.Transform.toString(transform),
           transition,
-          ...(daysStale >= 3 ? { filter: `saturate(${Math.max(0.3, 1 - daysStale * 0.05)})` } : {}),
           ...priorityGlowStyle,
-          ...projectTintBorder,
         }}
       >
         <div className={cn('flex items-center gap-2 px-2', task.completed ? 'py-0.5' : 'py-1.5')}>
-          {/* Selection checkbox indicator */}
-          {isSelected && (
-            <div className="shrink-0 w-3.5 h-3.5 rounded flex items-center justify-center -ml-0.5"
-              style={{ background: 'var(--accent)' }}>
-              <svg width={10} height={10} viewBox="0 0 10 10" fill="none">
-                <path d="M2 5.5L4 7.5L8 3" stroke="#000" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          )}
           <div {...attributes} {...listeners}
-            className="opacity-30 group-hover:opacity-60 cursor-grab text-[#888] shrink-0 -ml-1">
+            className="opacity-0 group-hover:opacity-40 cursor-grab text-[#888] shrink-0 -ml-1">
             <GripVertical size={13} />
           </div>
 
           {/* Project color dot */}
           {project && (
-            <div className="shrink-0 w-1.5 h-1.5 rounded-full opacity-70 group-hover:opacity-100 transition-opacity"
+            <div className="shrink-0 w-1.5 h-1.5 rounded-full"
               style={{ backgroundColor: project.color }} title={projectLabel} />
           )}
 
-          {/* Check */}
+          {/* Checkbox */}
           <button onClick={handleToggleComplete}
             role="checkbox"
             aria-checked={task.completed}
-            aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
             className={cn(
-              'shrink-0 w-3.5 h-3.5 rounded-full border transition-all',
-              checkAnim && 'bounce-check',
+              'shrink-0 w-3.5 h-3.5 rounded-full border transition-colors',
               task.completed ? 'border-[var(--accent)]' : 'border-[#444] hover:border-[var(--accent)]'
             )}
             style={task.completed ? { background: 'var(--accent)' } : undefined}
@@ -919,187 +901,40 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
               className="flex-1 text-sm bg-transparent border-none focus:outline-none"
               style={{ color: task.completed ? '#555' : '#C8C7C4' }} />
           ) : (
-            <>
-              {isSuggested && (
-                <span className="shrink-0 text-[9px] font-bold px-1 py-0.5 rounded"
-                  style={{ background: 'color-mix(in srgb, var(--accent) 18%, transparent)', color: 'var(--accent)' }}
-                  title="Suggested next task">⚡Next</span>
-              )}
-              {!task.completed && (
-                <span
-                  onClick={cyclePriority}
-                  onMouseDown={e => e.stopPropagation()}
-                  className="shrink-0 cursor-pointer select-none"
-                  style={{
-                    fontSize: '9px',
-                    fontFamily: 'monospace',
-                    fontWeight: 700,
-                    color: (PRIORITY_BADGE[task.priority ?? 'none']).color,
-                    transition: 'color 200ms, text-shadow 200ms',
-                    textShadow: priorityFlash
-                      ? `0 0 6px ${(PRIORITY_BADGE[task.priority ?? 'none']).color}`
-                      : 'none',
-                  }}
-                  title="Click to change priority"
-                >{(PRIORITY_BADGE[task.priority ?? 'none']).text}</span>
-              )}
-              <span onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); setTitleVal(task.title); }}
-                className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate transition-colors',
-                  task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
-                )} title={task.title}>{task.title}</span>
-            </>
+            <span onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); setTitleVal(task.title); }}
+              className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate',
+                task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
+              )} title={task.title}>{task.title}</span>
           )}
 
-          {/* Streak badge */}
-          {streak >= 2 && !task.completed && (
-            <span className="text-[9px] font-semibold shrink-0 px-1 py-0.5 rounded"
-              style={{ background: 'rgba(249,115,22,0.15)', color: '#f97316' }}>
-              🔥{streak}
+          {/* Only essential inline indicators */}
+          {task.estimatedMinutes && !task.completed && (
+            <span className="text-[9px] font-mono shrink-0 text-[#666]">
+              {formatEstimate(task.estimatedMinutes)}
             </span>
           )}
-
-          {/* Notes indicator */}
-          {task.description && (
-            <span className="text-[9px] shrink-0 opacity-40 group-hover:opacity-60 transition-opacity">📝</span>
-          )}
-
-          {/* Recurrence badge */}
-          {task.recurrence && task.recurrence !== 'none' && !task.completed && (
-            <span className="text-[9px] shrink-0 px-1 py-0.5 rounded-full"
-              style={{ background: 'rgba(136,136,136,0.10)', color: '#888' }}
-              title={`Repeats ${task.recurrence}`}
-            >
-              🔁 {task.recurrence === 'daily' ? 'D' : task.recurrence === 'weekly' ? 'W' : 'M'}
+          {dl && !task.completed && (
+            <span className="text-[10px] font-mono shrink-0" style={{ color: dl.color, fontWeight: dl.bold ? 700 : undefined }}>
+              {dl.label}
             </span>
-          )}
-
-          {/* Time estimate badge */}
-          {!task.completed && (
-            <span
-              ref={timeBadgeRef}
-              onClick={(e) => { e.stopPropagation(); setShowTimePicker(prev => !prev); }}
-              className="text-[9px] font-mono shrink-0 px-1 py-0.5 rounded cursor-pointer transition-colors hover:opacity-100"
-              style={{
-                background: task.estimatedMinutes ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'rgba(136,136,136,0.08)',
-                color: task.estimatedMinutes ? 'var(--accent)' : '#555',
-                opacity: task.estimatedMinutes ? 1 : 0.6,
-              }}
-              title={task.estimatedMinutes ? `Estimated: ${formatEstimate(task.estimatedMinutes)}` : 'Set time estimate'}
-            >
-              {task.estimatedMinutes ? formatEstimate(task.estimatedMinutes) : '⏱'}
-            </span>
-          )}
-
-          {/* Dependency badge */}
-          {depStatus && !task.completed && (
-            <span
-              className="text-[9px] font-semibold shrink-0 px-1 py-0.5 rounded"
-              style={{
-                background: depStatus.allMet ? 'rgba(34,197,94,0.12)' : 'rgba(249,115,22,0.12)',
-                color: depStatus.allMet ? '#22c55e' : '#f97316',
-              }}
-              title={depStatus.allMet
-                ? `All ${depStatus.total} dependencies completed`
-                : `${depStatus.done} of ${depStatus.total} dependencies completed`}
-            >
-              {depStatus.allMet ? '🔗 ✓' : `🔗 ${depStatus.done}/${depStatus.total}`}
-            </span>
-          )}
-
-          {/* Badges — only show the 2 most important inline; rest in popup */}
-          {/* Zombie/stale badge — task sitting unfinished on a past date */}
-          {!task.completed && task.date && task.date < format(today, 'yyyy-MM-dd') && (() => {
-            const age = differenceInDays(today, parseISO(task.date));
-            if (age < 1) return null;
-            return (
-              <span className="text-[10px] font-mono shrink-0" style={{ color: age >= 7 ? '#ef4444' : '#F27D26' }}>
-                {age}d
-              </span>
-            );
-          })()}
-          {daysStale >= 3 && (
-            <span className="text-[10px] font-mono shrink-0 px-1 py-0.5 rounded" style={{ color: '#ef4444', opacity: 0.6, background: '#ef444415' }}>
-              {daysStale}d stale
-            </span>
-          )}
-          {task.taskStatus === 'blocked' && (
-            <span className="text-[10px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ background: '#ef444420', color: '#ef4444' }}>🔒</span>
-          )}
-          {task.taskStatus === 'waiting' && (
-            <span className="text-[10px] font-bold shrink-0 px-1 py-0.5 rounded" style={{ background: '#eab30820', color: '#eab308' }}>⏳</span>
           )}
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
             <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: 'var(--accent)' }}>▶</span>
           )}
-          {dl && (
-            <span className="text-[10px] font-mono shrink-0" style={{ color: dl.color, fontWeight: dl.bold ? 700 : undefined }}>
-              <Flag size={9} className="inline mr-0.5" style={{ color: dl.color }} />{dl.label}
-            </span>
+          {task.taskStatus === 'blocked' && (
+            <span className="text-[9px] shrink-0" style={{ color: '#ef4444' }}>●</span>
           )}
-          {showDate && task.date && (
-            <span className="text-[12px] text-[#888] font-mono shrink-0">
-              {format(parseISO(task.date), 'MMM d')}
-            </span>
-          )}
-
         </div>
-        {/* Label chips */}
-        {(task.labels?.length ?? 0) > 0 && !task.completed && (() => {
-          const labels = task.labels!;
-          const availableLabels = useStore.getState().availableLabels;
-          const MAX_VISIBLE = 3;
-          const visible = labels.slice(0, MAX_VISIBLE);
-          const overflow = labels.length - MAX_VISIBLE;
-          return (
-            <div className="px-2 pb-1 flex items-center gap-1 flex-wrap" style={{ marginTop: -4 }}>
-              {visible.map(name => {
-                const labelDef = availableLabels.find(l => l.name === name);
-                const color = labelDef?.color ?? '#888';
-                return (
-                  <span key={name} className="rounded-full px-1.5 py-0.5 leading-none"
-                    style={{ fontSize: 8, color, background: color + '33' }}>
-                    {name}
-                  </span>
-                );
-              })}
-              {overflow > 0 && (
-                <span className="rounded-full px-1.5 py-0.5 leading-none text-[#666]"
-                  style={{ fontSize: 8, background: '#ffffff10' }}>
-                  +{overflow}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-        {/* Subtask progress ring on card */}
+        {/* Subtask progress — compact */}
         {(task.subtasks?.length ?? 0) > 0 && !task.completed && (() => {
           const total = task.subtasks!.length;
           const done = task.subtasks!.filter(s => s.done).length;
-          const pct = done / total;
-          const r = 5;
-          const C = 2 * Math.PI * r;
           return (
             <div className="px-2 pb-1 flex items-center gap-1" style={{ marginTop: -4 }}>
-              <svg width={14} height={14} style={{ flexShrink: 0 }}>
-                <circle cx={7} cy={7} r={r} fill="none" stroke="#555" strokeWidth={2} />
-                <circle cx={7} cy={7} r={r} fill="none"
-                  stroke="var(--accent)"
-                  strokeWidth={2}
-                  strokeDasharray={C}
-                  strokeDashoffset={C * (1 - pct)}
-                  strokeLinecap="round"
-                  style={{ transform: 'rotate(-90deg)', transformOrigin: '7px 7px' }} />
-              </svg>
-              <span className="text-[9px] font-mono text-[#555]">{done}/{total}</span>
+              <span className="text-[9px] font-mono text-[#555]">{done}/{total} subtasks</span>
             </div>
           );
         })()}
-        {/* Recurrence badge */}
-        {task.recurrence && task.recurrence !== 'none' && !task.completed && (
-          <div className="px-2 pb-1" style={{ marginTop: -4 }}>
-            <span className="text-[11px] font-mono" style={{ color: '#555' }}>↻ {task.recurrence}</span>
-          </div>
-        )}
         {/* Snooze to tomorrow — absolute button on hover for incomplete tasks */}
         {!task.completed && (
           <button

@@ -951,55 +951,6 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         {/* Cluster divider 2 */}
         <span className="w-px h-5 bg-white/10 mx-3 shrink-0" />
 
-        {/* Live urgency counts */}
-        <div className="flex items-center gap-2 mr-3 shrink-0">
-          {overdueCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-mono font-bold animate-pulse"
-              style={{ color: '#ef4444' }}
-              title={`${overdueCount} overdue`}>
-              ● {overdueCount} overdue
-            </span>
-          )}
-          {todayCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-mono font-bold"
-              style={{ color: '#F27D26' }}
-              title={`${todayCount} due today`}>
-              ◐ {todayCount} today
-            </span>
-          )}
-          {weekDeadlineCount > 0 && (
-            <span className="flex items-center gap-1 text-[11px] font-mono"
-              style={{ color: '#eab308' }}
-              title={`${weekDeadlineCount} deadlines this week`}>
-              ◇ {weekDeadlineCount} this week
-            </span>
-          )}
-        </div>
-
-        {/* Quick filters */}
-        <div className="flex items-center gap-1 mr-2">
-          {([
-            { id: 'overdue'       as const, label: 'Overdue', color: '#ef4444' },
-            { id: 'high-priority' as const, label: 'High',    color: '#ef4444' },
-            { id: 'this-week'     as const, label: 'Week',    color: '#3B82F6' },
-            { id: 'no-deadline'   as const, label: 'No due',  color: '#888'    },
-          ]).map(f => {
-            const active = quickFilter === f.id;
-            return (
-              <button key={f.id}
-                onClick={() => setQuickFilter(active ? null : f.id)}
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full transition-all"
-                style={{
-                  background: active ? f.color + '22' : 'transparent',
-                  color: active ? f.color : '#3A3A3A',
-                  border: `1px solid ${active ? f.color + '60' : '#222'}`,
-                }}>
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Right icon cluster */}
         <div className="flex items-center gap-0.5">
           {/* Hide done */}
@@ -1135,69 +1086,6 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         </div>
       </div>
 
-      {/* Project color legend strip */}
-      {(() => {
-        const topLevel = projects.filter(p => !p.parentId);
-        if (topLevel.length === 0) return null;
-        return (
-          <div
-            className="shrink-0 flex items-center gap-3 px-4 overflow-x-auto"
-            style={{
-              background: 'var(--bg-0)',
-              borderBottom: '1px solid color-mix(in srgb, var(--accent) 10%, var(--border-1))',
-              height: 26,
-              scrollbarWidth: 'none',
-            }}
-          >
-            {/* All reset */}
-            <button
-              onClick={() => setFilterProjectId(null)}
-              className="flex items-center gap-1.5 shrink-0 transition-opacity"
-              style={{ opacity: filterProjectId === null ? 1 : 0.45 }}
-            >
-              <span
-                style={{
-                  width: filterProjectId === null ? 10 : 8,
-                  height: filterProjectId === null ? 10 : 8,
-                  borderRadius: '50%',
-                  background: 'var(--text-2, #686868)',
-                  display: 'inline-block',
-                  boxShadow: filterProjectId === null ? '0 0 0 2px var(--bg-0), 0 0 0 3.5px var(--text-2)' : 'none',
-                  transition: 'all 150ms ease',
-                }}
-              />
-              <span style={{ fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>All</span>
-            </button>
-
-            {topLevel.map(p => {
-              const active = filterProjectId === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => setFilterProjectId(active ? null : p.id)}
-                  className="flex items-center gap-1.5 shrink-0 transition-opacity"
-                  style={{ opacity: filterProjectId === null || active ? 1 : 0.4 }}
-                  title={p.name}
-                >
-                  <span
-                    style={{
-                      width: active ? 10 : 8,
-                      height: active ? 10 : 8,
-                      borderRadius: '50%',
-                      background: p.color,
-                      display: 'inline-block',
-                      boxShadow: active ? `0 0 0 2px var(--bg-0), 0 0 0 3.5px ${p.color}` : 'none',
-                      transition: 'all 150ms ease',
-                    }}
-                  />
-                  <span style={{ fontSize: 11, color: 'var(--text-1)', whiteSpace: 'nowrap' }}>{p.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        );
-      })()}
-
       {/* Goals overlay panel */}
       {showProjects && (
         <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
@@ -1296,87 +1184,22 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         </div>
       )}
 
-      {/* Today summary footer */}
+      {/* Today summary footer — clean and minimal */}
       {(() => {
         const todayTasks = tasks.filter(t => t.date === todayStr && !t.completed);
         const todayDone = tasks.filter(t => t.completedAt === todayStr);
-        const todayEst = todayTasks.reduce((s, t) => s + (t.estimatedMinutes ?? 0), 0);
-        const estLabel = todayEst >= 60
-          ? `~${Math.floor(todayEst / 60)}h ${todayEst % 60}m`
-          : todayEst > 0 ? `~${todayEst}m` : '';
-        const parts = [
-          `${todayTasks.length} tasks`,
-          ...(estLabel ? [`${estLabel} estimated`] : []),
-          `${todayDone.length} done`,
-          ...(overdueCount > 0 ? [`${overdueCount} overdue`] : []),
-        ];
-
-        // Sparkline: daily completed counts for past 7 days
-        const sparkDays = Array.from({ length: 7 }, (_, i) => format(subDays(today, 6 - i), 'yyyy-MM-dd'));
-        const sparkCounts = sparkDays.map(d => tasks.filter(t => t.completedAt === d).length);
-        const sparkMax = Math.max(...sparkCounts, 1);
-        const svgW = 60;
-        const svgH = 16;
-        const pad = 1.5;
-        const sparkPoints = sparkCounts.map((v, i) => {
-          const x = (i / 6) * (svgW - pad * 2) + pad;
-          const y = svgH - pad - (v / sparkMax) * (svgH - pad * 2);
-          return `${x},${y}`;
-        }).join(' ');
-        const lastPt = sparkPoints.split(' ').pop()!.split(',');
-
-        // Daily goal progress
-        const doneCount = todayDone.length;
-        const goalMet = doneCount >= dailyGoal;
-        const progress = Math.min(doneCount / dailyGoal, 1);
-        const ringSize = 20;
-        const strokeW = 2;
-        const radius = (ringSize - strokeW) / 2;
-        const circumference = 2 * Math.PI * radius;
-        const dashOffset = circumference * (1 - progress);
-
         return (
           <div
-            className="h-6 shrink-0 flex items-center justify-center gap-2 text-[10px] font-mono text-[#555]"
-            style={{ background: 'var(--bg-0)', borderTop: '1px solid color-mix(in srgb, var(--accent) 18%, var(--border-1))' }}
+            className="h-6 shrink-0 flex items-center justify-center gap-3 text-[10px] font-mono text-[#555]"
+            style={{ background: 'var(--bg-0)', borderTop: '1px solid var(--border-1)' }}
           >
-            <span>Today: {parts.join(' · ')}</span>
-            <DailyGoalIndicator
-              doneCount={doneCount}
-              dailyGoal={dailyGoal}
-              goalMet={goalMet}
-              ringSize={ringSize}
-              strokeW={strokeW}
-              radius={radius}
-              circumference={circumference}
-              dashOffset={dashOffset}
-              setDailyGoal={setDailyGoal}
-            />
-            <span className="flex items-center gap-0.5">
-              <span style={{ fontSize: 9, opacity: 0.6 }}>7d</span>
-              <svg width={svgW} height={svgH} style={{ display: 'block' }}>
-                <polyline
-                  points={sparkPoints}
-                  fill="none"
-                  stroke="var(--accent, #4ade80)"
-                  strokeWidth={1.5}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle
-                  cx={lastPt[0]}
-                  cy={lastPt[1]}
-                  r={2}
-                  fill="var(--accent, #4ade80)"
-                />
-              </svg>
-            </span>
-            <TimeTrackingSummary
-              todayStr={todayStr}
-              projects={projects}
-              tasks={tasks}
-              timeEntries={timeEntries}
-            />
+            <span>{todayTasks.length} remaining</span>
+            <span>·</span>
+            <span style={{ color: todayDone.length > 0 ? '#4ade80' : undefined }}>{todayDone.length} done</span>
+            {overdueCount > 0 && <>
+              <span>·</span>
+              <span style={{ color: '#ef4444' }}>{overdueCount} overdue</span>
+            </>}
           </div>
         );
       })()}
@@ -1590,22 +1413,12 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       {/* Header */}
       <div className="px-3 py-1.5 border-b border-[#2A2A2A] shrink-0 relative"
         style={{
-          ...(isCurrent ? { background: 'color-mix(in srgb, var(--accent) 10%, transparent)' } : undefined),
-          ...(capacityBg ? { background: isCurrent ? `linear-gradient(${capacityBg}, ${capacityBg}), color-mix(in srgb, var(--accent) 10%, transparent)` : capacityBg } : undefined),
-          ...(isFocused && !isCurrent ? { background: 'color-mix(in srgb, var(--accent) 6%, transparent)' } : undefined),
-          transition: 'background 0.2s',
+          ...(isCurrent ? { background: 'color-mix(in srgb, var(--accent) 8%, transparent)' } : undefined),
         }}>
         {isCurrent && (
-          <div className="absolute top-0 right-0 text-black text-[13px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider flex items-center gap-1.5"
+          <div className="absolute top-0 right-0 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider"
             style={{ background: 'var(--accent)' }}>
-            <span className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse inline-block" />
-            {format(today, 'MMM d, yyyy')}
-          </div>
-        )}
-        {/* Capacity bar — estimated hours vs available hours */}
-        {hasEstimates && (
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full overflow-hidden" style={{ background: 'var(--bg-2, #1a1a1a)' }}>
-            <div style={{ height: '100%', width: `${capacityFill * 100}%`, background: capacityBarColor, borderRadius: 'inherit', transition: 'width 0.3s, background 0.3s' }} />
+            Today
           </div>
         )}
         {mode === 'daily' && (
@@ -1619,37 +1432,25 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
                 "text-lg font-mono",
                 isCurrent ? "text-white" : "text-[#aaa]"
               )}>
-                {format(startDate, 'dd')}{weekBadge}
+                {format(startDate, 'dd')}
               </span>
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM yyyy')}
+              {estLabel && <span className="ml-2 text-[#666]">{estLabel}</span>}
             </div>
-            {hasEstimates && (
-              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
-                <span>{estLabel}</span>
-                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
-                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
-              </div>
-            )}
           </>
         )}
         {mode === 'weekly' && (
           <>
             <div className="text-sm font-bold uppercase tracking-wider"
               style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
-              Week of {format(startDate, 'MMM d')}{weekBadge}
+              Week of {format(startDate, 'MMM d')}
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
+              {estLabel && <span className="ml-2 text-[#666]">{estLabel}</span>}
             </div>
-            {hasEstimates && (
-              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
-                <span>{estLabel}</span>
-                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
-                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
-              </div>
-            )}
           </>
         )}
         {mode === 'monthly' && (
@@ -1660,14 +1461,8 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'yyyy')}
+              {estLabel && <span className="ml-2 text-[#666]">{estLabel}</span>}
             </div>
-            {hasEstimates && (
-              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
-                <span>{estLabel}</span>
-                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
-                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
-              </div>
-            )}
           </>
         )}
         {mode === 'yearly' && (
@@ -1678,21 +1473,9 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </div>
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               Jan – Dec
+              {estLabel && <span className="ml-2 text-[#666]">{estLabel}</span>}
             </div>
-            {hasEstimates && (
-              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
-                <span>{estLabel}</span>
-                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
-                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
-              </div>
-            )}
           </>
-        )}
-        {/* Completed count badge */}
-        {completedCount > 0 && (
-          <span className="text-[10px] font-mono font-semibold mt-0.5 inline-flex items-center gap-0.5" style={{ color: '#4ade80' }} title={`${completedCount} completed task${completedCount !== 1 ? 's' : ''}`}>
-            ✓{completedCount}
-          </span>
         )}
       </div>
       {deadlineProjects.length > 0 && (
