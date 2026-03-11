@@ -19,6 +19,11 @@ export type Project = {
   notes?: string;
 };
 
+export type TaskLabel = {
+  name: string;
+  color: string;
+};
+
 export type TaskStatus = 'active' | 'blocked' | 'waiting';
 
 export type Task = {
@@ -41,6 +46,7 @@ export type Task = {
   estimatedMinutes?: number | null;
   taskStatus?: TaskStatus;
   dependencies?: string[];
+  labels?: string[];
 };
 
 export type TimeEntry = {
@@ -156,6 +162,7 @@ type EpochState = {
   hoveredProjectId: string | null;
   hideCompleted: boolean;
   journalEntries: Record<string, JournalEntry>;
+  availableLabels: TaskLabel[];
 
   // Actions
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
@@ -242,6 +249,14 @@ export const useStore = create<EpochState>()(
   dailyGoal: 5,
   weeklyIntention: '',
   journalEntries: {},
+  availableLabels: [
+    { name: 'bug', color: '#ef4444' },
+    { name: 'feature', color: '#3b82f6' },
+    { name: 'urgent', color: '#f97316' },
+    { name: 'review', color: '#a855f7' },
+    { name: 'blocked', color: '#6b7280' },
+    { name: 'quick', color: '#22c55e' },
+  ],
   
   addProject: (project) => set((state) => ({
     projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
@@ -490,6 +505,7 @@ export const useStore = create<EpochState>()(
         dailyGoal: state.dailyGoal,
         weeklyIntention: state.weeklyIntention,
         journalEntries: state.journalEntries,
+        availableLabels: state.availableLabels,
       }),
     }
   )

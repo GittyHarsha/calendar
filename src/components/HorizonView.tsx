@@ -52,6 +52,7 @@ import { InboxPanel } from './InboxPanel';
 import { DailyBriefing } from './DailyBriefing';
 import { WeeklyReview } from './WeeklyReview';
 import { JournalPanel } from './JournalPanel';
+import { MorningBriefingCard } from './MorningBriefingCard';
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type QuickFilter = 'overdue' | 'high-priority' | 'this-week' | 'no-deadline' | null;
@@ -420,6 +421,53 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
     const d = differenceInDays(parseISO(t.deadline), today);
     return d >= 0 && d <= 7;
   }).length;
+
+  // Morning briefing — auto-show once per day
+  const [showMorningBriefing, setShowMorningBriefing] = useState(() => {
+    const last = localStorage.getItem('calendar-lastBriefingDate');
+    return last !== todayStr;
+  });
+  const dismissMorningBriefing = useCallback(() => {
+    localStorage.setItem('calendar-lastBriefingDate', todayStr);
+    setShowMorningBriefing(false);
+  }, [todayStr]);
+
+  // Live countdown in browser tab title
+  useEffect(() => {
+    const updateTitle = () => {
+      const now = new Date();
+      const todayDate = format(now, 'yyyy-MM-dd');
+
+      const overdueTasks = tasks.filter(t => !t.completed && t.deadline && t.deadline < todayDate);
+      if (overdueTasks.length > 0) {
+        document.title = `\u{1F534} ${overdueTasks.length} overdue | Calendar`;
+        return;
+      }
+
+      const dueTodayTasks = tasks.filter(t => !t.completed && t.deadline === todayDate);
+      if (dueTodayTasks.length > 0) {
+        const endOfDay = new Date(now);
+        endOfDay.setHours(23, 59, 59, 999);
+        const hoursLeft = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / (1000 * 60 * 60)));
+        document.title = `\u23F0 ${hoursLeft}h left \u00B7 ${dueTodayTasks[0].title} | Calendar`;
+        return;
+      }
+
+      const tomorrowStr = format(addDays(now, 1), 'yyyy-MM-dd');
+      const dueTomorrowTasks = tasks.filter(t => !t.completed && t.deadline === tomorrowStr);
+      if (dueTomorrowTasks.length > 0) {
+        document.title = `\u{1F4C5} Tomorrow \u00B7 ${dueTomorrowTasks[0].title} | Calendar`;
+        return;
+      }
+
+      document.title = '\u2713 All clear | Calendar';
+    };
+
+    updateTitle();
+    const interval = setInterval(updateTitle, 60000);
+    return () => clearInterval(interval);
+  }, [tasks]);
+
   const [showTheme, setShowTheme] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showBriefing, setShowBriefing] = useState(false);
@@ -917,6 +965,8 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
               totalColumns={columns.length}
               selectedTaskIds={selectedTaskIds}
               onToggleTaskSelection={toggleTaskSelection}
+              showMorningBriefing={showMorningBriefing}
+              onDismissBriefing={dismissMorningBriefing}
             />
           ))}
         </div>
@@ -1050,7 +1100,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol, focusMode, isFocused, focusedTaskIndex, totalColumns, selectedTaskIds, onToggleTaskSelection }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void; focusMode: boolean; isFocused: boolean; focusedTaskIndex: number; totalColumns: number; selectedTaskIds: Set<string>; onToggleTaskSelection: (taskId: string) => void }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol, focusMode, isFocused, focusedTaskIndex, totalColumns, selectedTaskIds, onToggleTaskSelection, showMorningBriefing, onDismissBriefing }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void; focusMode: boolean; isFocused: boolean; focusedTaskIndex: number; totalColumns: number; selectedTaskIds: Set<string>; onToggleTaskSelection: (taskId: string) => void; showMorningBriefing: boolean; onDismissBriefing: () => void }) {
   const { tasks, projects, updateTask, addTask } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -1171,6 +1221,29 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       : undefined
     : undefined;
 
+  // Capacity indicator: estimated work hours vs available hours
+  const activeTasks = columnTasks.filter(t => !t.completed);
+  const totalEstimatedMinutes = activeTasks.reduce((s, t) => s + (t.estimatedMinutes ?? 0), 0);
+  const hasEstimates = activeTasks.some(t => t.estimatedMinutes != null && t.estimatedMinutes > 0);
+  const availableMinutes = (() => {
+    let mins = 0;
+    const d = new Date(startDate);
+    while (d <= endDate) {
+      if (d.getDay() !== 0 && d.getDay() !== 6) mins += 480;
+      d.setDate(d.getDate() + 1);
+    }
+    return mins;
+  })();
+  const estLabel = totalEstimatedMinutes >= 60
+    ? `~${Math.floor(totalEstimatedMinutes / 60)}h ${totalEstimatedMinutes % 60}m`
+    : totalEstimatedMinutes > 0 ? `~${totalEstimatedMinutes}m` : '';
+  const capacityPct = availableMinutes > 0
+    ? totalEstimatedMinutes / availableMinutes
+    : (totalEstimatedMinutes > 0 ? 2 : 0); // treat weekend with tasks as overloaded
+  const isOverloaded = capacityPct > 1;
+  const capacityBarColor = isOverloaded ? '#a855f7' : capacityPct > 0.9 ? '#ef4444' : capacityPct > 0.6 ? '#eab308' : '#4ade80';
+  const capacityFill = Math.min(capacityPct, 1);
+
   // Combined ref: droppable + keyboard nav scroll
   const setColumnRefs = (el: HTMLDivElement | null) => {
     setNodeRef(el);
@@ -1229,22 +1302,12 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             {format(today, 'MMM d, yyyy')}
           </div>
         )}
-        {/* Capacity bar — based on estimated minutes, fallback to task count */}
-        {columnTasks.filter(t => !t.completed).length > 0 && (() => {
-          const activeTasks = columnTasks.filter(t => !t.completed);
-          const estimated = activeTasks.reduce((s, t) => s + (t.estimatedMinutes ?? 0), 0);
-          const hasEstimates = activeTasks.some(t => t.estimatedMinutes);
-          const capacity = 480; // 8h in minutes
-          const fill = hasEstimates ? Math.min(1, estimated / capacity) : Math.min(1, activeTasks.length / 6);
-          const highCount = activeTasks.filter(t => t.priority === 'High').length;
-          const medCount  = activeTasks.filter(t => t.priority === 'Medium').length;
-          const barColor  = fill > 0.9 ? '#ef4444' : highCount > 0 ? '#ef4444' : medCount > 0 ? '#eab308' : 'var(--accent)';
-          return (
-            <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: 'var(--bg-2)' }}>
-              <div style={{ height: '100%', width: `${fill * 100}%`, background: barColor, transition: 'width 0.3s' }} />
-            </div>
-          );
-        })()}
+        {/* Capacity bar — estimated hours vs available hours */}
+        {hasEstimates && (
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full overflow-hidden" style={{ background: 'var(--bg-2, #1a1a1a)' }}>
+            <div style={{ height: '100%', width: `${capacityFill * 100}%`, background: capacityBarColor, borderRadius: 'inherit', transition: 'width 0.3s, background 0.3s' }} />
+          </div>
+        )}
         {mode === 'daily' && (
           <>
             <div className="flex justify-between items-baseline">
@@ -1262,7 +1325,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM yyyy')}
             </div>
-            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
+            {hasEstimates && (
+              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
+                <span>{estLabel}</span>
+                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
+                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
+              </div>
+            )}
           </>
         )}
         {mode === 'weekly' && (
@@ -1274,7 +1343,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
             </div>
-            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
+            {hasEstimates && (
+              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
+                <span>{estLabel}</span>
+                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
+                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
+              </div>
+            )}
           </>
         )}
         {mode === 'monthly' && (
@@ -1286,7 +1361,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               {format(startDate, 'yyyy')}
             </div>
-            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
+            {hasEstimates && (
+              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
+                <span>{estLabel}</span>
+                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
+                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
+              </div>
+            )}
           </>
         )}
         {mode === 'yearly' && (
@@ -1298,7 +1379,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="text-[12px] text-[#aaa] font-mono mt-1">
               Jan – Dec
             </div>
-            {hasEstimates && <div className="text-[10px] font-mono text-[#555]">{estLabel}</div>}
+            {hasEstimates && (
+              <div className="text-[10px] font-mono flex items-center gap-1" style={{ color: capacityBarColor }}>
+                <span>{estLabel}</span>
+                <span style={{ color: '#666' }}>/ {availableMinutes > 0 ? `${availableMinutes / 60}h` : '0h'}</span>
+                {isOverloaded && <span title="Overloaded" style={{ color: '#a855f7', fontSize: '11px' }}>⚠</span>}
+              </div>
+            )}
           </>
         )}
       </div>
@@ -1342,6 +1429,10 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
               {format(startDate, 'EEE, MMM d')}
             </span>
           </div>
+        )}
+        {/* Morning briefing — shown at top of today's column once per day */}
+        {isCurrent && showMorningBriefing && (
+          <MorningBriefingCard onDismiss={onDismissBriefing} />
         )}
         {/* Overdue tasks — only shown in today's column */}
         {isCurrent && (() => {

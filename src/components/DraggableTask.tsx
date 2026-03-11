@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 're
 import ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Task, Priority, TaskStatus, useStore, fmtDuration, Subtask } from '../store';
+import { Task, Priority, TaskStatus, TaskLabel, useStore, fmtDuration, Subtask } from '../store';
 import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday, differenceInDays, addDays, subDays } from 'date-fns';
@@ -35,6 +35,15 @@ function deadlineAccent(days: number | null) {
   if (days === 1) return { color: '#eab308', label: 'Due tomorrow', bold: false };
   if (days <= 7)  return { color: 'var(--text-1, #C8C7C4)', label: `Due ${format(addDays(startOfToday(), days), 'EEE')}`, bold: false };
   return { color: 'var(--text-2, #888)', label: `in ${days}d`, bold: false };
+}
+
+/** Convert hex color (e.g. "#4ade80") to rgba string. */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function formatEstimate(mins: number): string {
@@ -423,6 +432,43 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         <div className="border-t border-[#1E1E1E]" />
 
+        {/* Labels */}
+        {(() => {
+          const { availableLabels } = useStore.getState();
+          const taskLabels = task.labels ?? [];
+          return (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-[#999]">Labels</span>
+              <div className="flex flex-wrap gap-1">
+                {availableLabels.map((label: TaskLabel) => {
+                  const isActive = taskLabels.includes(label.name);
+                  return (
+                    <button key={label.name}
+                      onClick={() => {
+                        const newLabels = isActive
+                          ? taskLabels.filter(l => l !== label.name)
+                          : [...taskLabels, label.name];
+                        updateTask(task.id, { labels: newLabels });
+                      }}
+                      className="rounded-full px-2 py-0.5 transition-colors"
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: isActive ? label.color : '#555',
+                        background: isActive ? label.color + '33' : '#1A1A1A',
+                        border: `1px solid ${isActive ? label.color + '55' : '#2A2A2A'}`,
+                      }}>
+                      {label.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
+        <div className="border-t border-[#1E1E1E]" />
+
         {/* Focus timer */}
         <div className="flex items-center justify-between">
           <button
@@ -710,6 +756,14 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
     {};
   const highGlowShadow = !task.completed && priority === 'High' ? 'inset 3px 0 8px -3px rgba(239,68,68,0.3), ' : '';
 
+  // Project-based color tint (skipped for completed tasks)
+  const cardBaseBg = task.completed
+    ? '#141414'
+    : (project?.color ? hexToRgba(project.color, 0.06) : (PRIORITY_BG[priority] || '#141414'));
+  const projectTintBorder: React.CSSProperties = (!task.completed && project?.color)
+    ? { borderTop: `2px solid ${hexToRgba(project.color, 0.3)}` }
+    : {};
+
   // Combined ref: dnd + card
   const setRefs = (el: HTMLDivElement | null) => {
     (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
@@ -748,20 +802,20 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           setShowNotesTooltip(false);
         }}
         className={cn(
-          'relative group flex flex-col border border-l-2 rounded transition-all overflow-hidden cursor-grab',
+          'task-card relative group flex flex-col border border-l-2 rounded transition-all overflow-hidden cursor-grab',
           'hover:-translate-y-px',
           isSelected ? 'border-[color:var(--accent)]' : 'border-[#222]',
           task.completed ? 'border-l-[#333]' : isOverdue ? '' : PRIORITY_BORDER[priority],
           isOverdue && 'overdue-pulse',
-          isDragging ? 'opacity-40 scale-[0.98]' : '',
+          isDragging ? 'opacity-40 scale-[0.98] dragging' : '',
           task.completed && 'opacity-40'
         )}
         style={{
           background: isSuggested
-            ? 'color-mix(in srgb, var(--accent) 6%, ' + (PRIORITY_BG[priority] || '#141414') + ')'
+            ? 'color-mix(in srgb, var(--accent) 6%, ' + cardBaseBg + ')'
             : isSelected
-            ? 'color-mix(in srgb, var(--accent) 8%, ' + (task.completed ? '#141414' : (PRIORITY_BG[priority] || '#141414')) + ')'
-            : task.completed ? '#141414' : PRIORITY_BG[priority] || '#141414',
+            ? 'color-mix(in srgb, var(--accent) 8%, ' + cardBaseBg + ')'
+            : cardBaseBg,
           ...(isSelected
             ? { boxShadow: `${highGlowShadow}0 0 0 2px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 20%, transparent)` }
             : isFocused ? { boxShadow: `${highGlowShadow}0 0 0 2px var(--accent), 0 4px 16px color-mix(in srgb, var(--accent) 15%, transparent)` }
@@ -771,6 +825,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           transition,
           ...(daysStale >= 3 ? { filter: `saturate(${Math.max(0.3, 1 - daysStale * 0.05)})` } : {}),
           ...priorityGlowStyle,
+          ...projectTintBorder,
         }}
       >
         <div className={cn('flex items-center gap-2 px-2', task.completed ? 'py-0.5' : 'py-1.5')}>
@@ -801,7 +856,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
             aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
             className={cn(
               'shrink-0 w-3.5 h-3.5 rounded-full border transition-all',
-              checkAnim && 'animate-check',
+              checkAnim && 'bounce-check',
               task.completed ? 'border-[var(--accent)]' : 'border-[#444] hover:border-[var(--accent)]'
             )}
             style={task.completed ? { background: 'var(--accent)' } : undefined}
@@ -913,6 +968,34 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           )}
 
         </div>
+        {/* Label chips */}
+        {(task.labels?.length ?? 0) > 0 && !task.completed && (() => {
+          const labels = task.labels!;
+          const availableLabels = useStore.getState().availableLabels;
+          const MAX_VISIBLE = 3;
+          const visible = labels.slice(0, MAX_VISIBLE);
+          const overflow = labels.length - MAX_VISIBLE;
+          return (
+            <div className="px-2 pb-1 flex items-center gap-1 flex-wrap" style={{ marginTop: -4 }}>
+              {visible.map(name => {
+                const labelDef = availableLabels.find(l => l.name === name);
+                const color = labelDef?.color ?? '#888';
+                return (
+                  <span key={name} className="rounded-full px-1.5 py-0.5 leading-none"
+                    style={{ fontSize: 8, color, background: color + '33' }}>
+                    {name}
+                  </span>
+                );
+              })}
+              {overflow > 0 && (
+                <span className="rounded-full px-1.5 py-0.5 leading-none text-[#666]"
+                  style={{ fontSize: 8, background: '#ffffff10' }}>
+                  +{overflow}
+                </span>
+              )}
+            </div>
+          );
+        })()}
         {/* Subtask progress ring on card */}
         {(task.subtasks?.length ?? 0) > 0 && !task.completed && (() => {
           const total = task.subtasks!.length;
