@@ -1197,44 +1197,11 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
           </div>
         )}
 
-        {/* Overdue tasks — only shown in today's column */}
-        {isCurrent && (() => {
-          const overdueTasks = tasks.filter(t =>
-            !t.completed && t.date && t.date < todayStr &&
-            (!filterProjectIds || filterProjectIds.includes(t.projectId ?? ''))
-          );
-          if (overdueTasks.length === 0) return null;
-          return (
-            <>
-              <div className="flex items-center gap-2 select-none">
-                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#ef4444' }}>● Overdue · {overdueTasks.length}</span>
-                <button
-                  onClick={() => overdueTasks.forEach(t => updateTask(t.id, { date: todayStr }))}
-                  className="text-[10px] font-mono text-[#666] hover:text-[#ef4444] transition-colors ml-auto"
-                  title="Move all overdue to today"
-                >→ today</button>
-                <div className="h-px flex-1" style={{ background: '#ef444430' }} />
-              </div>
-              {overdueTasks.map(t => {
-                return (
-                  <div key={`overdue-${t.id}`} style={{ opacity: 0.85 }}>
-                    <DraggableTask task={t} showDate={mode !== 'daily'} isSelected={selectedTaskIds.has(t.id)} onToggleSelect={onToggleTaskSelection} />
-                  </div>
-                );
-              })}
-              <div className="h-px" style={{ background: '#ef444420' }} />
-            </>
-          );
-        })()}
+
         <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {columnTasks.map((task, taskIdx) => {
-            const isPastUnfinished = !task.completed && task.date && task.date < format(today, 'yyyy-MM-dd');
-            return (
-              <div key={task.id} style={isPastUnfinished ? { opacity: 0.6 } : undefined}>
-                <DraggableTask task={task} showDate={mode !== 'daily'} isFocused={isFocused && focusedTaskIndex === taskIdx} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={onToggleTaskSelection} isSuggested={task.id === suggestedTaskId} />
-              </div>
-            );
-          })}
+          {columnTasks.map((task, taskIdx) => (
+              <DraggableTask key={task.id} task={task} showDate={mode !== 'daily'} isFocused={isFocused && focusedTaskIndex === taskIdx} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={onToggleTaskSelection} isSuggested={task.id === suggestedTaskId} />
+          ))}
         </SortableContext>
         {ghostTasks.length > 0 && (
           <div className="flex items-center gap-2 mt-1 mb-0.5 select-none">
