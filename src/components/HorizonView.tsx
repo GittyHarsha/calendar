@@ -142,7 +142,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
         <span className="text-lg leading-none">›</span>
       </button>
       {/* Scrollable cards */}
-      <div ref={scrollRef} className="flex items-stretch pl-16 pr-8 gap-2 overflow-x-auto py-2" style={{ scrollbarWidth: 'none' }}>
+      <div ref={scrollRef} className="flex items-stretch pl-16 pr-8 gap-3 overflow-x-auto py-2">
         {topLevel.map(p => {
           const days = p.deadline ? differenceInDays(parseISO(p.deadline), today) : null;
           const overdue = days !== null && days < 0;
@@ -625,7 +625,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
     <div className="flex flex-col h-full w-full" style={{ background: 'var(--bg-1)' }}>
 
       {/* Toolbar */}
-      <div className="h-10 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid var(--border-1)' }}>
+      <div className="h-11 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid var(--border-1)' }}>
         {/* Logo */}
         <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5" style={{ filter: 'drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent))' }} />
 
@@ -885,7 +885,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         const todayDone = tasks.filter(t => t.completedAt === todayStr);
         return (
           <div
-            className="h-6 shrink-0 flex items-center justify-center gap-3 text-[10px] font-mono text-[#555]"
+            className="h-7 shrink-0 flex items-center justify-center gap-3 text-[10px] font-mono text-[#555]"
             style={{ background: 'var(--bg-0)', borderTop: '1px solid var(--border-1)' }}
           >
             <span>{todayTasks.length} remaining</span>
@@ -1203,7 +1203,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       )}
 
       {/* Tasks Area */}
-      <div className="flex-1 p-2 overflow-y-auto flex flex-col gap-2">
+      <div className="flex-1 px-2.5 py-2 overflow-y-auto flex flex-col gap-2.5">
         {isOver && (
           <div className="flex justify-center">
             <span className="text-[10px] font-mono bg-accent text-black px-2 py-0.5 rounded-full shadow-sm">
@@ -1346,69 +1346,13 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </div>
           </div>
         )}
-        {columnTasks.length === 0 && ghostTasks.length === 0 && (() => {
-          if (hideCompleted && completedCount > 0) {
-            return null;
-          }
-          // Contextual empty state messages
-          const pastAllDone = isPastColumn && allColumnTasks.length > 0 && allColumnTasks.every(t => t.completed);
-          const pastNothingScheduled = isPastColumn && allColumnTasks.length === 0;
-
-          let emptyIcon = '+';
-          let emptyMessage = 'Open day';
-          let emptyHint = 'Ready for planning';
-
-          if (isOver) {
-            emptyIcon = '↓';
-            emptyMessage = 'drop here';
-            emptyHint = '';
-          } else if (isCurrent) {
-            emptyIcon = '📋';
-            emptyMessage = 'Nothing planned today';
-            emptyHint = 'Drag tasks here or press + to add';
-          } else if (pastAllDone) {
-            emptyIcon = '✨';
-            emptyMessage = 'All done!';
-            emptyHint = 'Great work';
-          } else if (pastNothingScheduled) {
-            emptyIcon = '·';
-            emptyMessage = 'No tasks were scheduled';
-            emptyHint = '';
-          } else if (isWeekend) {
-            emptyIcon = '🌿';
-            emptyMessage = 'Weekend';
-            emptyHint = 'Rest or catch up?';
-          }
-
-          return (
-            <div className={cn(
-              'flex-1 flex flex-col items-center justify-center gap-1 select-none border border-dashed rounded-lg transition-all duration-200 min-h-[60px] px-3',
-              isOver
-                ? isPastDeadline
-                  ? 'border-[#ef4444]/50 bg-[#ef4444]/5 text-[#ef4444]/60 scale-[1.01]'
-                  : 'border-[var(--accent)]/50 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] text-[var(--accent)]/60 scale-[1.01]'
-                : 'border-[#282828] text-[#444] bg-[#0A0A0A]/40 hover:border-[#3A3A3A] hover:text-[#666]',
-              !isPastColumn && 'cursor-pointer'
-            )}
-              style={{ animation: 'fade-in 0.3s ease' }}
-              onClick={isPastColumn ? undefined : () => {
-                window.dispatchEvent(new CustomEvent('horizon:prefill-date', { detail: startDateStr }));
-                document.getElementById('new-task-input')?.focus();
-              }}
-            >
-              <span className="leading-none" style={{ fontSize: 16, opacity: 0.7 }}>{emptyIcon}</span>
-              <span className="text-center leading-tight" style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2, #666)' }}>{emptyMessage}</span>
-              {emptyHint && (
-                <span className="text-center leading-tight" style={{ fontSize: 10, color: 'var(--text-2, #666)', opacity: 0.6 }}>{emptyHint}</span>
-              )}
-              {!isOver && !isPastColumn && (
-                <span className="text-center leading-tight mt-1" style={{ fontSize: 9, fontFamily: 'monospace', color: 'var(--text-2, #666)', opacity: 0.4 }}>
-                  {isCurrent ? 'Press + to quick add' : 'Drag from another day'}
-                </span>
-              )}
-            </div>
-          );
-        })()}
+        {columnTasks.length === 0 && !isOver && (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="text-[12px] text-[#333]">
+              {startDate < today ? '—' : 'No tasks'}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

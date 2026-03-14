@@ -234,12 +234,12 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
         onMouseEnter={onMouseEnter}
         onMouseLeave={pickerOpen ? undefined : onMouseLeave}
         data-no-inbox-close
-        className="fixed z-[9999] w-72 rounded-xl border border-[#2A2A2A] shadow-2xl p-3 flex flex-col gap-3"
-        style={{ top: pos.top, left: pos.left, opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? 'auto' : 'none', background: 'var(--bg-0)' }}>
+        className="fixed z-[9999] w-72 rounded-lg border border-[#1E1E1E] p-3 flex flex-col gap-3"
+        style={{ top: pos.top, left: pos.left, opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? 'auto' : 'none', background: 'var(--bg-0)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
 
         {/* Title row with delete icon */}
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-white leading-snug flex-1 min-w-0 truncate">{task.title}</div>
+          <div className="text-sm font-bold leading-snug flex-1 min-w-0 truncate" style={{ color: 'var(--text-1)' }}>{task.title}</div>
           {confirmDelete ? (
             <span className="flex items-center gap-1 text-xs shrink-0">
               <button onClick={() => {
@@ -293,7 +293,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Work date */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-[#999]">
+          <div className="flex items-center gap-2 text-[10px] uppercase font-mono text-[#666]">
             <CalendarDays size={13} />
             <span>Work date</span>
           </div>
@@ -313,7 +313,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Start date */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs text-[#999]">
+          <div className="flex items-center gap-2 text-[10px] uppercase font-mono text-[#666]">
             <CalendarDays size={13} />
             <span>Start</span>
           </div>
@@ -325,7 +325,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Deadline */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs" style={{ color: dl ? dl.color : '#666' }}>
+          <div className="flex items-center gap-2 text-[10px] uppercase font-mono" style={{ color: dl ? dl.color : '#666' }}>
             <Flag size={13} />
             <span style={dl?.bold ? { fontWeight: 700 } : undefined}>{dl ? dl.label : 'Deadline'}</span>
             {(task.deadlineHistory?.length ?? 0) > 0 && (
@@ -343,7 +343,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
         {/* Deadline History */}
         {task.deadlineHistory && task.deadlineHistory.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-2, #555)' }}>Deadline History</span>
+            <span className="text-[10px] uppercase tracking-widest font-mono text-[#666]">Deadline History</span>
             {task.deadlineHistory.map((oldDate, i) => {
               const nextDate = i < task.deadlineHistory.length - 1 ? task.deadlineHistory[i + 1] : task.deadline;
               if (!nextDate) return null;
@@ -385,7 +385,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Priority */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-[#999]">Priority</span>
+          <span className="text-[10px] uppercase font-mono text-[#666]">Priority</span>
           <button onClick={() => updateTask(task.id, { priority: PRIORITY_NEXT[priority] })}
             className="text-xs font-semibold px-2 py-0.5 rounded"
             style={{ background: PRIORITY_COLOR[priority] + '22', color: PRIORITY_COLOR[priority] }}>
@@ -395,7 +395,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Effort estimate */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-[#999]">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase font-mono text-[#666]">
             <Clock size={13} />
             <span>Effort</span>
           </div>
@@ -417,7 +417,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         {/* Status: blocked / waiting */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-[#999]">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase font-mono text-[#666]">
             <Lock size={13} />
             <span>Status</span>
           </div>
@@ -449,7 +449,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
           const taskLabels = task.labels ?? [];
           return (
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs text-[#999]">Labels</span>
+              <span className="text-[10px] uppercase font-mono text-[#666]">Labels</span>
               <div className="flex flex-wrap gap-1">
                 {availableLabels.map((label: TaskLabel) => {
                   const isActive = taskLabels.includes(label.name);
@@ -590,7 +590,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
           return (
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-[#aaa]" style={{ fontFamily: 'Consolas, monospace' }}>Subtasks</span>
+                <span className="text-[10px] uppercase font-mono text-[#666]">Subtasks</span>
                 {subtasks.length > 0 && (
                   <span className="text-[11px] font-mono px-1 py-0.5 rounded"
                     style={{ background: '#ffffff10', color: '#888' }}>
@@ -833,7 +833,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           ...priorityGlowStyle,
         }}
       >
-        <div className={cn('flex items-center gap-2 px-2', task.completed ? 'py-0.5' : 'py-1.5')}>
+        <div className={cn('flex items-center gap-2 px-2.5', task.completed ? 'py-1' : 'py-2')}>
           <div {...attributes} {...listeners}
             className="opacity-0 group-hover:opacity-40 cursor-grab text-[#888] shrink-0 -ml-1">
             <GripVertical size={13} />

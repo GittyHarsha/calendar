@@ -17,27 +17,28 @@ body {
   color: var(--text-1, #E4E3E0);
 }
 
-/* Custom Scrollbar with accent tint */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 /* Widget scroll areas — no visible scrollbar */
 .widget-scroll::-webkit-scrollbar { display: none; }
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--accent, #FF7B2F) 30%, #1a1a1a);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent, #FF7B2F) 55%, #1a1a1a);
-}
 
 
 
