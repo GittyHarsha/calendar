@@ -222,8 +222,9 @@ export function WidgetView() {
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Focus mode is AUTOMATIC — derived from session state, no manual toggle
+  // Compact mode: widget is collapsed during any active timer phase (work OR break)
   const focusMode = pomodoro.phase === 'work';
+  const compactMode = pomodoro.phase !== 'idle';
 
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -282,9 +283,9 @@ export function WidgetView() {
     return () => document.removeEventListener('keydown', handler);
   }, [focusMode, pausePomodoro, stopPomodoro]);
 
-  // Auto-resize the OS window based on session phase
+  // Auto-resize the OS window: collapsed during active timer, full on idle
   useEffect(() => {
-    const height = pomodoro.phase === 'work' ? 130 : 500;
+    const height = pomodoro.phase === 'idle' ? 500 : 130;
     try { (window as any).chrome?.webview?.postMessage({ type: 'resize', width: 320, height }); } catch {}
   }, [pomodoro.phase]);
 
@@ -392,8 +393,8 @@ export function WidgetView() {
 
   return (
     <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13, overflow: 'hidden' }}>
-      {/* Stats bar — hidden during focus session */}
-      {!focusMode && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
+      {/* Stats bar — hidden during active timer */}
+      {!compactMode && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid var(--border-1)', color: 'var(--text-2)', fontSize: 12 }}>
         <span>{format(today, 'EEE, MMM d')}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
@@ -416,7 +417,7 @@ export function WidgetView() {
         </div>
       </div>}
 
-      {!focusMode && showDone&& doneToday > 0 && (
+      {!compactMode && showDone&& doneToday > 0 && (
         <div className="widget-scroll" style={{ borderBottom: '1px solid var(--border-1)', background: 'var(--bg-1)', padding: '4px 12px', maxHeight: 100, overflowY: 'auto', scrollbarWidth: 'none' }}>
           {tasks.filter(t => t.completed && (t.completedAt === todayStr || (!t.completedAt && t.date === todayStr))).map(t => (
             <div key={t.id} style={{ fontSize: 11, color: 'var(--text-2)', textDecoration: 'line-through', padding: '2px 0' }}>{t.title}</div>
@@ -445,39 +446,16 @@ export function WidgetView() {
           );
         }
 
+        // Break phase — compact view (widget stays at 130px)
         return (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
-            borderBottom: `1px solid ${pColor}33`, background: `${pColor}0D`,
-          }}>
-            <svg width={22} height={22} style={{ flexShrink: 0 }}>
-              <circle cx={11} cy={11} r={9} fill="none" stroke="var(--bg-2)" strokeWidth={2.5} />
-              <circle cx={11} cy={11} r={9} fill="none" stroke={pColor} strokeWidth={2.5}
-                strokeDasharray={`${2 * Math.PI * 9}`}
-                strokeDashoffset={`${2 * Math.PI * 9 * (1 - pct)}`}
-                strokeLinecap="round"
-                style={{ transform: 'rotate(-90deg)', transformOrigin: '11px 11px' }} />
-            </svg>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸' : (isEyeRest ? '—' : isWork ? '▶' : '☕')}{pomodoro.sessionsCompleted > 0 ? ` ◉×${pomodoro.sessionsCompleted}` : ''}</div>
-              <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {isEyeRest ? 'Free timer' : (task?.title ?? '—') + (tracked > 0 ? ` · ${fmtDuration(tracked)}` : '')}
-              </div>
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: isPaused ? `${pColor}80` : pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>
-              {fmtCountdown(rem)}
-            </div>
-            {isWork ? (
-              <button onClick={pausePomodoro} title={isPaused ? 'Resume' : 'Pause'} style={miniBtn('var(--bg-2)')}>{isPaused ? '▶' : '⏸'}</button>
-            ) : (
-              <button onClick={() => skipBreak()} title="Skip break" style={miniBtn('var(--bg-2)')}>▶</button>
-            )}
-            <button onClick={stopPomodoro} title="Stop" style={miniBtn('#200')} >✕</button>
-          </div>
+          <FocusTimer rem={rem} pct={pct} pColor={pColor} isPaused={false}
+            taskTitle={null}
+            sessionsCompleted={pomodoro.sessionsCompleted}
+            onPause={pausePomodoro} onStop={stopPomodoro} isWork={false} onSkip={skipBreak} />
         );
       })()}
 
-      {!focusMode && (<>
+      {!compactMode && (<>
       {/* Scrollable content — today's tasks only */}
       <div className="widget-scroll" style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
         {todayTasks.length > 0 && (

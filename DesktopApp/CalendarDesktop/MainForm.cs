@@ -80,7 +80,8 @@ public class MainForm : Form
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
-            // Handle messages from the main app (e.g. widget toggle, pomodoro notifications)
+            // Block any popup windows from WebView2
+            _webView.CoreWebView2.NewWindowRequested += (_, args) => { args.Handled = true; };
             _webView.CoreWebView2.WebMessageReceived += (_, e) =>
             {
                 try

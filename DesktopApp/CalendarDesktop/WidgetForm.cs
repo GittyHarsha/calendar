@@ -100,6 +100,9 @@ public class WidgetForm : Form
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+
+            // Block any popup windows from WebView2
+            _webView.CoreWebView2.NewWindowRequested += (_, args) => { args.Handled = true; };
             _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 VirtualHost, distFolder, CoreWebView2HostResourceAccessKind.Allow);
             _webView.CoreWebView2.WebMessageReceived += (_, e) =>
@@ -109,17 +112,6 @@ public class WidgetForm : Form
                     var msg = System.Text.Json.JsonDocument.Parse(e.WebMessageAsJson);
                     var type = msg.RootElement.GetProperty("type").GetString();
                     if (type == "focusMain") Invoke(onFocusMain);
-                    else if (type == "pomodoroComplete")
-                    {
-                        var isEyeRest = msg.RootElement.TryGetProperty("isEyeRest", out var er) && er.GetBoolean();
-                        var taskTitle = msg.RootElement.TryGetProperty("taskTitle", out var tt) && tt.ValueKind == System.Text.Json.JsonValueKind.String ? tt.GetString() : null;
-                        var sessions = msg.RootElement.TryGetProperty("sessionsCompleted", out var sc) ? sc.GetInt32() : 1;
-                        var title = isEyeRest ? "⏱ Free Timer Done" : $"🍅 Session {sessions} Complete!";
-                        var body = isEyeRest ? "25 minutes up." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a 5-min break ☕" : "Take a 5-min break ☕");
-                        Invoke(() => _notify(title, body));
-                    }
-                    else if (type == "breakComplete")
-                        Invoke(() => _notify("☕ Break Over", "Back to work — start your next session!"));
                     else if (type == "resize")
                     {
                         var width = msg.RootElement.GetProperty("width").GetInt32();
