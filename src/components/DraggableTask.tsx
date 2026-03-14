@@ -403,6 +403,30 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
 
         <div className="border-t border-[#1E1E1E]" />
 
+        {/* Focus timer — always visible */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => {
+              startPomodoro(task.id);
+              window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `◉ Pomodoro started — ${task.title}` }));
+              onClose();
+            }}
+            className={cn(
+              'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors font-medium',
+              pomodoro.taskId === task.id && pomodoro.phase === 'work'
+                ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
+                : 'border-[#2A2A2A] text-[#aaa] bg-[#111] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+            )}>
+            <Timer size={12} />
+            {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
+          </button>
+          {(() => { const t = getTaskTime(task.id); return t > 0
+            ? <span className="text-xs text-[#555] font-mono">{fmtDuration(t)}</span>
+            : null; })()}
+        </div>
+
+        <div className="border-t border-[#1E1E1E]" />
+
         {/* More toggle */}
         <button
           onClick={() => setShowMore(!showMore)}
@@ -448,30 +472,6 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
                 })}
               </div>
             )}
-
-            <div className="border-t border-[#1E1E1E]" />
-
-            {/* Focus timer */}
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => {
-                  startPomodoro(task.id);
-                  window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `◉ Pomodoro started — ${task.title}` }));
-                  onClose();
-                }}
-                className={cn(
-                  'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors font-medium',
-                  pomodoro.taskId === task.id && pomodoro.phase === 'work'
-                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
-                    : 'border-[#2A2A2A] text-[#aaa] bg-[#111] hover:border-[var(--accent)] hover:text-[var(--accent)]'
-                )}>
-                <Timer size={12} />
-                {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
-              </button>
-              {(() => { const t = getTaskTime(task.id); return t > 0
-                ? <span className="text-xs text-[#555] font-mono">{fmtDuration(t)}</span>
-                : null; })()}
-            </div>
 
             <div className="border-t border-[#1E1E1E]" />
 
