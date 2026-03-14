@@ -128,7 +128,7 @@ export function deriveThemeFromAccent(hex: string): ThemeConfig {
 }
 
 export const THEMES: Record<ThemeKey, ThemeConfig> = {
-  void:   { name: 'Void',  accent: '#FF7B2F', bg0: '#080808', bg1: '#0F0F0F', bg2: '#191919', border: '#252525', text1: '#F0EDEA', text2: '#686868' },
+  void:   { name: 'Void',  accent: '#FF7B2F', bg0: '#0D0D0D', bg1: '#141414', bg2: '#1A1A1A', border: '#1E1E1E', text1: '#E0DFDC', text2: '#686868' },
   dusk:   { name: 'Dusk',  accent: '#A78BFA', bg0: '#080B1C', bg1: '#0F1328', bg2: '#171C3C', border: '#242854', text1: '#DDDEFF', text2: '#6870B0' },
   ember:  { name: 'Ember', accent: '#FF6B35', bg0: '#120600', bg1: '#1C0B00', bg2: '#2C1500', border: '#482200', text1: '#FFE4CC', text2: '#A85028' },
   moss:   { name: 'Moss',  accent: '#2FD96A', bg0: '#040E06', bg1: '#071408', bg2: '#0D1E10', border: '#143A18', text1: '#D0F5DA', text2: '#3A7848' },

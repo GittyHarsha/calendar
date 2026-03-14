@@ -39,38 +39,7 @@ body {
   background: color-mix(in srgb, var(--accent, #FF7B2F) 55%, #1a1a1a);
 }
 
-@keyframes accent-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent); }
-  50%       { box-shadow: 0 0 10px 3px color-mix(in srgb, var(--accent) 30%, transparent); }
-}
-.accent-glow { animation: accent-pulse 2.5s ease-in-out infinite; }
 
-@keyframes deadline-warn {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(242,125,38,0); }
-  50%       { box-shadow: 0 0 14px 3px rgba(242,125,38,0.3); }
-}
-.deadline-warn { animation: deadline-warn 2s ease-in-out infinite; }
-
-@keyframes deadline-alarm {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-  50%       { box-shadow: 0 0 18px 5px rgba(239,68,68,0.35); }
-}
-.deadline-alarm { animation: deadline-alarm 1.2s ease-in-out infinite; }
-
-@keyframes overdue-pulse {
-  0%, 100% { border-left-color: #ef4444; }
-  50%      { border-left-color: rgba(239, 68, 68, 0.25); }
-}
-.overdue-pulse {
-  border-left: 3px solid #ef4444;
-  animation: overdue-pulse 2s ease-in-out infinite;
-}
-
-@keyframes lost-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.55; }
-}
-.lost-pulse { animation: lost-pulse 1.5s ease-in-out infinite; }
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -140,35 +109,7 @@ body {
   transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
-@keyframes bounce-check {
-  0%   { transform: scale(1); }
-  50%  { transform: scale(1.3); }
-  100% { transform: scale(1); }
-}
-.bounce-check {
-  animation: bounce-check 200ms ease-out;
-}
 
-/* ── Confetti burst celebration ── */
-@keyframes confetti-burst {
-  0%   { opacity: 1; transform: translate(-50%, -50%) rotate(0deg)   scale(1)   translate(0, 0); }
-  60%  { opacity: 1; transform: translate(-50%, -50%) rotate(var(--angle)) scale(1) translate(var(--distance), 0); }
-  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--angle)) scale(0.4) translate(var(--distance), 6px); }
-}
-.confetti-burst {
-  position: fixed;
-  pointer-events: none;
-  z-index: 9999;
-}
-.confetti-dot {
-  position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  left: 0;
-  top: 0;
-  animation: confetti-burst 600ms ease-out forwards;
-}
 
 /* ── Focus-visible accessibility outlines ── */
 button:focus-visible,
@@ -182,18 +123,11 @@ textarea:focus-visible,
 
 /* ── Reduced-motion: disable all keyframe animations ── */
 @media (prefers-reduced-motion: reduce) {
-  .accent-glow   { animation: none; }
-  .deadline-warn { animation: none; }
-  .deadline-alarm { animation: none; }
-  .overdue-pulse { animation: none; }
-  .lost-pulse    { animation: none; }
   .animate-fade  { animation: none; opacity: 1; }
   .animate-slide-down { animation: none; opacity: 1; }
   .nav-slide-right { animation: none; }
   .nav-slide-left  { animation: none; }
   .animate-check { animation: none; }
-  .bounce-check  { animation: none; }
-  .confetti-dot  { animation: none; opacity: 0; }
   *,
   *::before,
   *::after {
@@ -246,6 +180,7 @@ textarea:focus-visible,
 [data-theme="dawn"] .text-\[\#555\],
 [data-theme="dawn"] .text-\[\#444\],
 [data-theme="dawn"] .text-\[\#C8C7C4\],
+[data-theme="dawn"] .text-\[\#E0DFDC\],
 [data-theme="dawn"] .text-\[\#E4E3E0\],
 [data-theme="dawn"] .text-\[\#D4D3D0\],
 [data-theme="dawn"] .text-\[\#8E9299\],

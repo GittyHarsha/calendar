@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useStore, Project, Priority, workingDaysUntil } from '../store';
+import { useStore, Project, Priority } from '../store';
 import { differenceInDays, parseISO, startOfToday, addDays, format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus, Maximize2 } from 'lucide-react';
@@ -8,14 +8,27 @@ import { ProjectNotesModal } from './ProjectNotesModal';
 
 export const newProjectTrigger = { open: () => {} };
 
-/** Returns styling + animation class based on working days remaining */
-function urgencyStyles(wDays: number | null) {
-  if (wDays === null) return { border: 'border-[#2A2A2A]',    text: 'text-[#aaa]',      bg: 'bg-[#141414]',     icon: null,                                                                      glow: '' };
-  if (wDays < 0)     return { border: 'border-red-500',       text: 'text-red-400',      bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-400 animate-pulse" />,     glow: 'deadline-alarm' };
-  if (wDays === 0)   return { border: 'border-red-500 border-2', text: 'text-red-300',   bg: 'bg-red-500/15',    icon: <AlertTriangle size={14} className="text-red-300 animate-pulse" />,     glow: 'deadline-alarm' };
-  if (wDays <= 2)    return { border: 'border-red-500/80 border-2', text: 'text-red-400', bg: 'bg-red-500/10',   icon: <AlertTriangle size={14} className="text-red-400" />,                  glow: 'deadline-alarm' };
-  if (wDays <= 5)    return { border: 'border-[#F27D26] border-2', text: 'text-[#F27D26]', bg: 'bg-[#F27D26]/10', icon: <AlertTriangle size={14} className="text-[#F27D26]" />,               glow: 'deadline-warn' };
-  if (wDays <= 10)   return { border: 'border-yellow-500',    text: 'text-yellow-400',   bg: 'bg-yellow-500/10', icon: <Clock size={14} className="text-yellow-400" />,                       glow: '' };
+/** Collect a project and all its descendants recursively */
+function getDescendantIds(projectId: string, projects: Project[]): string[] {
+  const result: string[] = [projectId];
+  const collect = (pid: string) => {
+    projects.filter(p => p.parentId === pid).forEach(c => {
+      result.push(c.id);
+      collect(c.id);
+    });
+  };
+  collect(projectId);
+  return result;
+}
+
+/** Returns styling + animation class based on calendar days remaining */
+function urgencyStyles(days: number | null) {
+  if (days === null) return { border: 'border-[#2A2A2A]',    text: 'text-[#aaa]',      bg: 'bg-[#141414]',     icon: null,                                                                      glow: '' };
+  if (days < 0)      return { border: 'border-red-500',       text: 'text-red-400',      bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-400 animate-pulse" />,     glow: 'deadline-alarm' };
+  if (days === 0)    return { border: 'border-red-500 border-2', text: 'text-red-300',   bg: 'bg-red-500/15',    icon: <AlertTriangle size={14} className="text-red-300 animate-pulse" />,     glow: 'deadline-alarm' };
+  if (days <= 3)     return { border: 'border-red-500/80 border-2', text: 'text-red-400', bg: 'bg-red-500/10',   icon: <AlertTriangle size={14} className="text-red-400" />,                  glow: 'deadline-alarm' };
+  if (days <= 7)     return { border: 'border-[#F27D26] border-2', text: 'text-[#F27D26]', bg: 'bg-[#F27D26]/10', icon: <AlertTriangle size={14} className="text-[#F27D26]" />,               glow: 'deadline-warn' };
+  if (days <= 14)    return { border: 'border-yellow-500',    text: 'text-yellow-400',   bg: 'bg-yellow-500/10', icon: <Clock size={14} className="text-yellow-400" />,                       glow: '' };
   return                    { border: 'border-[#3B82F6]',     text: 'text-[#3B82F6]',    bg: 'bg-[#3B82F6]/10',  icon: <Clock size={14} className="text-[#3B82F6]" />,                        glow: '' };
 }
 
@@ -27,9 +40,10 @@ const PRIORITY_CLASS: Record<Priority, string> = {
 };
 
 function ProgressBar({ projectId }: { projectId: string }) {
-  const { tasks } = useStore();
+  const { tasks, projects } = useStore();
+  const ids = getDescendantIds(projectId, projects);
   // Only count tasks that have been scheduled (date !== null)
-  const all = tasks.filter(t => t.projectId === projectId && t.date !== null);
+  const all = tasks.filter(t => ids.includes(t.projectId ?? '') && t.date !== null);
   const done = all.filter(t => t.completed).length;
   const pct = all.length > 0 ? (done / all.length) * 100 : 0;
   return (
@@ -43,9 +57,10 @@ function ProgressBar({ projectId }: { projectId: string }) {
 }
 
 function UpcomingTasks({ projectId, today }: { projectId: string; today: Date }) {
-  const { tasks } = useStore();
+  const { tasks, projects } = useStore();
+  const ids = getDescendantIds(projectId, projects);
   const relevant = tasks
-    .filter(t => t.projectId === projectId && t.deadline && !t.completed)
+    .filter(t => ids.includes(t.projectId ?? '') && t.deadline && !t.completed)
     .map(t => ({ ...t, days: differenceInDays(parseISO(t.deadline!), today) }))
     .sort((a, b) => a.days - b.days)
     .slice(0, 3);
@@ -191,12 +206,12 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
-  const wDays = project.deadline ? workingDaysUntil(project.deadline) : null;
-  const overdue = wDays !== null && wDays < 0;
-  const urgent = wDays !== null && wDays >= 0 && wDays <= 5;
-  const soon = wDays !== null && wDays > 5 && wDays <= 10;
+  const days = project.deadline ? differenceInDays(parseISO(project.deadline), today) : null;
+  const overdue = days !== null && days < 0;
+  const urgent = days !== null && days >= 0 && days <= 7;
+  const soon = days !== null && days > 7 && days <= 14;
   const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : soon ? '#eab308' : '#3B82F6';
-  const { text } = urgencyStyles(wDays);
+  const { text } = urgencyStyles(days);
 
   const saveName = () => {
     if (nameVal.trim()) updateProject(project.id, { name: nameVal.trim() });
@@ -259,11 +274,11 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }}
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
             {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} className={overdue ? 'animate-pulse' : ''} />}
-            <span className="text-2xl font-mono font-black leading-none" style={{ color: wDays === null ? '#555' : accent }}>
-              {wDays === null ? '—' : Math.abs(wDays)}
+            <span className="text-2xl font-mono font-black leading-none" style={{ color: days === null ? '#555' : accent }}>
+              {days === null ? '—' : Math.abs(days)}
             </span>
-            <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: wDays === null ? '#555' : accent }}>
-              {wDays === null ? 'no date' : overdue ? 'over' : 'wk d'}
+            <span className="text-[10px] uppercase tracking-wider font-bold" style={{ color: days === null ? '#555' : accent }}>
+              {days === null ? 'no date' : overdue ? 'over' : 'left'}
             </span>
           </button>
           <div className="flex-1">
@@ -326,16 +341,17 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
-  const wDaysRemaining = project.deadline ? workingDaysUntil(project.deadline) : null;
+  const daysRemaining = project.deadline ? differenceInDays(parseISO(project.deadline), today) : null;
   const isHovered = hoveredProjectId === project.id;
-  const { border, text, bg, icon, glow } = urgencyStyles(wDaysRemaining);
+  const { border, text, bg, icon, glow } = urgencyStyles(daysRemaining);
 
-  // All tasks for this project
-  const allProjectTasks = tasks.filter(t => t.projectId === project.id);
+  // All tasks for this project and its descendants
+  const ids = getDescendantIds(project.id, projects);
+  const allProjectTasks = tasks.filter(t => ids.includes(t.projectId ?? ''));
   const remainingTasks = allProjectTasks.filter(t => !t.completed).length;
   const totalTasks = allProjectTasks.length;
 
-  const projectTasks = tasks.filter(t => t.projectId === project.id && t.date !== null);
+  const projectTasks = tasks.filter(t => ids.includes(t.projectId ?? '') && t.date !== null);
   let lostDays = 0;
   if (projectTasks.length > 0) {
     const past = projectTasks.map(t => parseISO(t.date!)).filter(d => differenceInDays(today, d) >= 0).sort((a, b) => b.getTime() - a.getTime());
@@ -407,15 +423,15 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {icon}
-            <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', wDaysRemaining === null ? 'text-[#555]' : text)}>
-              {wDaysRemaining === null ? '—' : Math.abs(wDaysRemaining)}
+            <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }} className={cn('text-4xl font-mono font-black leading-none tracking-tighter', daysRemaining === null ? 'text-[#555]' : text)}>
+              {daysRemaining === null ? '—' : Math.abs(daysRemaining)}
             </button>
             <div className="flex flex-col gap-0.5 mt-1">
-              <span className={cn('text-[11px] uppercase tracking-wider leading-none', wDaysRemaining === null ? 'text-[#555]' : text)}>
-                {wDaysRemaining === null ? 'no deadline' : wDaysRemaining < 0 ? 'work days over' : 'work days left'}
+              <span className={cn('text-[11px] uppercase tracking-wider leading-none', daysRemaining === null ? 'text-[#555]' : text)}>
+                {daysRemaining === null ? 'no deadline' : daysRemaining < 0 ? 'days over' : 'days left'}
               </span>
               {remainingTasks > 0 && totalTasks > 0 && (
-                <span className={cn('text-[10px] font-mono leading-none', wDaysRemaining !== null && wDaysRemaining <= 5 ? 'text-red-400/80' : 'text-[#666]')}>
+                <span className={cn('text-[10px] font-mono leading-none', daysRemaining !== null && daysRemaining <= 7 ? 'text-red-400/80' : 'text-[#666]')}>
                   {remainingTasks} task{remainingTasks !== 1 ? 's' : ''} remain
                 </span>
               )}

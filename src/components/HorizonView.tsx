@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useStore, fmtDuration, type Task, type Project } from '../store';
-import { ConfettiBurst } from './ConfettiBurst';
 import { addDays, differenceInDays, format, startOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, addMonths, parseISO, startOfYear, endOfYear, addYears, subDays, subWeeks, subMonths, subYears, getISOWeek, nextDay } from 'date-fns';
 
 type DayIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -47,13 +46,13 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AlertTriangle, Flag, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList, BookOpen, Crosshair } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, Flag, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList, BookOpen, Crosshair } from 'lucide-react';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { InboxPanel } from './InboxPanel';
 import { DailyBriefing } from './DailyBriefing';
 import { WeeklyReview } from './WeeklyReview';
 import { JournalPanel } from './JournalPanel';
-import { MorningBriefingCard } from './MorningBriefingCard';
+
 
 type ViewMode = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type QuickFilter = 'overdue' | 'high-priority' | 'this-week' | 'no-deadline' | null;
@@ -75,191 +74,20 @@ export function triggerTaskClick(colIndex: number, taskIndex: number): void {
   _columnTaskClickHandlers[colIndex]?.[taskIndex]?.();
 }
 
-/* ── Urgent Deadline Countdown Banner ─────────────────────────────── */
-
-type DeadlineItem = {
-  id: string;
-  name: string;
-  kind: 'task' | 'project';
-  daysUntil: number; // negative = overdue
-};
-
-function UrgentDeadlineBanner() {
-  const { projects, tasks } = useStore();
-  const today = startOfToday();
-  const [dismissedId, setDismissedId] = useState<string | null>(null);
-  const [visible, setVisible] = useState(false);
-
-  const nearest = useMemo<DeadlineItem | null>(() => {
-    const candidates: DeadlineItem[] = [];
-
-    // Tasks with deadlines that are not completed
-    for (const t of tasks) {
-      if (t.completed || !t.deadline) continue;
-      const d = differenceInDays(parseISO(t.deadline), today);
-      if (d <= 7) candidates.push({ id: t.id, name: t.title, kind: 'task', daysUntil: d });
-    }
-
-    // Projects with deadlines
-    for (const p of projects) {
-      if (!p.deadline) continue;
-      const d = differenceInDays(parseISO(p.deadline), today);
-      if (d <= 7) candidates.push({ id: p.id, name: p.name, kind: 'project', daysUntil: d });
-    }
-
-    if (candidates.length === 0) return null;
-
-    // Most critical = smallest daysUntil (overdue first, then soonest)
-    candidates.sort((a, b) => a.daysUntil - b.daysUntil);
-    return candidates[0];
-  }, [tasks, projects, today]);
-
-  // Reset dismiss when the critical item changes
-  useEffect(() => {
-    if (nearest && nearest.id !== dismissedId) setVisible(true);
-  }, [nearest?.id]);
-
-  if (!nearest || dismissedId === nearest.id || !visible) return null;
-
-  const { daysUntil, name, kind } = nearest;
-  const label = kind === 'task' ? 'Task' : 'Project';
-
-  let icon: string;
-  let text: string;
-  let bg: string;
-
-  if (daysUntil < 0) {
-    icon = '🔴';
-    text = `${label}: ${name} overdue by ${Math.abs(daysUntil)} day${Math.abs(daysUntil) !== 1 ? 's' : ''}`;
-    bg = 'linear-gradient(90deg, #dc2626 0%, #b91c1c 100%)';
-  } else if (daysUntil === 0) {
-    icon = '⏰';
-    text = `${label}: ${name} due TODAY`;
-    bg = 'linear-gradient(90deg, #ea580c 0%, #c2410c 100%)';
-  } else if (daysUntil <= 3) {
-    icon = '⚡';
-    text = `${label}: ${name} due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`;
-    bg = 'linear-gradient(90deg, #ca8a04 0%, #a16207 100%)';
-  } else {
-    icon = '⚡';
-    text = `${label}: ${name} due in ${daysUntil} days`;
-    bg = 'linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #1a1a1a) 0%, color-mix(in srgb, var(--accent) 50%, #1a1a1a) 100%)';
-  }
-
-  const handleClick = () => {
-    // Try to find and highlight the task/project element
-    const el =
-      document.querySelector(`[data-task-id="${nearest.id}"]`) as HTMLElement |
-      null ?? document.querySelector(`[data-project-id="${nearest.id}"]`) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      el.style.outline = '2px solid var(--accent)';
-      el.style.outlineOffset = '2px';
-      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 2000);
-    }
-  };
-
-  const handleDismiss = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDismissedId(nearest.id);
-    setVisible(false);
-  };
-
-  return (
-    <div
-      onClick={handleClick}
-      style={{
-        height: 28,
-        background: bg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        cursor: 'pointer',
-        fontSize: 12,
-        fontWeight: 600,
-        color: '#fff',
-        letterSpacing: '0.02em',
-        position: 'relative',
-        flexShrink: 0,
-        animation: 'urgentBannerSlideDown 0.3s ease-out',
-        zIndex: 50,
-      }}
-    >
-      <span>{icon}</span>
-      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 'calc(100% - 60px)' }}>
-        {text}
-      </span>
-      <button
-        onClick={handleDismiss}
-        style={{
-          position: 'absolute',
-          right: 10,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          background: 'rgba(255,255,255,0.15)',
-          border: 'none',
-          borderRadius: 4,
-          color: '#fff',
-          cursor: 'pointer',
-          width: 18,
-          height: 18,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 11,
-          lineHeight: 1,
-          padding: 0,
-        }}
-        title="Dismiss"
-      >
-        ✕
-      </button>
-      <style>{`
-        @keyframes urgentBannerSlideDown {
-          from { transform: translateY(-100%); opacity: 0; }
-          to   { transform: translateY(0);     opacity: 1; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
 function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
-  const [idx, setIdx] = useState(0);
-  const [hovered, setHovered] = useState(false);
-  useEffect(() => {
-    if (items.length <= 1 || hovered) return;
-    const t = setInterval(() => setIdx(i => (i + 1) % items.length), 2500);
-    return () => clearInterval(t);
-  }, [items.length, hovered]);
-
   if (items.length === 0) return (
     <div className="flex items-center justify-center h-full text-[11px] text-[#555] italic">none due</div>
   );
 
-  const item = items[idx];
+  const item = items[0];
   return (
-    <div className="relative flex flex-col justify-center h-full overflow-hidden"
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      {/* Fixed-height content so swapping items never shifts card size */}
+    <div className="flex flex-col justify-center h-full overflow-hidden">
       <div className="flex flex-col gap-0.5">
-        <div className="flex items-baseline gap-1.5 h-[22px]">
-          {item.urgent && <AlertTriangle size={9} style={{ color: item.accent }} className="shrink-0" />}
-          <span className="text-[22px] font-mono font-black leading-none" style={{ color: item.accent }}>{item.label}</span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[14px] font-mono font-bold leading-none" style={{ color: item.accent }}>{item.label}</span>
         </div>
         <span className="text-[11px] font-semibold leading-tight truncate" style={{ color: '#C8C7C4' }} title={item.sublabel}>{item.sublabel}</span>
       </div>
-      {/* Dots pinned absolutely so they don't push content */}
-      {items.length > 1 && (
-        <div className="absolute bottom-0 left-0 flex gap-0.5 pb-0.5">
-          {items.map((_, i) => (
-            <button key={i} onClick={e => { e.stopPropagation(); setIdx(i); }}
-              className="w-1 h-1 rounded-full transition-all"
-              style={{ background: i === idx ? item.accent : '#333' }} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -320,19 +148,15 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
           const overdue = days !== null && days < 0;
           const urgent = days !== null && days >= 0 && days <= 7;
           const soon = days !== null && days > 7 && days <= 30;
-          const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? '#eab308' : '#3B82F6';
+          const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? '#666' : '#333';
           const noDeadline = days === null;
           const isFiltered = filterProjectId === p.id;
 
-          const ids = descendantIds(p.id);
-          const allProjectTasks = tasks.filter(t => ids.includes(t.projectId ?? ''));
-          const totalTasks = allProjectTasks.length;
-          const completedTasks = allProjectTasks.filter(t => t.completed).length;
-          const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-          const progressColor = totalTasks === 0 ? '#333' : progressPct >= 75 ? '#22c55e' : progressPct >= 50 ? '#eab308' : '#ef4444';
+           const ids = descendantIds(p.id);
+           const allProjectTasks = tasks.filter(t => ids.includes(t.projectId ?? ''));
 
-          const upcomingTasks = tasks
-            .filter(t => ids.includes(t.projectId ?? '') && t.deadline && !t.completed)
+          const upcomingTasks = allProjectTasks
+            .filter(t => t.deadline && !t.completed)
             .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
             .sort((a, b) => a.d - b.d);
           const taskItems = upcomingTasks.map(t => {
@@ -343,9 +167,6 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
             const shifts = t.deadlineHistory?.length ?? 0;
             return { label: lbl, sublabel: `${shifts > 0 ? `↻${shifts} ` : ''}${t.title}`, accent: a, urgent: ov || urg };
           });
-
-          // Direct children (subprojects)
-          const subprojects = projects.filter(sp => sp.parentId === p.id);
 
           return (
             <button key={p.id}
@@ -358,88 +179,28 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
                 boxShadow: isFiltered ? `0 0 8px ${p.color}40` : undefined,
               }}>
 
-              {/* ── Top row: parent deadline + task carousel ── */}
-              <div className="flex items-stretch gap-0 flex-1">
+              {/* ── Single row: accent bar + deadline + tasks ── */}
+              <div className="flex items-stretch gap-0">
                 {/* Left accent bar */}
                 <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
                 {/* Project deadline */}
-                <div className="flex flex-col justify-center gap-0.5 px-3 py-3 min-w-[140px]">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#666]">Goal</span>
+                <div className="flex flex-col justify-center gap-0.5 px-3 py-2 min-w-[120px]">
                   <span className="text-[14px] font-bold text-white truncate max-w-[140px]" title={p.name}>{p.name}</span>
-                  <div className="flex items-baseline gap-1.5 mt-1">
-                    {(overdue || urgent) && <AlertTriangle size={10} style={{ color: accent }} className={overdue ? 'animate-pulse' : ''} />}
-                    <span className="text-[52px] font-mono font-black leading-none" style={{ color: noDeadline ? '#333' : accent }}>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[24px] font-mono leading-none" style={{ fontWeight: 600, color: noDeadline ? '#333' : overdue ? '#ef4444' : '#aaa' }}>
                       {noDeadline ? '—' : Math.abs(days!)}
                     </span>
-                    <span className="text-[12px] font-mono uppercase font-bold" style={{ color: noDeadline ? '#333' : accent }}>
+                    <span className="text-[11px] font-mono uppercase" style={{ fontWeight: 600, color: noDeadline ? '#333' : overdue ? '#ef4444' : '#aaa' }}>
                       {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
                     </span>
                   </div>
                 </div>
                 {/* Divider */}
                 <div className="w-px self-stretch bg-[#1E1E1E]" />
-                {/* Tasks carousel */}
+                {/* Tasks */}
                 <div className="flex flex-col justify-center px-3 py-2 w-[180px] overflow-hidden">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-1">Tasks</span>
                   <TaskCarousel items={taskItems} />
-                </div>
-              </div>
-
-              {/* ── Subprojects row ── */}
-              {subprojects.length > 0 && (
-                <>
-                  <div className="h-px mx-2" style={{ background: '#1E1E1E' }} />
-                  <div className="flex flex-wrap gap-2 px-3 py-2.5">
-                    {subprojects.map(sp => {
-                      const spDays = sp.deadline ? differenceInDays(parseISO(sp.deadline), today) : null;
-                      const spOverdue = spDays !== null && spDays < 0;
-                      const spUrgent = spDays !== null && spDays >= 0 && spDays <= 7;
-                      const spSoon = spDays !== null && spDays > 7 && spDays <= 30;
-                      const spAccent = spOverdue ? '#ef4444' : spUrgent ? 'var(--accent)' : spSoon ? '#eab308' : '#3B82F6';
-                      const spPending = tasks.filter(t => t.projectId === sp.id && !t.completed).length;
-                      return (
-                        <div key={sp.id}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px]"
-                          style={{
-                            background: `${sp.color}18`,
-                            border: `1px solid ${spDays === null ? '#252525' : spAccent + '55'}`,
-                          }}>
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: sp.color }} />
-                          <span className="font-semibold truncate max-w-[100px]" style={{ color: '#C8C7C4' }} title={sp.name}>{sp.name}</span>
-                          {spDays !== null && (
-                            <>
-                              {(spOverdue || spUrgent) && <AlertTriangle size={9} style={{ color: spAccent }} className={spOverdue ? 'animate-pulse' : ''} />}
-                              <span className="font-mono font-bold shrink-0 text-[13px]" style={{ color: spAccent }}>
-                                {spOverdue ? `${Math.abs(spDays)}d over` : spDays === 0 ? 'today' : `${spDays}d`}
-                              </span>
-                            </>
-                          )}
-                          {spPending > 0 && (
-                            <span className="text-[11px] font-mono" style={{ color: '#555' }}>{spPending} left</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-
-              {/* ── Progress bar ── */}
-              <div className="px-2 pb-1.5 pt-1">
-                <div className="flex items-center gap-1.5">
-                  <div className="flex-1 rounded-full overflow-hidden" style={{ height: 3, background: '#ffffff15' }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${progressPct}%`,
-                        background: progressColor,
-                        transition: 'width 0.3s ease, background 0.3s ease',
-                      }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-mono shrink-0" style={{ color: totalTasks === 0 ? '#444' : progressColor }}>
-                    {totalTasks === 0 ? 'No tasks' : `${progressPct}%`}
-                  </span>
                 </div>
               </div>
             </button>
@@ -464,10 +225,6 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
   const prevGoalMet = useRef(goalMet);
 
   useEffect(() => {
-    if (goalMet && !prevGoalMet.current && containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setGoalConfetti({ x: rect.left + rect.width / 2, y: rect.top });
-    }
     prevGoalMet.current = goalMet;
   }, [goalMet]);
 
@@ -511,9 +268,6 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
         <span style={{ color: goalColor, fontSize: 10 }}>
           {doneCount}/{dailyGoal} ✓
         </span>
-      )}
-      {goalConfetti && (
-        <ConfettiBurst x={goalConfetti.x} y={goalConfetti.y} onDone={() => setGoalConfetti(null)} />
       )}
       {editing && (
         <span
@@ -696,15 +450,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
     return d >= 0 && d <= 7;
   }).length;
 
-  // Morning briefing — auto-show once per day
-  const [showMorningBriefing, setShowMorningBriefing] = useState(() => {
-    const last = localStorage.getItem('calendar-lastBriefingDate');
-    return last !== todayStr;
-  });
-  const dismissMorningBriefing = useCallback(() => {
-    localStorage.setItem('calendar-lastBriefingDate', todayStr);
-    setShowMorningBriefing(false);
-  }, [todayStr]);
+
 
   // Live countdown in browser tab title
   useEffect(() => {
@@ -744,8 +490,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
   const [showTheme, setShowTheme] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showBriefing, setShowBriefing] = useState(false);
-  const [showWeeklyReview, setShowWeeklyReview] = useState(false);
+
   const [focusMode, setFocusMode] = useState(false);
   const [filterProjectId, setFilterProjectId] = useState<string | null>(() => {
     const saved = localStorage.getItem('calendar-filter-project');
@@ -780,7 +525,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
   const projectsPanelRef = useRef<HTMLDivElement>(null);
   const inboxPanelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [navDirection, setNavDirection] = useState<'left' | 'right' | null>(null);
+
 
   // Auto-scroll to today's column on initial load
   useEffect(() => {
@@ -868,7 +613,6 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
   }
 
   const navigate = (dir: 1 | -1) => {
-    setNavDirection(dir > 0 ? 'right' : 'left');
     setBaseDate(prev => {
       if (viewMode === 'daily') return dir > 0 ? addDays(prev, currentLength) : subDays(prev, currentLength);
       if (viewMode === 'weekly') return dir > 0 ? addWeeks(prev, currentLength) : subWeeks(prev, currentLength);
@@ -879,10 +623,9 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
   return (
     <div className="flex flex-col h-full w-full" style={{ background: 'var(--bg-1)' }}>
-      {/* Urgent deadline countdown banner */}
-      <UrgentDeadlineBanner />
+
       {/* Toolbar */}
-      <div className="h-10 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid color-mix(in srgb, var(--accent) 18%, var(--border-1))' }}>
+      <div className="h-10 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid var(--border-1)' }}>
         {/* Logo */}
         <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5" style={{ filter: 'drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent))' }} />
 
@@ -1002,29 +745,6 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
                 {inboxCount}
               </span>
             )}
-            {overdueCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-1 h-1 rounded-full bg-red-500 animate-pulse" />
-            )}
-          </button>
-
-          {/* Daily Briefing */}
-          <button onClick={() => setShowBriefing(p => !p)}
-            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
-              showBriefing ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
-            )}
-            style={showBriefing ? { color: 'var(--accent)' } : undefined}
-            title="Daily Briefing">
-            <Sun size={12} />
-          </button>
-
-          {/* Weekly Review */}
-          <button onClick={() => setShowWeeklyReview(p => !p)}
-            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
-              showWeeklyReview ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
-            )}
-            style={showWeeklyReview ? { color: 'var(--accent)' } : undefined}
-            title="Weekly Review">
-            <ClipboardList size={12} />
           </button>
 
           {/* Journal */}
@@ -1035,29 +755,6 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
             style={showJournal ? { color: 'var(--accent)' } : undefined}
             title="Daily Journal">
             <BookOpen size={12} />
-          </button>
-
-          <span className="w-px h-4 bg-[#222] mx-0.5" />
-
-          {/* Eye rest / break timer */}
-          <button
-            onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
-            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop misc timer' : 'Start misc (untracked) timer'}
-            className={cn('h-7 px-2 flex items-center gap-1.5 rounded transition-colors text-[11px]')}
-            style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : '#555' }}>
-            <Timer size={13} />
-            <span className="font-mono uppercase tracking-widest text-[10px]"
-              style={{ color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : undefined }}>
-              {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? 'Stop' : 'Misc'}
-            </span>
-          </button>
-
-          {/* Widget */}
-          <button
-            onClick={() => { try { (window as any).chrome.webview.postMessage({ type: 'toggleWidget' }); } catch { } }}
-            title="Toggle Widget"
-            className="w-7 h-7 flex items-center justify-center text-[#555] hover:text-[#bbb] transition-colors rounded">
-            <AppWindow size={13} />
           </button>
 
           {/* Analytics */}
@@ -1088,21 +785,21 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
       {/* Goals overlay panel */}
       {showProjects && (
-        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#2A2A2A] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
+        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#1E1E1E] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
           <MacroGoalsPanel />
         </div>
       )}
 
       {/* Inbox overlay panel */}
       {showInbox && (
-        <div ref={inboxPanelRef} className="absolute top-11 right-0 z-40 w-[420px] border border-[#2A2A2A] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+        <div ref={inboxPanelRef} className="absolute top-11 right-0 z-40 w-[420px] border border-[#1E1E1E] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
           <InboxPanel onClose={() => setShowInbox(false)} />
         </div>
       )}
 
       {/* Journal overlay panel */}
       {showJournal && (
-        <div ref={journalPanelRef} className="absolute top-11 right-0 z-40 border border-[#2A2A2A] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+        <div ref={journalPanelRef} className="absolute top-11 right-0 z-40 border border-[#1E1E1E] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
           <JournalPanel onClose={() => setShowJournal(false)} />
         </div>
       )}
@@ -1113,8 +810,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
       {/* Timeline Scroll Container */}
       <div ref={scrollContainerRef} className="flex-1 overflow-x-auto flex relative min-h-0">
         <div
-          className={cn('flex min-w-full h-full', navDirection === 'right' && 'nav-slide-right', navDirection === 'left' && 'nav-slide-left')}
-          onAnimationEnd={() => setNavDirection(null)}
+          className="flex min-w-full h-full"
         >
           {columns.map((col, index) => (
             <TimeColumn 
@@ -1134,8 +830,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
               totalColumns={columns.length}
               selectedTaskIds={selectedTaskIds}
               onToggleTaskSelection={toggleTaskSelection}
-              showMorningBriefing={showMorningBriefing}
-              onDismissBriefing={dismissMorningBriefing}
+
             />
           ))}
         </div>
@@ -1204,13 +899,12 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         );
       })()}
       {showAnalytics && <AnalyticsPanel onClose={() => setShowAnalytics(false)} />}
-      {showBriefing && <DailyBriefing onClose={() => setShowBriefing(false)} />}
-      {showWeeklyReview && <WeeklyReview onClose={() => setShowWeeklyReview(false)} />}
+
     </div>
   );
 }
 
-function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol, focusMode, isFocused, focusedTaskIndex, totalColumns, selectedTaskIds, onToggleTaskSelection, showMorningBriefing, onDismissBriefing }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void; focusMode: boolean; isFocused: boolean; focusedTaskIndex: number; totalColumns: number; selectedTaskIds: Set<string>; onToggleTaskSelection: (taskId: string) => void; showMorningBriefing: boolean; onDismissBriefing: () => void }) {
+function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProjectId, quickFilter, colWidth, onResizeCol, focusMode, isFocused, focusedTaskIndex, totalColumns, selectedTaskIds, onToggleTaskSelection }: { key?: React.Key; startDate: Date; endDate: Date; mode: ViewMode; index: number; hideCompleted: boolean; filterProjectId: string | null; quickFilter: QuickFilter; colWidth: number; onResizeCol: (newWidth: number) => void; focusMode: boolean; isFocused: boolean; focusedTaskIndex: number; totalColumns: number; selectedTaskIds: Set<string>; onToggleTaskSelection: (taskId: string) => void }) {
   const { tasks, projects, updateTask, addTask } = useStore();
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
@@ -1378,7 +1072,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       ref={setColumnRefs}
       {...(isCurrent ? { 'data-today': '' } : undefined)}
       className={cn(
-        "border-r border-[#2A2A2A] flex flex-col h-full min-h-0 transition-colors duration-150 relative",
+        "border-r border-[#1E1E1E] flex flex-col h-full min-h-0 transition-colors duration-150 relative",
         isOver && !isPastDeadline && "bg-[#1A1A1A]",
         isPastDeadline && "bg-[#ef4444]/10",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
@@ -1411,9 +1105,9 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
         <div className="absolute right-0 top-0 w-px h-full opacity-0 group-hover/resize:opacity-100 transition-opacity" style={{ background: 'var(--accent)' }} />
       </div>
       {/* Header */}
-      <div className="px-3 py-1.5 border-b border-[#2A2A2A] shrink-0 relative"
+      <div className="px-3 py-1.5 border-b border-[#1E1E1E] shrink-0 relative"
         style={{
-          ...(isCurrent ? { background: 'color-mix(in srgb, var(--accent) 8%, transparent)' } : undefined),
+          ...(isCurrent ? {} : undefined),
         }}>
         {isCurrent && (
           <div className="absolute top-0 right-0 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider"
@@ -1479,7 +1173,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
         )}
       </div>
       {deadlineProjects.length > 0 && (
-        <div className="p-2 border-b border-[#2A2A2A] bg-[#1A1A1A]/80 flex flex-col gap-1.5">
+        <div className="p-2 border-b border-[#1E1E1E] bg-[#1A1A1A]/80 flex flex-col gap-1.5">
           {deadlineProjects.map(p => {
             const isDueToday = p.deadline === format(today, 'yyyy-MM-dd');
             const remaining = tasks.filter(t => t.projectId === p.id && !t.completed).length;
@@ -1493,14 +1187,14 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
                 style={{ backgroundColor: `${p.color}18`, color: p.color, border: `1px solid ${isDueToday ? p.color + 'cc' : p.color + '40'}` }}
               >
                 <div className="flex items-center gap-1.5 min-w-0">
-                  {isDueToday && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: p.color }} />}
+                  {isDueToday && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: p.color }} />}
                   <span className="truncate" title={p.name}>{p.name}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   {remaining > 0 && (
                     <span className="text-[10px] font-mono opacity-80">{remaining} left</span>
                   )}
-                  <span className={isDueToday ? 'animate-pulse' : ''}>DUE</span>
+                  <span>DUE</span>
                 </div>
               </div>
             );
@@ -1517,10 +1211,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </span>
           </div>
         )}
-        {/* Morning briefing — shown at top of today's column once per day */}
-        {isCurrent && showMorningBriefing && (
-          <MorningBriefingCard onDismiss={onDismissBriefing} />
-        )}
+
         {/* Overdue tasks — only shown in today's column */}
         {isCurrent && (() => {
           const overdueTasks = tasks.filter(t =>
@@ -1531,7 +1222,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
           return (
             <>
               <div className="flex items-center gap-2 select-none">
-                <span className="text-[9px] font-black uppercase tracking-widest animate-pulse" style={{ color: '#ef4444' }}>● Overdue · {overdueTasks.length}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: '#ef4444' }}>● Overdue · {overdueTasks.length}</span>
                 <button
                   onClick={() => overdueTasks.forEach(t => updateTask(t.id, { date: todayStr }))}
                   className="text-[10px] font-mono text-[#666] hover:text-[#ef4444] transition-colors ml-auto"
@@ -1579,7 +1270,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
               className="relative flex items-center gap-2 px-2 py-1.5 rounded border border-dashed select-none pointer-events-none"
               style={{ background: accent + '0A', borderColor: accent + '55' }}>
               {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
-              <Flag size={9} style={{ color: accent, flexShrink: 0 }} className={overdue || urgent ? 'animate-pulse' : ''} />
+              <Flag size={9} style={{ color: accent, flexShrink: 0 }} />
               <span className="flex-1 text-sm truncate" style={{ color: accent + 'CC' }} title={task.title}>{task.title}</span>
               <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>{label}</span>
             </div>

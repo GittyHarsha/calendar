@@ -238,14 +238,14 @@ export default function App() {
             <div className="p-2 rounded text-sm flex items-center gap-2"
               style={{
                 background: 'var(--bg-2)',
-                border: '2px solid var(--accent)',
+                border: '1px solid var(--border-1)',
                 borderLeft: `3px solid ${borderColor}`,
                 color: 'var(--text-1)',
                 maxWidth: 240,
                 opacity: 0.92,
                 cursor: 'grabbing',
-                boxShadow: '0 12px 24px rgba(0,0,0,0.4)',
-                transform: 'scale(1.05) rotate(2deg)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                transform: 'scale(1.02)',
                 transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
               }}>
               {proj && <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: proj.color }} />}

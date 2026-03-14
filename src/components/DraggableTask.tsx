@@ -10,7 +10,6 @@ import { TaskNotesModal } from './TaskNotesModal';
 import { DatePickerPopover } from './DatePickerPopover';
 import { exportTimeLogCSV } from '../utils/exportTimeLogs';
 import { useToast } from './Toast';
-import { ConfettiBurst } from './ConfettiBurst';
 
 let hoveredTaskId: string | null = null;
 export function getHoveredTaskId() { return hoveredTaskId; }
@@ -696,15 +695,12 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
   }, [task.title, editingTitle]);
   const [showPopup, setShowPopup] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
-  const [checkAnim, setCheckAnim] = useState(false);
-  const [completionNudge, setCompletionNudge] = useState<string | null>(null);
-  const [confettiBurst, setConfettiBurst] = useState<{ x: number; y: number } | null>(null);
+  
   const [showTimePicker, setShowTimePicker] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const timeBadgeRef = useRef<HTMLSpanElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [showNotesTooltip, setShowNotesTooltip] = useState(false);
-  const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
 
   const scheduleClose = () => {
     closeTimer.current = setTimeout(() => setShowPopup(false), 80);
@@ -717,22 +713,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
     const wasCompleted = task.completed;
     const prevCompletedAt = task.completedAt;
     if (!wasCompleted) {
-      setCheckAnim(true);
-      setTimeout(() => setCheckAnim(false), 300);
-      // Confetti burst for High priority tasks
-      if ((task.priority ?? 'Low') === 'High' && cardRef.current) {
-        const rect = cardRef.current.getBoundingClientRect();
-        setConfettiBurst({ x: rect.left + 28, y: rect.top + rect.height / 2 });
-      }
-      // Friction: if project has other incomplete tasks, nudge
-      if (task.projectId) {
-        const siblings = tasks.filter(t => t.projectId === task.projectId && !t.completed && t.id !== task.id);
-        if (siblings.length > 0) {
-          const msg = `${siblings.length} task${siblings.length !== 1 ? 's' : ''} still remain in ${project?.name ?? 'this project'}`;
-          setCompletionNudge(msg);
-          setTimeout(() => setCompletionNudge(null), 5000);
-        }
-      }
+      // (nudge removed)
     }
     updateTask(task.id, { completed: !wasCompleted, completedAt: !wasCompleted ? format(startOfToday(), 'yyyy-MM-dd') : null });
     showToast(
@@ -796,20 +777,13 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
     setEditingTitle(false);
   };
 
-  // Priority left-border glow (overdue pulse animation handles its own border)
+  // Priority left-border color (overdue pulse animation handles its own border)
   const priorityGlowStyle: React.CSSProperties = isOverdue ? {} :
-    !task.completed && priority === 'High' ? { borderLeft: '3px solid #ef4444' } :
-    !task.completed && priority === 'Medium' ? { borderLeft: '3px solid #F27D26' } :
+    !task.completed && priority === 'High' ? { borderLeftColor: '#ef4444', borderLeftWidth: 3 } :
+    !task.completed && priority === 'Medium' ? { borderLeftColor: '#eab308', borderLeftWidth: 3 } :
     {};
-  const highGlowShadow = !task.completed && priority === 'High' ? 'inset 3px 0 8px -3px rgba(239,68,68,0.3), ' : '';
 
-  // Project-based color tint (skipped for completed tasks)
-  const cardBaseBg = task.completed
-    ? '#141414'
-    : (project?.color ? hexToRgba(project.color, 0.06) : (PRIORITY_BG[priority] || '#141414'));
-  const projectTintBorder: React.CSSProperties = (!task.completed && project?.color)
-    ? { borderTop: `2px solid ${hexToRgba(project.color, 0.3)}` }
-    : {};
+  const cardBaseBg = task.completed ? '#141414' : 'var(--bg-2)';
 
   // Combined ref: dnd + card
   const setRefs = (el: HTMLDivElement | null) => {
@@ -839,30 +813,21 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
         }}
         onMouseEnter={() => {
           hoveredTaskId = task.id; cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true);
-          if (task.description) {
-            tooltipTimer.current = setTimeout(() => setShowNotesTooltip(true), 500);
-          }
         }}
         onMouseLeave={() => {
           hoveredTaskId = null; setHoveredProjectId(null); scheduleClose();
-          if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
-          setShowNotesTooltip(false);
         }}
         className={cn(
           'relative group flex flex-col border border-l-2 rounded cursor-grab',
-          isSelected ? 'border-[color:var(--accent)]' : 'border-[#222]',
+          (isSelected || isFocused) ? 'border-[color:var(--accent)]' : 'border-[#222]',
           task.completed ? 'border-l-[#333]' : isOverdue ? '' : PRIORITY_BORDER[priority],
-          isOverdue && 'overdue-pulse',
+          isOverdue && '',
           isDragging ? 'opacity-40 scale-[0.98]' : '',
           task.completed && 'opacity-40'
         )}
         style={{
-          background: isSelected
-            ? 'color-mix(in srgb, var(--accent) 8%, var(--bg-2))'
-            : task.completed ? '#141414' : 'var(--bg-2)',
-          boxShadow: (isSelected || isFocused)
-            ? '0 0 0 2px var(--accent)'
-            : '0 1px 3px rgba(0,0,0,0.3)',
+          background: cardBaseBg,
+          boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
           transform: CSS.Transform.toString(transform),
           transition,
           ...priorityGlowStyle,
@@ -899,11 +864,11 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
               onBlur={saveTitle}
               onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleVal(task.title); setEditingTitle(false); } }}
               className="flex-1 text-sm bg-transparent border-none focus:outline-none"
-              style={{ color: task.completed ? '#555' : '#C8C7C4' }} />
+              style={{ color: task.completed ? '#666' : '#E0DFDC' }} />
           ) : (
             <span onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); setTitleVal(task.title); }}
               className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate',
-                task.completed ? 'line-through text-[#555]' : 'text-[#C8C7C4]'
+                task.completed ? 'line-through text-[#666]' : 'text-[#E0DFDC]'
               )} title={task.title}>{task.title}</span>
           )}
 
@@ -919,7 +884,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
             </span>
           )}
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
-            <span className="text-[11px] font-mono shrink-0 animate-pulse" style={{ color: 'var(--accent)' }}>▶</span>
+            <span className="text-[11px] font-mono shrink-0" style={{ color: 'var(--accent)' }}>▶</span>
           )}
           {task.taskStatus === 'blocked' && (
             <span className="text-[9px] shrink-0" style={{ color: '#ef4444' }}>●</span>
@@ -935,41 +900,8 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
             </div>
           );
         })()}
-        {/* Snooze to tomorrow — absolute button on hover for incomplete tasks */}
-        {!task.completed && (
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              const prevDate = task.date;
-              updateTask(task.id, { date: format(addDays(new Date(), 1), 'yyyy-MM-dd') });
-              showToast('Snoozed to tomorrow', () => updateTask(task.id, { date: prevDate }));
-            }}
-            title="Snooze to tomorrow"
-            className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-[11px] font-mono px-1 py-0.5 rounded text-[#555] hover:text-[#ccc] hover:bg-[#2A2A2A] cursor-pointer z-10"
-          >
-            »
-          </button>
-        )}
-        {/* Deadline progress bar */}
-        {task.deadline && !task.completed && (() => {
-          const totalDays = differenceInDays(parseISO(task.deadline), parseISO(task.startedAt || task.date || task.deadline));
-          const daysLeft = differenceInDays(parseISO(task.deadline), startOfToday());
-          const pct = Math.max(0, Math.min(1, daysLeft / Math.max(1, totalDays)));
-          const color = pct > 0.5 ? '#3B82F6' : pct > 0.2 ? '#eab308' : pct > 0 ? '#F27D26' : '#ef4444';
-          return (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                width: `${pct * 100}%`,
-                height: 2,
-                borderRadius: 9999,
-                backgroundColor: color,
-              }}
-            />
-          );
-        })()}
+        {/* Snooze button removed */}
+        {/* Deadline progress bar removed */}
       </div>
 
       {showPopup && !isDragging && !editingTitle && (
@@ -989,59 +921,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
         />
       )}
       {showNotes && <TaskNotesModal task={task} onClose={() => setShowNotes(false)} />}
-      {completionNudge && (
-        <div className="mt-1 px-2 py-1 rounded text-[11px] font-mono animate-fade"
-          style={{ background: 'rgba(234,179,8,0.08)', color: '#eab308', border: '1px solid rgba(234,179,8,0.2)' }}>
-          ↑ {completionNudge}
-        </div>
-      )}
-      {showNotesTooltip && !isDragging && task.description && cardRef.current && ReactDOM.createPortal(
-        (() => {
-          const rect = cardRef.current!.getBoundingClientRect();
-          const preview = task.description!.length > 150
-            ? task.description!.slice(0, 150) + '...'
-            : task.description!;
-          return (
-            <div style={{
-              position: 'fixed',
-              top: rect.top - 8,
-              left: rect.left + rect.width / 2,
-              transform: 'translateX(-50%) translateY(-100%)',
-              background: '#1a1a2e',
-              color: 'white',
-              padding: '8px 12px',
-              borderRadius: 8,
-              fontSize: 11,
-              maxWidth: 250,
-              zIndex: 50,
-              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-              animation: 'fadeIn 200ms ease',
-              pointerEvents: 'none',
-              lineHeight: 1.4,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}>
-              {preview}
-              <div style={{
-                position: 'absolute',
-                bottom: -6,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: 0,
-                height: 0,
-                borderLeft: '6px solid transparent',
-                borderRight: '6px solid transparent',
-                borderTop: '6px solid #1a1a2e',
-              }} />
-            </div>
-          );
-        })(),
-        document.body
-      )}
 
-      {confettiBurst && (
-        <ConfettiBurst x={confettiBurst.x} y={confettiBurst.y} onDone={() => setConfettiBurst(null)} />
-      )}
     </>
   );
 }
