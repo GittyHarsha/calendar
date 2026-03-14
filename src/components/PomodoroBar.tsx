@@ -29,7 +29,7 @@ export function PomodoroBar() {
       setElapsed(pomodoro.pausedElapsed);
       return;
     }
-    if (!pomodoro.sessionStart) return;
+    if (!pomodoro.sessionStart) { setElapsed(0); return; }
 
     const tick = () => {
       const e = Date.now() - new Date(pomodoro.sessionStart!).getTime();

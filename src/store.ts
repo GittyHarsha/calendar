@@ -418,7 +418,7 @@ export const useStore = create<EpochState>()(
       ? [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }]
       : state.timeEntries; // free timer — no time entry
     return {
-      pomodoro: { ...pomodoro, phase: 'break', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted + 1 },
+      pomodoro: { ...pomodoro, phase: 'break', sessionStart: new Date().toISOString(), sessionsCompleted: pomodoro.sessionsCompleted + 1 },
       timeEntries: newEntries,
     };
   }),
