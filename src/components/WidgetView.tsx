@@ -398,14 +398,14 @@ export function WidgetView() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             onClick={() => pomodoro.phase !== 'idle' && pomodoro.taskId === null ? stopPomodoro() : startPomodoro(null)}
-            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop eye rest' : 'Start 25m eye rest timer'}
+            title={pomodoro.phase !== 'idle' && pomodoro.taskId === null ? 'Stop free timer' : 'Start 25m free timer'}
             style={{
               background: 'none', border: 'none', cursor: 'pointer', padding: '1px 5px',
               borderRadius: 4, fontSize: 11,
               color: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '#22d3ee' : 'var(--text-2)',
               outline: pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '1px solid #22d3ee55' : 'none',
             }}>
-            {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '⏱ Stop' : '⏱ Rest'}
+            {pomodoro.taskId === null && pomodoro.phase !== 'idle' ? '⏱ Stop' : '⏱ Free'}
           </button>
           <button onClick={() => setShowDone(s => !s)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: doneToday > 0 ? '#4ade80' : 'var(--border-1)', fontSize: 12, fontFamily: 'Consolas, monospace' }}>✓ {doneToday} done</button>
           {pomodoro.sessionsCompleted > 0 && (
@@ -461,7 +461,7 @@ export function WidgetView() {
             <div style={{ flex: 1, overflow: 'hidden' }}>
               <div style={{ fontSize: 9, color: 'var(--text-2)', marginBottom: 1 }}>{isPaused ? '⏸' : (isEyeRest ? '—' : isWork ? '▶' : '☕')}{pomodoro.sessionsCompleted > 0 ? ` ◉×${pomodoro.sessionsCompleted}` : ''}</div>
               <div style={{ fontSize: 10, color: thm.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {isEyeRest ? 'Untracked' : (task?.title ?? '—') + (tracked > 0 ? ` · ${fmtDuration(tracked)}` : '')}
+                {isEyeRest ? 'Free timer' : (task?.title ?? '—') + (tracked > 0 ? ` · ${fmtDuration(tracked)}` : '')}
               </div>
             </div>
             <div style={{ fontSize: 16, fontWeight: 700, color: isPaused ? `${pColor}80` : pColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 1 }}>

@@ -149,7 +149,7 @@ export function PomodoroBar() {
                 cursor: 'pointer', textAlign: 'left',
                 fontFamily: 'inherit', fontSize: 12,
               }}
-            >⏱ Misc timer</button>
+            >⏱ Free timer</button>
           </div>
         )}
         <button
@@ -209,7 +209,7 @@ export function PomodoroBar() {
           overflow: 'hidden', textOverflow: 'ellipsis',
           whiteSpace: 'nowrap', maxWidth: 200,
         }}>
-          {isEyeRest ? 'Misc' : isWork ? (task?.title ?? '—') : 'Break'}
+          {isEyeRest ? 'Free timer' : isWork ? (task?.title ?? '—') : 'Break'}
           {project && !isEyeRest && (
             <span style={{
               display: 'inline-block', width: 6, height: 6, borderRadius: '50%',

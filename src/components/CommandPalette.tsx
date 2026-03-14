@@ -14,7 +14,7 @@ const ACTIONS: ResultItem[] = [
   { kind: 'action', id: 'today',        label: 'Go to today' },
   { kind: 'action', id: 'new-task',     label: 'New task' },
   { kind: 'action', id: 'new-project',  label: 'New project' },
-  { kind: 'action', id: 'misc-timer',   label: 'Start misc timer' },
+  { kind: 'action', id: 'misc-timer',   label: 'Start free timer' },
 ];
 
 export function CommandPalette() {

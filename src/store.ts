@@ -416,7 +416,7 @@ export const useStore = create<EpochState>()(
     const duration = Date.now() - new Date(pomodoro.sessionStart).getTime();
     const newEntries = pomodoro.taskId
       ? [...state.timeEntries, { id: crypto.randomUUID(), taskId: pomodoro.taskId, startedAt: pomodoro.sessionStart, endedAt, duration }]
-      : state.timeEntries; // eye rest — no time entry
+      : state.timeEntries; // free timer — no time entry
     return {
       pomodoro: { ...pomodoro, phase: 'break', sessionStart: null, sessionsCompleted: pomodoro.sessionsCompleted + 1 },
       timeEntries: newEntries,

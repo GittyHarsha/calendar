@@ -96,8 +96,8 @@ public class MainForm : Form
                         var sessions = msg.RootElement.TryGetProperty("sessionsCompleted", out var sc) ? sc.GetInt32() : 1;
                         Invoke(() =>
                         {
-                            var title = isEyeRest ? "Eye Rest Done" : $"Session {sessions} Complete!";
-                            var body = isEyeRest ? "Time to get back to work." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a break now." : "Stop working. Take a break.");
+                            var title = isEyeRest ? "Free Timer Done" : $"Session {sessions} Complete!";
+                            var body = isEyeRest ? "25 minutes up." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a break now." : "Stop working. Take a break.");
                             TrayIcon.ShowBalloonTip(8000, title, body, ToolTipIcon.Info);
                         });
                     }

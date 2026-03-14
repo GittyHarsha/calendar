@@ -114,8 +114,8 @@ public class WidgetForm : Form
                         var isEyeRest = msg.RootElement.TryGetProperty("isEyeRest", out var er) && er.GetBoolean();
                         var taskTitle = msg.RootElement.TryGetProperty("taskTitle", out var tt) && tt.ValueKind == System.Text.Json.JsonValueKind.String ? tt.GetString() : null;
                         var sessions = msg.RootElement.TryGetProperty("sessionsCompleted", out var sc) ? sc.GetInt32() : 1;
-                        var title = isEyeRest ? "👁 Eye Rest Done" : $"🍅 Session {sessions} Complete!";
-                        var body = isEyeRest ? "Time to get back to work." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a 5-min break ☕" : "Take a 5-min break ☕");
+                        var title = isEyeRest ? "⏱ Free Timer Done" : $"🍅 Session {sessions} Complete!";
+                        var body = isEyeRest ? "25 minutes up." : (!string.IsNullOrEmpty(taskTitle) ? $"{taskTitle} · Take a 5-min break ☕" : "Take a 5-min break ☕");
                         Invoke(() => _notify(title, body));
                     }
                     else if (type == "breakComplete")
