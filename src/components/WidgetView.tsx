@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { differenceInCalendarDays, differenceInDays, format, parseISO, startOfToday } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO, startOfToday } from 'date-fns';
 import { useStore, Task, Project, THEMES, WORK_DURATION, BREAK_DURATION, fmtDuration, deriveThemeFromAccent } from '../store';
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
@@ -290,41 +290,17 @@ export function WidgetView() {
 
   const active = tasks.filter(t => !t.completed && !fading.has(t.id));
 
-  const overdue   = active.filter(t => t.deadline && t.deadline < todayStr)
-                          .sort((a, b) => (a.deadline ?? '').localeCompare(b.deadline ?? ''));
-  const overdueIds = new Set(overdue.map(t => t.id));
-
-  const dueToday  = active.filter(t => !overdueIds.has(t.id) && t.deadline === todayStr);
-  const dueTodayIds = new Set(dueToday.map(t => t.id));
-
-  const workToday = active.filter(t => !overdueIds.has(t.id) && !dueTodayIds.has(t.id) && t.date === todayStr);
-  const workTodayIds = new Set(workToday.map(t => t.id));
-
-  const upNextAll = (() => {
-    const byDeadline = active.filter(t => {
-      if (overdueIds.has(t.id) || dueTodayIds.has(t.id) || workTodayIds.has(t.id)) return false;
-      if (!t.deadline || t.deadline <= todayStr) return false;
-      return differenceInCalendarDays(parseISO(t.deadline), today) <= 7;
+  // Widget shows ONLY tasks assigned for today
+  const todayTasks = active
+    .filter(t => t.date === todayStr)
+    .sort((a, b) => {
+      // Deadline tasks first, then by priority
+      const aDead = a.deadline === todayStr ? 0 : a.deadline ? 1 : 2;
+      const bDead = b.deadline === todayStr ? 0 : b.deadline ? 1 : 2;
+      if (aDead !== bDead) return aDead - bDead;
+      const prio: Record<string, number> = { High: 0, Medium: 1, Low: 2 };
+      return (prio[a.priority ?? ''] ?? 3) - (prio[b.priority ?? ''] ?? 3);
     });
-    const byDeadlineIds = new Set(byDeadline.map(t => t.id));
-    const byDate = active.filter(t => {
-      if (overdueIds.has(t.id) || dueTodayIds.has(t.id) || workTodayIds.has(t.id)) return false;
-      if (byDeadlineIds.has(t.id)) return false;
-      if (!t.date || t.date <= todayStr) return false;
-      return differenceInCalendarDays(parseISO(t.date), today) <= 7;
-    });
-    return [...byDeadline, ...byDate].sort((a, b) => {
-      const aKey = a.deadline ?? a.date ?? '';
-      const bKey = b.deadline ?? b.date ?? '';
-      return aKey.localeCompare(bKey);
-    });
-  })();
-  const upNextLimit = 5;
-  const upNext = upNextAll.slice(0, upNextLimit);
-  const upNextMore = Math.max(0, upNextAll.length - upNextLimit);
-
-  const inbox = active.filter(t => !t.date && !t.deadline && !overdueIds.has(t.id) && !dueTodayIds.has(t.id) && !workTodayIds.has(t.id)).slice(0, 3);
-  const inboxMore = active.filter(t => !t.date && !t.deadline).length - inbox.length;
 
   const doneToday = tasks.filter(t => t.completed && (t.completedAt === todayStr || (!t.completedAt && t.date === todayStr))).length;
 
@@ -412,7 +388,7 @@ export function WidgetView() {
     onFocus: () => startPomodoro(t.id),
     onReschedule: () => updateTask(t.id, { date: todayStr }),
   });
-  const empty = overdue.length + dueToday.length + workToday.length + upNext.length + inbox.length === 0;
+  const empty = todayTasks.length === 0;
 
   return (
     <div style={{ fontFamily: 'Consolas, monospace', background: 'var(--bg-0)', color: 'var(--text-1)', height: '100vh', display: 'flex', flexDirection: 'column', fontSize: 13, overflow: 'hidden' }}>
@@ -502,43 +478,16 @@ export function WidgetView() {
       })()}
 
       {!focusMode && (<>
-      {/* Scrollable content */}
+      {/* Scrollable content — today's tasks only */}
       <div className="widget-scroll" style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
-        {overdue.length > 0 && (
-          <Section label={`Overdue · ${overdue.length}`} color="#ef4444" collapsed={!!collapsed['overdue']} onToggle={() => setCollapsed(c => ({ ...c, overdue: !c.overdue }))}>
-            {overdue.map(t => <TaskRow key={t.id} {...rowProps(t, true)} />)}
-          </Section>
-        )}
-        {dueToday.length > 0 && (
-          <Section label={`Due today · ${dueToday.length}`} color={accent} collapsed={!!collapsed['dueToday']} onToggle={() => setCollapsed(c => ({ ...c, dueToday: !c.dueToday }))}>
-            {dueToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
-          </Section>
-        )}
-        {workToday.length > 0 && (
-          <Section label={`Today's work · ${workToday.length}`} color="#888" collapsed={!!collapsed['workToday']} onToggle={() => setCollapsed(c => ({ ...c, workToday: !c.workToday }))}>
-            {workToday.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
-          </Section>
-        )}
-        {upNext.length > 0 && (
-          <Section label={`Up next · ${upNextAll.length}`} color="#444" collapsed={!!collapsed['upNext']} onToggle={() => setCollapsed(c => ({ ...c, upNext: !c.upNext }))}>
-            {upNext.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
-            {upNextMore > 0 && (
-              <div style={{ padding: '3px 12px 6px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>+{upNextMore} more</div>
-            )}
-          </Section>
-        )}
-        {inbox.length > 0 && (
-          <Section label={`Inbox · ${inbox.length}`} color="#666" collapsed={!!collapsed['inbox']} onToggle={() => setCollapsed(c => ({ ...c, inbox: !c.inbox }))}>
-            {inbox.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
-            {inboxMore > 0 && (
-              <div style={{ padding: '3px 12px 6px', fontSize: 11, color: 'var(--text-2)', textAlign: 'center' }}>+{inboxMore} more</div>
-            )}
+        {todayTasks.length > 0 && (
+          <Section label={`Today · ${todayTasks.length}`} color={accent} collapsed={!!collapsed['today']} onToggle={() => setCollapsed(c => ({ ...c, today: !c.today }))}>
+            {todayTasks.map(t => <TaskRow key={t.id} {...rowProps(t)} />)}
           </Section>
         )}
         {empty && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--border-1)', fontSize: 13 }}>
-            <span>you're clear</span>
-            <span style={{ fontSize: 9, marginTop: 4 }}>nothing due soon 👌</span>
+            <span>nothing for today</span>
           </div>
         )}
 
