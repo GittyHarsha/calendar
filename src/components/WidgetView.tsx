@@ -258,25 +258,10 @@ export function WidgetView() {
     const tick = () => {
       const e = Date.now() - new Date(pomodoro.sessionStart!).getTime();
       setElapsed(e);
-
-      if (pomodoro.phase === 'work' && e >= WORK_DURATION) {
-        completeWorkSession();
+      // Widget only displays timer — main window (PomodoroBar) handles
+      // state transitions and desktop notifications via BroadcastChannel sync
+      if ((pomodoro.phase === 'work' && e >= WORK_DURATION) || (pomodoro.phase === 'break' && e >= BREAK_DURATION)) {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        try {
-          const taskTitle = tasks.find(t => t.id === pomodoro.taskId)?.title ?? null;
-          (window as any).chrome?.webview?.postMessage({
-            type: 'pomodoroComplete',
-            isEyeRest: pomodoro.taskId === null,
-            taskTitle,
-            sessionsCompleted: pomodoro.sessionsCompleted + 1,
-          });
-        } catch { /* not in desktop */ }
-      }
-
-      if (pomodoro.phase === 'break' && e >= BREAK_DURATION) {
-        skipBreak();
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        try { (window as any).chrome?.webview?.postMessage({ type: 'breakComplete' }); } catch { /* not in desktop */ }
       }
     };
     tick();
