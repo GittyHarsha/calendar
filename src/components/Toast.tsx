@@ -95,9 +95,9 @@ function ToastPill({
       <div
         className="flex items-center gap-3 pl-4 pr-2 py-2 rounded-full shadow-2xl text-sm font-medium"
         style={{
-          background: '#1a1a2e',
-          color: '#fff',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: 'var(--bg-1)',
+          color: 'var(--text-1)',
+          border: '1px solid var(--border, #1E1E1E)',
           minWidth: 200,
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         }}
@@ -108,16 +108,16 @@ function ToastPill({
           className="shrink-0 px-3 py-1 rounded-full text-xs font-bold transition-colors cursor-pointer"
           style={{
             color: 'var(--accent)',
-            background: 'rgba(255,255,255,0.06)',
+            background: 'var(--bg-2)',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-2)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-2)')}
         >
           Undo
         </button>
         <button
           onClick={onDismiss}
-          className="shrink-0 text-[#666] hover:text-[#aaa] transition-colors cursor-pointer text-xs px-1"
+          className="shrink-0 text-[var(--text-2)] hover:text-[var(--text-1)] transition-colors cursor-pointer text-xs px-1"
           aria-label="Dismiss"
         >
           ✕
@@ -126,7 +126,7 @@ function ToastPill({
       {/* Shrinking progress bar */}
       <div
         className="mx-4 mt-1 rounded-full overflow-hidden"
-        style={{ height: 2, background: 'rgba(255,255,255,0.06)' }}
+        style={{ height: 2, background: 'var(--bg-2)' }}
       >
         <div
           style={{

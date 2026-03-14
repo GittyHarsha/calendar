@@ -76,7 +76,7 @@ export function triggerTaskClick(colIndex: number, taskIndex: number): void {
 
 function TaskCarousel({ items }: { items: { label: string; sublabel: string; accent: string; urgent: boolean }[] }) {
   if (items.length === 0) return (
-    <div className="flex items-center justify-center h-full text-[11px] text-[#555] italic">none due</div>
+    <div className="flex items-center justify-center h-full text-[11px] text-[var(--text-2)] italic">none due</div>
   );
 
   const item = items[0];
@@ -115,7 +115,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
   return (
     <div className="relative group border-b border-[#1E1E1E] shrink-0" style={{ background: 'var(--bg-0)' }}>
       {/* "Projects" label on far left */}
-      <span className="absolute left-2 top-3 text-[9px] font-bold uppercase tracking-widest text-[#3A3A3A] z-10 pointer-events-none select-none">Projects</span>
+      <span className="absolute left-2 top-3 text-[9px] font-bold uppercase tracking-widest text-[var(--text-2)] z-10 pointer-events-none select-none">Projects</span>
       {/* Clear filter button */}
       {filterProjectId && (
         <button
@@ -127,19 +127,19 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
       )}
       {/* Left scroll arrow */}
       <button
-        className="absolute left-0 top-0 bottom-0 z-10 w-8 flex items-center justify-center text-[#666] hover:text-[#bbb] opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute left-0 top-0 bottom-0 z-10 w-8 flex items-center justify-center text-[var(--text-2)] hover:text-[var(--text-1)] opacity-0 group-hover:opacity-100 transition-opacity"
         style={{ background: 'linear-gradient(to right, var(--bg-0) 60%, transparent)' }}
         onClick={() => scrollRef.current?.scrollBy({ left: -200, behavior: 'smooth' })}
         title="Scroll left">
-        <span className="text-lg leading-none">‹</span>
+        <span className="text-[14px] leading-none">‹</span>
       </button>
       {/* Right scroll arrow */}
       <button
-        className="absolute right-0 top-0 bottom-0 z-10 w-8 flex items-center justify-center text-[#666] hover:text-[#bbb] opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute right-0 top-0 bottom-0 z-10 w-8 flex items-center justify-center text-[var(--text-2)] hover:text-[var(--text-1)] opacity-0 group-hover:opacity-100 transition-opacity"
         style={{ background: 'linear-gradient(to left, var(--bg-0) 60%, transparent)' }}
         onClick={() => scrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' })}
         title="Scroll right">
-        <span className="text-lg leading-none">›</span>
+        <span className="text-[14px] leading-none">›</span>
       </button>
       {/* Scrollable cards */}
       <div ref={scrollRef} className="flex items-stretch pl-16 pr-8 gap-3 overflow-x-auto py-2">
@@ -148,7 +148,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
           const overdue = days !== null && days < 0;
           const urgent = days !== null && days >= 0 && days <= 7;
           const soon = days !== null && days > 7 && days <= 30;
-          const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? '#666' : '#333';
+          const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? 'var(--text-2)' : 'var(--text-2)';
           const noDeadline = days === null;
           const isFiltered = filterProjectId === p.id;
 
@@ -187,10 +187,10 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
                 <div className="flex flex-col justify-center gap-0.5 px-3 py-2 min-w-[120px]">
                   <span className="text-[12px] font-medium truncate max-w-[120px]" title={p.name}>{p.name}</span>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-[24px] font-mono leading-none" style={{ fontWeight: 600, color: noDeadline ? '#333' : overdue ? '#ef4444' : '#aaa' }}>
+                    <span className="text-[24px] font-mono leading-none" style={{ fontWeight: 600, color: noDeadline ? 'var(--text-2)' : overdue ? '#ef4444' : 'var(--text-2)' }}>
                       {noDeadline ? '—' : Math.abs(days!)}
                     </span>
-                    <span className="text-[11px] font-mono uppercase" style={{ fontWeight: 600, color: noDeadline ? '#333' : overdue ? '#ef4444' : '#aaa' }}>
+                    <span className="text-[11px] font-mono uppercase" style={{ fontWeight: 600, color: noDeadline ? 'var(--text-2)' : overdue ? '#ef4444' : 'var(--text-2)' }}>
                       {noDeadline ? 'no date' : overdue ? 'over' : 'left'}
                     </span>
                   </div>
@@ -199,7 +199,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
                 <div className="w-px self-stretch bg-[#1E1E1E]" />
                 {/* Tasks */}
                 <div className="flex flex-col justify-center px-3 py-2 w-[180px] overflow-hidden">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#666] mb-1">Tasks</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-2)] mb-1">Tasks</span>
                   <TaskCarousel items={taskItems} />
                 </div>
               </div>
@@ -261,7 +261,7 @@ function DailyGoalIndicator({ doneCount, dailyGoal, goalMet, ringSize, strokeW, 
           style={{ transition: 'stroke-dashoffset 0.4s ease, stroke 0.3s ease' }} />
       </svg>
       {goalMet ? (
-        <span style={{ color: '#22c55e', fontSize: 10, filter: 'drop-shadow(0 0 3px rgba(34,197,94,0.5))' }}>
+        <span style={{ color: '#22c55e', fontSize: 10 }}>
           {doneCount}/{dailyGoal} 🎯
         </span>
       ) : (
@@ -369,7 +369,7 @@ function TimeTrackingSummary({ todayStr, projects, tasks, timeEntries }: {
             background: 'var(--bg-1)',
             border: '1px solid var(--border-1)',
             minWidth: 180,
-            animation: 'fade-in 0.12s ease-out',
+
           }}
         >
           <div className="mb-1" style={{ color: 'var(--text-2)', fontSize: 9 }}>
