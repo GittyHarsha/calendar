@@ -223,19 +223,43 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
                     const cUrgent = cDays !== null && cDays >= 0 && cDays <= 7;
                     const cColor = cOverdue ? '#ef4444' : cUrgent ? 'var(--accent)' : 'var(--text-2)';
                     const isChildFiltered = filterProjectId === child.id;
+                    const childIds = descendantIds(child.id);
+                    const childTasks = tasks.filter(t => childIds.includes(t.projectId ?? '') && !t.completed);
+                    const childUpcoming = childTasks
+                      .filter(t => t.deadline)
+                      .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
+                      .sort((a, b) => a.d - b.d);
+                    const childTaskItems = childUpcoming.slice(0, 3).map(t => {
+                      const ov = t.d < 0; const urg = t.d >= 0 && t.d <= 3;
+                      const so = t.d > 3 && t.d <= 10;
+                      const a = ov ? '#ef4444' : urg ? 'var(--accent)' : so ? '#eab308' : '#3B82F6';
+                      const lbl = ov ? `${Math.abs(t.d)}d` : t.d === 0 ? 'today' : `${t.d}d`;
+                      return { label: lbl, sublabel: t.title, accent: a, urgent: ov || urg };
+                    });
                     return (
                       <button
                         key={child.id}
                         onClick={(e) => { e.stopPropagation(); onFilterProject(isChildFiltered ? null : child.id); }}
-                        className="flex items-center gap-2 w-full pl-4 pr-3 py-1 text-left hover:bg-white/[0.03] transition-colors"
+                        className="flex items-center gap-2 w-full pl-4 pr-3 py-1.5 text-left hover:bg-white/[0.03] transition-colors"
                         style={{ background: isChildFiltered ? `${child.color}18` : undefined }}
                       >
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: child.color }} />
-                        <span className="text-[10px] truncate flex-1" style={{ color: 'var(--text-1)', opacity: 0.7 }}>{child.name}</span>
+                        <span className="text-[10px] truncate min-w-[60px] max-w-[90px]" style={{ color: 'var(--text-1)', opacity: 0.7 }}>{child.name}</span>
                         {cDays !== null && (
                           <span className="text-[10px] font-mono shrink-0" style={{ color: cColor }}>
                             {cOverdue ? `${Math.abs(cDays)}d over` : `${cDays}d`}
                           </span>
+                        )}
+                        {childTaskItems.length > 0 && (
+                          <>
+                            <span className="text-[8px] text-[var(--text-2)] mx-0.5">·</span>
+                            <span className="flex-1 min-w-0 overflow-hidden">
+                              <TaskCarousel items={childTaskItems} />
+                            </span>
+                          </>
+                        )}
+                        {childTaskItems.length === 0 && childTasks.length > 0 && (
+                          <span className="text-[9px] text-[var(--text-2)] ml-auto">{childTasks.length} tasks</span>
                         )}
                       </button>
                     );
