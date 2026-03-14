@@ -1236,6 +1236,11 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             </div>
           </>
         )}
+        {isCurrent && totalEstimatedMinutes > 0 && (
+          <span className="text-[10px] text-[var(--text-2)]">
+            ~{totalEstimatedMinutes >= 60 ? `${Math.floor(totalEstimatedMinutes / 60)}h${totalEstimatedMinutes % 60 > 0 ? ` ${totalEstimatedMinutes % 60}m` : ''}` : `${totalEstimatedMinutes}m`}
+          </span>
+        )}
         {mode === 'yearly' && (
           <>
             <div className="text-lg font-bold uppercase tracking-wider"
