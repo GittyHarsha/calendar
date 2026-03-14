@@ -329,7 +329,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
             <Flag size={13} />
             <span style={dl?.bold ? { fontWeight: 700 } : undefined}>{dl ? dl.label : 'Deadline'}</span>
             {(task.deadlineHistory?.length ?? 0) > 0 && (
-              <span className="text-[13px] font-bold px-1 py-0.5 rounded"
+              <span className="text-[10px] font-bold px-1 py-0.5 rounded"
                 title={`Shifted ${task.deadlineHistory.length}× (was: ${task.deadlineHistory.map(d => format(parseISO(d), 'MMM d')).join(' → ')})`}
                 style={{ background: '#ef444420', color: '#ef4444' }}>↻{task.deadlineHistory.length}</span>
             )}
@@ -576,7 +576,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
               onChange={e => updateTask(task.id, { description: e.target.value })}
               placeholder="Write anything…"
               rows={3}
-              className="w-full bg-[#1A1A1A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-1.5 resize-none focus:outline-none border border-[#2A2A2A] focus:border-[#444]"
+              className="w-full bg-[#1A1A1A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-1.5 resize-none focus-visible:ring-1 focus-visible:ring-[#333] outline-none border border-[#2A2A2A] focus:border-[#444]"
             />
           )}
         </div>
@@ -632,7 +632,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
                   }
                 }}
                 placeholder="+ add subtask (Enter)"
-                className="w-full bg-[#1A1A1A] text-xs placeholder-[#444] rounded p-1.5 focus:outline-none border border-[#2A2A2A] focus:border-[#444]"
+                className="w-full bg-[#1A1A1A] text-xs placeholder-[#444] rounded p-1.5 focus-visible:ring-1 focus-visible:ring-[#333] outline-none border border-[#2A2A2A] focus:border-[#444]"
                 style={{ color: '#C8C7C4', fontFamily: 'Consolas, monospace' }}
               />
             </div>
@@ -850,10 +850,10 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
             role="checkbox"
             aria-checked={task.completed}
             className={cn(
-              'shrink-0 w-3.5 h-3.5 rounded-full border transition-colors',
-              task.completed ? 'border-[var(--accent)]' : 'border-[#444] hover:border-[var(--accent)]'
+              'shrink-0 w-[14px] h-[14px] rounded-full border transition-colors',
+              task.completed ? '' : 'border-[#444]'
             )}
-            style={task.completed ? { background: 'var(--accent)' } : undefined}
+            style={task.completed ? { background: task.priority ? PRIORITY_COLOR[task.priority] : 'var(--accent)', borderColor: task.priority ? PRIORITY_COLOR[task.priority] : 'var(--accent)' } : undefined}
           />
 
           {/* Title */}
@@ -863,18 +863,18 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
               onMouseDown={e => e.stopPropagation()}
               onBlur={saveTitle}
               onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') { setTitleVal(task.title); setEditingTitle(false); } }}
-              className="flex-1 text-sm bg-transparent border-none focus:outline-none"
-              style={{ color: task.completed ? '#666' : '#E0DFDC' }} />
+              className="flex-1 text-[13px] bg-transparent border-none focus-visible:ring-1 focus-visible:ring-[#333] outline-none"
+              style={{ color: task.completed ? '#444' : '#E0DFDC' }} />
           ) : (
             <span onDoubleClick={(e) => { e.stopPropagation(); setEditingTitle(true); setTitleVal(task.title); }}
-              className={cn('flex-1 text-sm leading-snug cursor-text select-none truncate',
-                task.completed ? 'line-through text-[#666]' : 'text-[#E0DFDC]'
+              className={cn('flex-1 leading-snug cursor-text select-none truncate',
+                task.completed ? 'text-[12px] line-through text-[#444]' : 'text-[13px] text-[#E0DFDC]'
               )} title={task.title}>{task.title}</span>
           )}
 
           {/* Only essential inline indicators */}
           {task.estimatedMinutes && !task.completed && (
-            <span className="text-[9px] font-mono shrink-0 text-[#666]">
+            <span className="text-[10px] font-mono shrink-0 text-[#666]">
               {formatEstimate(task.estimatedMinutes)}
             </span>
           )}

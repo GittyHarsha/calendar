@@ -17,39 +17,47 @@ const SHORTCUTS = [
 
 const backdropStyle: React.CSSProperties = {
   position: 'fixed', inset: 0,
-  background: 'rgba(0,0,0,0.55)',
+  background: 'rgba(0,0,0,0.6)',
+  backdropFilter: 'blur(4px)',
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   zIndex: 9999,
 };
 
 const modalStyle: React.CSSProperties = {
-  background: '#0d0d1a',
-  border: '1px solid var(--border-1)',
+  background: 'var(--bg-0)',
+  border: '1px solid #1E1E1E',
   color: 'var(--text-1)',
-  borderRadius: '0.75rem',
+  borderRadius: '0.5rem',
   padding: '1.5rem 1.75rem',
   maxWidth: 400,
   width: '90vw',
-  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
   position: 'relative',
 };
 
 const kbdStyle: React.CSSProperties = {
   display: 'inline-block',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-  fontSize: 12,
-  padding: '2px 8px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: 5,
-  background: 'rgba(255,255,255,0.07)',
-  color: 'var(--text-1)',
+  fontSize: 11,
+  padding: '2px 6px',
+  border: '1px solid #333',
+  borderRadius: 4,
+  background: '#1A1A1A',
   whiteSpace: 'nowrap',
   justifySelf: 'start',
   lineHeight: '20px',
 };
 
+const closeBtnStyle: React.CSSProperties = {
+  position: 'absolute', top: 12, right: 12,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  width: 28, height: 28, borderRadius: '0.375rem',
+  background: 'none', border: 'none', cursor: 'pointer', color: '#666',
+};
+
 export function KeyboardShortcuts({ onClose }: Props) {
   const [visible, setVisible] = useState(false);
+  const [closeBtnHover, setCloseBtnHover] = useState(false);
 
   // Trigger fade-in on mount
   useEffect(() => {
@@ -75,11 +83,21 @@ export function KeyboardShortcuts({ onClose }: Props) {
         style={{
           ...modalStyle,
           opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : 'translateY(8px)',
+          transform: visible ? 'scale(1)' : 'scale(0.98)',
           transition: 'opacity 150ms ease, transform 150ms ease',
         }}
       >
-        <h2 style={{ margin: '0 0 1.25rem', fontSize: '0.95rem', fontWeight: 600, letterSpacing: '0.01em' }}>
+        <button
+          onClick={onClose}
+          onMouseEnter={() => setCloseBtnHover(true)}
+          onMouseLeave={() => setCloseBtnHover(false)}
+          style={{ ...closeBtnStyle, background: closeBtnHover ? '#1A1A1A' : 'none' }}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
+        <h2 style={{ margin: '0 0 1.25rem', fontSize: 13, fontWeight: 600, letterSpacing: '0.01em' }}>
           Keyboard Shortcuts
         </h2>
 
@@ -87,7 +105,7 @@ export function KeyboardShortcuts({ onClose }: Props) {
           {SHORTCUTS.map(({ key, desc }) => (
             <div key={key} style={{ display: 'contents' }}>
               <kbd style={kbdStyle}>{key}</kbd>
-              <span style={{ color: 'var(--text-1)', fontSize: 13, opacity: 0.82 }}>{desc}</span>
+              <span style={{ fontSize: 12, color: '#888' }}>{desc}</span>
             </div>
           ))}
         </div>

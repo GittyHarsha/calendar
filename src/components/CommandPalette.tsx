@@ -185,10 +185,10 @@ export function CommandPalette() {
   };
 
   const panelStyle: React.CSSProperties = {
-    background: 'var(--bg-1)',
-    border: '1px solid var(--border-1)',
-    borderRadius: '0.75rem',
-    boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+    background: 'var(--bg-0)',
+    border: '1px solid #1E1E1E',
+    borderRadius: '0.5rem',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
     width: '560px',
     maxWidth: '90vw',
     overflow: 'hidden',
@@ -201,9 +201,9 @@ export function CommandPalette() {
     padding: '14px 16px',
     background: 'transparent',
     border: 'none',
-    borderBottom: '1px solid var(--border-1)',
+    borderBottom: '1px solid #1E1E1E',
     color: 'var(--text-1)',
-    fontSize: '15px',
+    fontSize: '14px',
     fontFamily: 'Consolas, monospace',
     outline: 'none',
   };
@@ -227,12 +227,12 @@ export function CommandPalette() {
         />
         <div style={listStyle}>
           {allItems.length === 0 && (
-            <div style={{ padding: '12px 10px', color: 'var(--text-2)', fontSize: '13px' }}>
+            <div style={{ padding: '12px 10px', color: '#666', fontSize: '13px' }}>
               No results
             </div>
           )}
           {deadlineItems.length > 0 && (
-            <div style={{ padding: '8px 10px 4px', fontSize: '11px', fontWeight: 600, color: 'var(--text-2)', letterSpacing: '0.5px' }}>
+            <div style={{ padding: '8px 10px 4px', fontSize: '11px', fontWeight: 600, color: '#888', letterSpacing: '0.5px' }}>
               🔥 Upcoming Deadlines
             </div>
           )}
@@ -253,7 +253,7 @@ export function CommandPalette() {
               padding: '8px 10px',
               borderRadius: '6px',
               cursor: 'pointer',
-              background: isSelected ? 'var(--bg-2)' : 'transparent',
+              background: isSelected ? '#1A1A1A' : 'transparent',
               transition: 'background 0.1s',
             };
             return (
@@ -299,11 +299,11 @@ export function CommandPalette() {
               padding: '8px 10px',
               borderRadius: '6px',
               cursor: 'pointer',
-              background: isSelected ? 'var(--bg-2)' : 'transparent',
+              background: isSelected ? '#1A1A1A' : 'transparent',
               transition: 'background 0.1s',
             };
 
-            if (item.kind === 'task') {
+            if (item.kind === 'task'){
               return (
                 <div
                   key={item.id}
@@ -379,7 +379,7 @@ export function CommandPalette() {
         </div>
         <div style={{
           padding: '6px 16px',
-          borderTop: '1px solid var(--border-1)',
+          borderTop: '1px solid #1E1E1E',
           fontSize: '10px',
           color: 'var(--text-2)',
           display: 'flex',

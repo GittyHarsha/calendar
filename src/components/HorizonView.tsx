@@ -185,7 +185,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
                 <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
                 {/* Project deadline */}
                 <div className="flex flex-col justify-center gap-0.5 px-3 py-2 min-w-[120px]">
-                  <span className="text-[14px] font-bold text-white truncate max-w-[140px]" title={p.name}>{p.name}</span>
+                  <span className="text-[12px] font-medium truncate max-w-[120px]" title={p.name}>{p.name}</span>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-[24px] font-mono leading-none" style={{ fontWeight: 600, color: noDeadline ? '#333' : overdue ? '#ef4444' : '#aaa' }}>
                       {noDeadline ? '—' : Math.abs(days!)}
@@ -625,19 +625,19 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
     <div className="flex flex-col h-full w-full" style={{ background: 'var(--bg-1)' }}>
 
       {/* Toolbar */}
-      <div className="h-11 shrink-0 flex items-center gap-0 px-4" style={{ background: 'var(--bg-0)', borderBottom: '1px solid var(--border-1)' }}>
-        {/* Logo */}
-        <img src="/logo.svg" alt="Horizon" className="w-5 h-5 shrink-0 mr-5" style={{ filter: 'drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent))' }} />
+      <div className="h-12 shrink-0 flex items-center gap-0 px-4 border-b border-[#1E1E1E]" style={{ background: 'var(--bg-0)' }}>
+        {/* Logo / App title */}
+        <span className="text-[13px] font-semibold tracking-wide shrink-0 mr-5" style={{ color: 'var(--text-1)' }}>Horizon</span>
 
         {/* Nav */}
         <div className="flex items-center gap-0 mr-3">
-          <button onClick={() => navigate(-1)} aria-label="Previous period" className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+          <button onClick={() => navigate(-1)} aria-label="Previous period" className="w-7 h-7 flex items-center justify-center rounded-md text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A] transition-colors">
             <ChevronLeft size={14} />
           </button>
-          <button onClick={() => setBaseDate(today)} title="Go to today" className="h-6 px-2 text-[12px] font-mono tracking-widest uppercase text-[#bbb] hover:text-[#F0EFEB] transition-colors">
-            now
+          <button onClick={() => setBaseDate(today)} title="Go to today" className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-[#333] hover:bg-[#1A1A1A] transition-colors" style={{ color: 'var(--text-1)' }}>
+            Today
           </button>
-          <button onClick={() => navigate(1)} aria-label="Next period" className="w-6 h-6 flex items-center justify-center text-[#bbb] hover:text-[#F0EFEB] transition-colors">
+          <button onClick={() => navigate(1)} aria-label="Next period" className="w-7 h-7 flex items-center justify-center rounded-md text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A] transition-colors">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -651,7 +651,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         <span className="w-px h-5 bg-white/10 mx-3 shrink-0" />
 
         {/* View mode segmented control */}
-        <div className="flex items-center bg-[#0A0A0A] rounded-lg border border-[#252525] p-0.5 gap-0.5">
+        <div className="flex items-center gap-0.5">
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(mode => {
             const labels: Record<string, string> = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
             const active = viewMode === mode;
@@ -660,10 +660,9 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
                 aria-label={`${labels[mode]} view`}
                 title={labels[mode]}
                 className={cn(
-                  'h-7 px-3 text-[12px] font-medium rounded-md transition-all duration-150 select-none',
-                  active ? 'text-[#F0EFEB]' : 'text-[#555] hover:text-[#999]'
-                )}
-                style={active ? { background: 'color-mix(in srgb, var(--accent) 22%, #1a1a1a)', color: 'var(--accent)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' } : undefined}>
+                  'text-[11px] font-medium px-2 py-1 rounded-md transition-all duration-150 select-none focus-visible:ring-1 focus-visible:ring-[#333] outline-none',
+                  active ? 'bg-[#1A1A1A] text-[var(--text-1)]' : 'text-[#555] hover:text-[var(--text-1)]'
+                )}>
                 {labels[mode]}
               </button>
             );
@@ -682,7 +681,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
               const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
               setHorizonLengths(prev => ({ ...prev, [viewMode]: val }));
             }}
-            className="bg-transparent text-[#ccc] text-[12px] font-mono w-7 text-center focus:outline-none"
+            className="bg-transparent text-[#ccc] text-[12px] font-mono w-7 text-center focus-visible:ring-1 focus-visible:ring-[#333] outline-none"
             min="1" max="365"
           />
           <button
@@ -698,85 +697,76 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         <div className="flex items-center gap-0.5">
           {/* Hide done */}
           <button onClick={toggleHideCompleted}
-            className={cn('h-7 px-2 flex items-center gap-1.5 rounded text-[11px] transition-colors',
-              hideCompleted ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors',
+              hideCompleted ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
             )}
             style={hideCompleted ? { color: 'var(--accent)' } : undefined}
             title={hideCompleted ? 'Show completed tasks' : 'Hide completed tasks'}>
-            {hideCompleted ? <EyeOff size={13} /> : <Eye size={13} />}
-            <span className="font-mono uppercase tracking-widest text-[10px]">Done</span>
+            {hideCompleted ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
 
           {/* Focus mode */}
           <button onClick={() => setFocusMode(f => !f)}
-            className={cn('h-7 px-2 flex items-center gap-1.5 rounded text-[11px] transition-colors',
-              focusMode ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors',
+              focusMode ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
             )}
             style={focusMode ? { color: 'var(--accent)' } : undefined}
             title={focusMode ? 'Disable focus mode' : 'Focus on today'}>
-            <Crosshair size={13} />
-            <span className="font-mono uppercase tracking-widest text-[10px]">Focus</span>
+            <Crosshair size={15} />
           </button>
 
           {/* Goals */}
           <button onClick={() => { setShowProjects(p => !p); setShowInbox(false); }}
-            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
-              showProjects ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors',
+              showProjects ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
             )}
             style={showProjects ? { color: 'var(--accent)' } : undefined}
             title="Goals">
-            <LayoutGrid size={12} />
-            {projects.filter(p => !p.parentId).length > 0 && (
-              <span className="text-[10px]">{projects.filter(p => !p.parentId).length}</span>
-            )}
+            <LayoutGrid size={15} />
           </button>
 
           {/* Inbox */}
           <button onClick={() => { setShowInbox(p => !p); setShowProjects(false); }}
-            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors relative',
-              showInbox ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors relative',
+              showInbox ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
             )}
             style={showInbox ? { color: 'var(--accent)' } : undefined}
             title="Inbox">
-            <Inbox size={12} />
+            <Inbox size={15} />
             {inboxCount > 0 && (
-              <span className="text-[10px] font-bold"
-                style={{ color: inboxCount > 10 ? '#ef4444' : showInbox ? 'var(--accent)' : '#888' }}>
-                {inboxCount}
-              </span>
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
             )}
           </button>
 
           {/* Journal */}
           <button onClick={() => setShowJournal(p => !p)}
-            className={cn('h-7 px-1.5 flex items-center gap-1 rounded text-[11px] font-mono uppercase tracking-widest transition-colors',
-              showJournal ? '' : 'text-[#bbb] hover:text-[#F0EFEB]'
+            className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors',
+              showJournal ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
             )}
             style={showJournal ? { color: 'var(--accent)' } : undefined}
             title="Daily Journal">
-            <BookOpen size={12} />
+            <BookOpen size={15} />
           </button>
 
           {/* Analytics */}
           <button
             onClick={() => setShowAnalytics(p => !p)}
             title="Time Analytics"
-            className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded transition-colors text-xs font-bold tracking-widest uppercase',
-              showAnalytics ? 'bg-[var(--accent)]/20 border border-[var(--accent)]' : 'text-[#555] hover:text-[#bbb] border border-transparent'
+            className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors',
+              showAnalytics ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
             )}
             style={showAnalytics ? { color: 'var(--accent)' } : undefined}>
-            <BarChart2 size={13} />
-            <span>Analytics</span>
+            <BarChart2 size={15} />
           </button>
 
           {/* Theme */}
           <div className="relative">
             <button onClick={() => setShowTheme(p => !p)} title="Theme"
-              className={cn('w-7 h-7 flex items-center justify-center rounded transition-colors',
-                showTheme ? '' : 'text-[#555] hover:text-[#bbb]'
+              className={cn('w-7 h-7 flex items-center justify-center rounded-md transition-colors',
+                showTheme ? '' : 'text-[#666] hover:text-[var(--text-1)] hover:bg-[#1A1A1A]'
               )}
               style={showTheme ? { color: 'var(--accent)' } : undefined}>
-              <Palette size={13} />
+              <Palette size={15} />
             </button>
             {showTheme && <ThemePanel onClose={() => setShowTheme(false)} />}
           </div>
@@ -785,21 +775,21 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
       {/* Goals overlay panel */}
       {showProjects && (
-        <div ref={projectsPanelRef} className="absolute top-11 left-0 right-0 z-40 border-b border-[#1E1E1E] shadow-2xl animate-slide-down" style={{ background: 'var(--bg-0)' }}>
+        <div ref={projectsPanelRef} className="absolute top-12 left-0 right-0 z-40 border border-[#1E1E1E] rounded-lg overflow-hidden animate-panel-in" style={{ background: 'var(--bg-0)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
           <MacroGoalsPanel />
         </div>
       )}
 
       {/* Inbox overlay panel */}
       {showInbox && (
-        <div ref={inboxPanelRef} className="absolute top-11 right-0 z-40 w-[420px] border border-[#1E1E1E] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+        <div ref={inboxPanelRef} className="absolute top-12 right-0 z-40 w-[420px] border border-[#1E1E1E] rounded-lg overflow-hidden animate-panel-in" style={{ background: 'var(--bg-0)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
           <InboxPanel onClose={() => setShowInbox(false)} />
         </div>
       )}
 
       {/* Journal overlay panel */}
       {showJournal && (
-        <div ref={journalPanelRef} className="absolute top-11 right-0 z-40 border border-[#1E1E1E] border-t-0 rounded-b-xl shadow-2xl animate-slide-down overflow-hidden" style={{ background: 'var(--bg-0)' }}>
+        <div ref={journalPanelRef} className="absolute top-12 right-0 z-40 border border-[#1E1E1E] rounded-lg overflow-hidden animate-panel-in" style={{ background: 'var(--bg-0)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
           <JournalPanel onClose={() => setShowJournal(false)} />
         </div>
       )}
@@ -885,7 +875,7 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
         const todayDone = tasks.filter(t => t.completedAt === todayStr);
         return (
           <div
-            className="h-7 shrink-0 flex items-center justify-center gap-3 text-[10px] font-mono text-[#555]"
+            className="h-7 shrink-0 flex items-center justify-center gap-3 text-[11px] text-[#555]"
             style={{ background: 'var(--bg-0)', borderTop: '1px solid var(--border-1)' }}
           >
             <span>{todayTasks.length} remaining</span>
@@ -1110,22 +1100,19 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
           ...(isCurrent ? {} : undefined),
         }}>
         {isCurrent && (
-          <div className="absolute top-0 right-0 text-black text-[10px] font-bold px-1.5 py-0.5 rounded-bl-md uppercase tracking-wider"
-            style={{ background: 'var(--accent)' }}>
+          <span className="text-[10px] font-medium" style={{ color: 'var(--accent)' }}>
             Today
-          </div>
+          </span>
         )}
         {mode === 'daily' && (
           <>
             <div className="flex justify-between items-baseline">
-              <span className="text-sm font-bold uppercase tracking-wider"
-                style={{ color: isCurrent ? 'var(--accent)' : '#8E9299' }}>
+              <span className="text-[10px] uppercase tracking-wider font-medium"
+                style={{ color: '#555' }}>
                 {format(startDate, 'EEE')}
               </span>
-              <span className={cn(
-                "text-lg font-mono",
-                isCurrent ? "text-white" : "text-[#aaa]"
-              )}>
+              <span className="text-[13px] font-semibold"
+                style={{ color: 'var(--text-1)' }}>
                 {format(startDate, 'dd')}
               </span>
             </div>
@@ -1300,19 +1287,19 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            placeholder="＋ Add task..."
+            placeholder="Add task..."
             style={{
               background: 'transparent',
               border: 'none',
               borderBottom: '1px solid transparent',
               outline: 'none',
-              color: 'var(--text-0, var(--text-1))',
+              color: '#444',
               fontSize: 12,
               padding: '4px 4px 3px',
               width: '100%',
               caretColor: 'var(--accent)',
             }}
-            onFocus={e => { e.currentTarget.style.borderBottomColor = 'var(--accent)'; }}
+            onFocus={e => { e.currentTarget.style.borderBottomColor = '#333'; }}
             onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; }}
           />
         )}

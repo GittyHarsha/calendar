@@ -412,11 +412,11 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
       className="flex flex-col"
       style={isMaximized
         ? { position: 'fixed', inset: 0, zIndex: 50, background: 'var(--bg-0)', width: '100%', height: '100%' }
-        : { background: 'var(--bg-0)', maxHeight: '78vh', minWidth: 420, width: 480 }
+        : { background: 'var(--bg-0)', border: '1px solid #1E1E1E', borderRadius: '0.5rem', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', maxHeight: '78vh', minWidth: 420, width: 480 }
       }
     >
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 8px', borderBottom: '1px solid var(--border-1)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', height: 40, borderBottom: '1px solid #1E1E1E', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* Date navigation */}
           <button onClick={() => setDateStr(format(subDays(parseISO(dateStr), 1), 'yyyy-MM-dd'))}
@@ -425,7 +425,7 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
             <ChevronLeft size={14} />
           </button>
 
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'Consolas, monospace', color: 'var(--text-1)', minWidth: 110, textAlign: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, fontFamily: 'Consolas, monospace', color: 'var(--text-1)', minWidth: 110, textAlign: 'center' }}>
             {fmtNavDate(dateStr)}
           </span>
 
@@ -454,9 +454,9 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
             title={showPrompts ? 'Hide prompts' : 'Show reflection prompts'}
             style={{
               display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontFamily: 'Consolas, monospace',
-              background: showPrompts ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'none',
-              border: `1px solid ${showPrompts ? 'var(--accent)' : '#333'}`,
-              color: showPrompts ? 'var(--accent)' : '#666',
+              background: showPrompts ? '#1A1A1A' : 'none',
+              border: `1px solid ${showPrompts ? '#333' : '#333'}`,
+              color: showPrompts ? '#ccc' : '#666',
               borderRadius: 5, padding: '2px 7px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em',
             }}>
             <BookOpen size={11} />
@@ -467,9 +467,9 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
             title={showSearch ? 'Close search' : 'Search journal entries'}
             style={{
               display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontFamily: 'Consolas, monospace',
-              background: showSearch ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'none',
-              border: `1px solid ${showSearch ? 'var(--accent)' : '#333'}`,
-              color: showSearch ? 'var(--accent)' : '#666',
+              background: showSearch ? '#1A1A1A' : 'none',
+              border: `1px solid ${showSearch ? '#333' : '#333'}`,
+              color: showSearch ? '#ccc' : '#666',
               borderRadius: 5, padding: '2px 7px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em',
             }}>
             <Search size={11} />
@@ -480,9 +480,9 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
             title={showDiff ? 'Hide diff' : `Compare with ${fmtNavDate(prevDateStr)}`}
             style={{
               display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontFamily: 'Consolas, monospace',
-              background: showDiff ? 'color-mix(in srgb, var(--accent) 15%, transparent)' : 'none',
-              border: `1px solid ${showDiff ? 'var(--accent)' : '#333'}`,
-              color: showDiff ? 'var(--accent)' : '#666',
+              background: showDiff ? '#1A1A1A' : 'none',
+              border: `1px solid ${showDiff ? '#333' : '#333'}`,
+              color: showDiff ? '#ccc' : '#666',
               borderRadius: 5, padding: '2px 7px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em',
             }}>
             <GitCompare size={11} />
@@ -495,7 +495,13 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
             {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
           <button onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, borderRadius: 4 }}>
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 28, height: 28, borderRadius: '0.375rem',
+              background: 'none', border: 'none', cursor: 'pointer', color: '#666',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#1A1A1A')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
             <X size={14} />
           </button>
         </div>
@@ -514,12 +520,12 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
               onKeyDown={e => { if (e.key === 'Escape') { setShowSearch(false); setSearchQuery(''); } }}
               placeholder="Search your journal…"
               style={{
-                width: '100%', background: 'var(--bg-1)', border: '1px solid var(--border-1)',
-                borderRadius: 8, padding: '8px 12px', fontSize: 13, color: 'var(--text-1)',
+                width: '100%', background: 'transparent', border: '1px solid #1E1E1E',
+                borderRadius: '0.375rem', padding: '8px 12px', fontSize: 13, color: 'var(--text-1)',
                 fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
               }}
-              onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-              onBlur={e => (e.target.style.borderColor = 'var(--border-1)')}
+              onFocus={e => (e.target.style.borderColor = '#333')}
+              onBlur={e => (e.target.style.borderColor = '#1E1E1E')}
             />
             {!searchQuery.trim() && (
               <p style={{ fontSize: 12, color: '#444', fontStyle: 'italic', margin: 0 }}>
@@ -538,12 +544,12 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                     key={e.date}
                     onClick={() => { setDateStr(e.date); setShowSearch(false); setSearchQuery(''); }}
                     style={{
-                      background: 'var(--bg-1)', border: '1px solid var(--border-1)', borderRadius: 8,
+                      background: 'transparent', border: '1px solid #1E1E1E', borderRadius: '0.375rem',
                       padding: '8px 12px', cursor: 'pointer', textAlign: 'left',
                       display: 'flex', flexDirection: 'column', gap: 4,
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = '#333')}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = '#1E1E1E')}
                   >
                     <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'Consolas, monospace', color: 'var(--accent)' }}>
                       {fmtNavDate(e.date)} · {format(parseISO(e.date), 'MMM d, yyyy')}
@@ -588,17 +594,17 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                           placeholder={placeholder}
                           rows={2}
                           style={{
-                            width: '100%', background: 'var(--bg-1)', border: '1px solid var(--border-1)',
-                            borderRadius: 6, padding: '7px 10px', fontSize: 12, color: 'var(--text-1)',
+                            width: '100%', background: 'transparent', border: '1px solid #1E1E1E',
+                            borderRadius: '0.375rem', padding: '7px 10px', fontSize: 13, color: 'var(--text-1)',
                             fontFamily: 'inherit', resize: 'vertical', outline: 'none', lineHeight: 1.5,
                             boxSizing: 'border-box',
                           }}
-                          onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                          onBlur={e => { e.target.style.borderColor = 'var(--border-1)'; onBlur(); }}
+                          onFocus={e => (e.target.style.borderColor = '#333')}
+                          onBlur={e => { e.target.style.borderColor = '#1E1E1E'; onBlur(); }}
                         />
                       </div>
                     ))}
-                    <div style={{ borderTop: '1px solid var(--border-1)', marginTop: 2 }} />
+                    <div style={{ borderTop: '1px solid #1E1E1E', marginTop: 2 }} />
                   </div>
                 )}
 
@@ -609,20 +615,20 @@ export function JournalPanel({ onClose }: { onClose: () => void }) {
                   placeholder={isFuture ? 'You cannot journal future dates.' : showPrompts ? 'Free notes…' : "What's on your mind today?"}
                   disabled={isFuture}
                   style={{
-                    width: '100%', minHeight: showPrompts ? 100 : isMaximized ? 300 : 160, background: 'var(--bg-1)', border: '1px solid var(--border-1)',
-                    borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--text-1)',
+                    width: '100%', minHeight: showPrompts ? 100 : isMaximized ? 300 : 160, background: 'transparent', border: '1px solid #1E1E1E',
+                    borderRadius: '0.375rem', padding: '10px 12px', fontSize: 13, color: 'var(--text-1)',
                     fontFamily: 'inherit', resize: 'vertical', outline: 'none', lineHeight: 1.6,
                     boxSizing: 'border-box', opacity: isFuture ? 0.4 : 1,
                   }}
-                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={e => { e.target.style.borderColor = 'var(--border-1)'; if (saveTimer.current) { clearTimeout(saveTimer.current); saveText(draftText); } }}
+                  onFocus={e => (e.target.style.borderColor = '#333')}
+                  onBlur={e => { e.target.style.borderColor = '#1E1E1E'; if (saveTimer.current) { clearTimeout(saveTimer.current); saveText(draftText); } }}
                 />
                 <div style={{ fontSize: 10, color: '#444', fontFamily: 'Consolas, monospace', marginTop: -8 }}>
                   auto-saves · {draftText.trim().split(/\s+/).filter(Boolean).length} words
                 </div>
 
                 {/* Divider */}
-                <div style={{ borderTop: '1px solid var(--border-1)', marginTop: 4 }} />
+                <div style={{ borderTop: '1px solid #1E1E1E', marginTop: 4 }} />
 
                 {/* Daily report */}
                 <h3 style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#555', margin: 0 }}>

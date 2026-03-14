@@ -128,19 +128,19 @@ function ProjectForm({
   };
 
   return (
-    <form onSubmit={handle} className={cn('flex flex-col gap-2 rounded-lg bg-[#141414] border border-[#2A2A2A]', compact ? 'p-3' : 'p-4')}>
+    <form onSubmit={handle} className={cn('flex flex-col gap-2 rounded-lg bg-transparent border border-[#1E1E1E]', compact ? 'p-3' : 'p-4')}>
       <div className="flex justify-between items-center">
         <span className="text-[12px] font-bold uppercase tracking-wider text-[#8E9299]">{label}</span>
         <button type="button" onClick={onCancel} className="text-[#aaa] hover:text-white"><X size={13} /></button>
       </div>
       <input type="text" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Name…"
-        className="bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[var(--accent)]" />
+        className="bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#333]" />
       <div className="flex flex-col gap-1">
         <label className="text-[11px] uppercase tracking-wider text-[#8E9299]">Started</label>
         <div className="flex gap-1 items-center">
           <button type="button" ref={startedBtnRef}
             onClick={e => { e.stopPropagation(); setShowStartedPicker(p => !p); }}
-            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[var(--accent)] transition-colors focus:outline-none">
+            className="flex-1 text-left bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#333] transition-colors focus:outline-none">
             {startedAt ? format(parseISO(startedAt), 'MMM d, yyyy') : 'Set start date'}
           </button>
           {startedAt && (
@@ -157,7 +157,7 @@ function ProjectForm({
         <div className="flex gap-1 items-center">
           <button type="button" ref={deadlineBtnRef}
             onClick={e => { e.stopPropagation(); setShowPicker(p => !p); }}
-            className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[var(--accent)] transition-colors focus:outline-none">
+            className="flex-1 text-left bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#333] transition-colors focus:outline-none">
             {deadline ? format(parseISO(deadline), 'MMM d, yyyy') : 'No deadline'}
           </button>
           {deadline && (
@@ -178,7 +178,7 @@ function ProjectForm({
       </div>
       <div className="flex gap-2 items-center">
         <select value={priority} onChange={e => setPriority(e.target.value as Priority)}
-          className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1.5 text-xs text-[#8E9299] focus:outline-none">
+          className="flex-1 bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-xs text-[#8E9299] focus:outline-none">
           <option value="High">High Priority</option>
           <option value="Medium">Medium Priority</option>
           <option value="Low">Low Priority</option>
@@ -186,7 +186,7 @@ function ProjectForm({
         <input type="color" value={color} onChange={e => setColor(e.target.value)}
           className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent" title="Pick color" />
       </div>
-      <button type="submit" className="bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-xs font-bold uppercase tracking-wider py-1.5 rounded transition-colors">
+      <button type="submit" className="bg-[#1A1A1A] hover:bg-[#252525] text-white text-xs font-bold uppercase tracking-wider py-1.5 rounded transition-colors">
         {initial?.name ? 'Save Changes' : 'Create'}
       </button>
     </form>
@@ -242,7 +242,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
           {editingName ? (
             <input autoFocus value={nameVal} onChange={e => setNameVal(e.target.value)} onBlur={saveName}
               onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setNameVal(project.name); setEditingName(false); } }}
-              className="flex-1 text-sm font-semibold text-white bg-[#0A0A0A] border border-[var(--accent)] rounded px-2 py-0.5 focus:outline-none" />
+              className="flex-1 text-sm font-semibold text-white bg-transparent border border-[#333] rounded px-2 py-0.5 focus:outline-none" />
           ) : (
             <span className="flex-1 text-sm font-semibold text-[#C8C7C4] truncate cursor-pointer hover:text-white"
               title={project.name}
@@ -304,7 +304,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
               onDoubleClick={() => setShowNotes(true)}
               placeholder="Notes…"
               rows={2}
-              className="w-full bg-[#0D0D0D] text-[11px] text-[#C8C7C4] placeholder-[#333] rounded p-1.5 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#2A2A2A] leading-relaxed"
+              className="w-full bg-transparent text-[13px] text-[#C8C7C4] placeholder-[#333] rounded p-1.5 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#333] leading-relaxed"
             />
           </div>
         )}
@@ -395,7 +395,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
             {editingName ? (
               <input autoFocus value={nameVal} onChange={e => setNameVal(e.target.value)} onBlur={saveName}
                 onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setNameVal(project.name); setEditingName(false); } }}
-                className="text-base font-bold text-white bg-[#0A0A0A] border border-[var(--accent)] rounded px-2 py-0.5 focus:outline-none flex-1 min-w-0" />
+                className="text-base font-bold text-white bg-transparent border border-[#333] rounded px-2 py-0.5 focus:outline-none flex-1 min-w-0" />
             ) : (
               <h3 className="text-base font-bold text-white truncate cursor-pointer hover:underline flex-1 min-w-0"
                 title={project.name}
@@ -468,7 +468,7 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
             onDoubleClick={() => setShowNotes(true)}
             placeholder="Project notes…"
             rows={2}
-            className="w-full bg-[#0A0A0A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-2 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#333] leading-relaxed"
+            className="w-full bg-transparent text-[13px] text-[#C8C7C4] placeholder-[#444] rounded p-2 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#333] leading-relaxed"
           />
         </div>
       </div>
@@ -531,7 +531,7 @@ export function MacroGoalsPanel() {
     );
 
   return (
-    <div className="flex gap-4 p-4 border-b border-[#2A2A2A] overflow-x-auto bg-[#0A0A0A] shrink-0 items-start">
+    <div className="flex gap-4 p-4 border-b border-[#1E1E1E] overflow-x-auto shrink-0 items-start" style={{ background: 'var(--bg-0)' }}>
       {topLevel.map(p => (
         <div key={p.id} className="w-[280px] shrink-0">
           <MacroGoalCard project={p} today={today} />

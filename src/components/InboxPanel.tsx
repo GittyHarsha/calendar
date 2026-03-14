@@ -51,19 +51,19 @@ export function InboxPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex flex-col max-h-[70vh] overflow-hidden" style={{ background: 'var(--bg-0)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1E1E1E] shrink-0">
+      <div className="flex items-center justify-between px-4 h-10 border-b border-[#1E1E1E] shrink-0">
         <div className="flex items-center gap-2">
-          <Inbox size={13} style={{ color: 'var(--accent)' }} />
-          <span className="text-[12px] font-bold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>Inbox</span>
+          <Inbox size={13} style={{ color: '#888' }} />
+          <span className="text-[13px] font-semibold uppercase tracking-widest text-[#ccc]">Inbox</span>
           {total > 0 && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-              style={{ background: total > 10 ? '#ef444422' : 'color-mix(in srgb, var(--accent) 15%, transparent)', color: total > 10 ? '#ef4444' : 'var(--accent)' }}>
+              style={{ background: total > 10 ? '#ef444422' : '#1A1A1A', color: total > 10 ? '#ef4444' : '#888' }}>
               {total}
             </span>
           )}
         </div>
         {total === 0 && (
-          <span className="text-[11px] text-[#3B82F6] font-mono">✓ clear</span>
+          <span className="text-[11px] text-[#666] font-mono">✓ clear</span>
         )}
       </div>
 
@@ -136,7 +136,7 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
           value={title}
           onChange={e => { setTitle(e.target.value); setError(false); }}
           placeholder="Add task to inbox…"
-          className={`flex-1 bg-transparent text-[12px] text-[#ccc] placeholder-[#444] focus:outline-none font-mono border-b ${error ? 'border-red-500' : 'border-[#2A2A2A] focus:border-[var(--accent)]'} transition-colors pb-0.5`}
+          className={`flex-1 bg-transparent text-[13px] text-[#ccc] placeholder-[#444] focus:outline-none font-mono border-b ${error ? 'border-red-500' : 'border-[#1E1E1E] focus:border-[#333]'} transition-colors pb-0.5`}
         />
         <button
           type="button"
@@ -146,7 +146,7 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
         >{showMore ? '− less' : '+ more'}</button>
         {title && (
           <button type="submit" className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded transition-colors"
-            style={{ background: 'color-mix(in srgb, var(--accent) 20%, transparent)', color: 'var(--accent)' }}>
+            style={{ background: '#1A1A1A', color: '#ccc' }}>
             <Plus size={11} className="inline" /> Add
           </button>
         )}
@@ -158,7 +158,7 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
             <select
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
-              className="flex-1 bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] text-[#888] focus:outline-none focus:border-[var(--accent)]"
+              className="flex-1 bg-transparent border border-[#1E1E1E] rounded px-2 py-1 text-[11px] text-[#888] focus:outline-none focus:border-[#333]"
             >
               <option value="">No Project</option>
               {projects.filter(p => !p.parentId).map(p => (
@@ -174,7 +174,7 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
               {([['High', 'H', '#ef4444'], ['Medium', 'M', '#eab308'], ['Low', 'L', '#3B82F6']] as const).map(([val, label, color]) => (
                 <button key={val} type="button" onClick={() => setPriority(val as Priority)}
                   className="w-6 h-6 rounded text-[10px] font-bold transition-all"
-                  style={{ background: priority === val ? color + '33' : '#0A0A0A', color: priority === val ? color : '#555', border: `1px solid ${priority === val ? color + '66' : '#2A2A2A'}` }}>
+                  style={{ background: priority === val ? color + '33' : '#0A0A0A', color: priority === val ? color : '#555', border: `1px solid ${priority === val ? color + '66' : '#1E1E1E'}` }}>
                   {label}
                 </button>
               ))}
@@ -182,12 +182,12 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
           </div>
           <div className="relative flex gap-2">
             <button type="button" ref={dateButtonRef} onClick={() => { setShowDatePicker(p => !p); setShowDeadlinePicker(false); }}
-              className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] text-[#888] hover:border-[var(--accent)] transition-colors focus:outline-none">
+              className="flex-1 text-left bg-transparent border border-[#1E1E1E] rounded px-2 py-1 text-[11px] text-[#888] hover:border-[#333] transition-colors focus:outline-none">
               {date ? `📅 ${format(new Date(date + 'T00:00:00'), 'MMM d')}` : '📅 Work date…'}
             </button>
             {showDatePicker && <DatePickerPopover value={date || null} onChange={d => { setDate(d ?? ''); setShowDatePicker(false); }} onClose={() => setShowDatePicker(false)} clearable anchorRef={dateButtonRef} />}
             <button type="button" ref={deadlineButtonRef} onClick={() => { setShowDeadlinePicker(p => !p); setShowDatePicker(false); }}
-              className="flex-1 text-left bg-[#0A0A0A] border border-[#2A2A2A] rounded px-2 py-1 text-[11px] hover:border-[#ef4444] transition-colors focus:outline-none"
+              className="flex-1 text-left bg-transparent border border-[#1E1E1E] rounded px-2 py-1 text-[11px] hover:border-[#333] transition-colors focus:outline-none"
               style={{ color: deadline ? '#ef4444' : '#555' }}>
               {deadline ? `🚩 ${format(new Date(deadline + 'T00:00:00'), 'MMM d')}` : '🚩 Deadline…'}
             </button>
@@ -201,7 +201,7 @@ function AddTaskForm({ addTask, projects }: { addTask: ReturnType<typeof useStor
 
 function Section({ label, accent, urgent, children }: { label: string; accent: string; urgent?: boolean; children: React.ReactNode }) {
   return (
-    <div className="border-b border-[#111]">
+    <div className="border-b border-[#1E1E1E]">
       <div className="flex items-center gap-2 px-4 py-1.5 sticky top-0" style={{ background: 'var(--bg-0)' }}>
         {urgent && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: accent }} />}
         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accent }}>{label}</span>
@@ -276,7 +276,7 @@ function TaskRow({ task, onToday, onTomorrow, projects, updateTask }: {
           <button
             onClick={() => onToday(task.id)}
             className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors"
-            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
+            style={{ background: '#1A1A1A', color: '#ccc' }}>
             <ArrowRight size={9} />today
           </button>
           <button
