@@ -46,7 +46,7 @@ import { DraggableTask } from './DraggableTask';
 import { cn } from '../lib/utils';
 import { MacroGoalsPanel } from './MacroGoalsPanel';
 import { ThemePanel } from './ThemePanel';
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, Flag, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList, BookOpen, Crosshair } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, AppWindow, Palette, Timer, BarChart2, Inbox, Sun, ClipboardList, BookOpen, Crosshair } from 'lucide-react';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { InboxPanel } from './InboxPanel';
 import { DailyBriefing } from './DailyBriefing';
@@ -417,8 +417,9 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
 
   // Bulk task selection state
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showBulkDatePicker, setShowBulkDatePicker] = useState(false);
 
-  const clearSelection = useCallback(() => setSelectedTaskIds(new Set()), []);
+  const clearSelection = useCallback(() => { setSelectedTaskIds(new Set()); setShowBulkDatePicker(false); }, []);
 
   const toggleTaskSelection = useCallback((taskId: string) => {
     setSelectedTaskIds(prev => {
@@ -854,6 +855,11 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
             style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--text-1)' }}
           >→ Move to tomorrow</button>
           <button
+            onClick={() => setShowBulkDatePicker(!showBulkDatePicker)}
+            className="text-sm px-3 py-1 rounded-md transition-colors hover:brightness-125"
+            style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--text-1)' }}
+          >📅 Reschedule…</button>
+          <button
             onClick={() => {
               selectedTaskIds.forEach(id => deleteTask(id));
               clearSelection();
@@ -866,6 +872,27 @@ export function HorizonView({ focusedColumn, focusedTask }: { focusedColumn: num
             className="text-sm px-2 py-1 rounded-md transition-colors"
             style={{ color: 'var(--text-2)' }}
           >✕</button>
+          {showBulkDatePicker && (
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[var(--bg-0)] border border-[#1E1E1E] rounded-lg p-3 shadow-lg">
+              <input
+                type="date"
+                autoFocus
+                className="bg-transparent border border-[#1E1E1E] rounded-md px-2 py-1 text-[12px] text-[var(--text-1)] focus:border-[#333] outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setShowBulkDatePicker(false);
+                  }
+                }}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    selectedTaskIds.forEach(id => updateTask(id, { date: e.target.value }));
+                    clearSelection();
+                  }
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1210,29 +1237,14 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
             <div className="h-px flex-1 border-t border-dashed border-[#333]" />
           </div>
         )}
-        {ghostTasks.map(task => {
-          const project = projects.find(p => p.id === task.projectId);
-          const daysLeft = differenceInDays(parseISO(task.deadline!), today);
-          const overdue = daysLeft < 0;
-          const urgent = daysLeft >= 0 && daysLeft <= 3;
-          const accent = overdue ? '#ef4444' : urgent ? '#F27D26' : daysLeft <= 10 ? '#eab308' : '#555';
-          const label = overdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'due today' : `due in ${daysLeft}d`;
-          return (
-            <div key={`ghost-${task.id}`}
-              className="relative flex items-center gap-2 px-2 py-1.5 rounded border border-dashed select-none pointer-events-none"
-              style={{ background: accent + '0A', borderColor: accent + '55' }}>
-              {project && <div className="shrink-0 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: project.color }} />}
-              <Flag size={9} style={{ color: accent, flexShrink: 0 }} />
-              <span className="flex-1 text-sm truncate" style={{ color: accent + 'CC' }} title={task.title}>{task.title}</span>
-              <span className="text-[11px] font-mono font-bold shrink-0" style={{ color: accent }}>{label}</span>
-            </div>
-          );
-        })}
+        {ghostTasks.map(task => (
+            <DraggableTask key={`ghost-${task.id}`} task={task} isGhost={true} />
+        ))}
         {/* Quick-add input — hidden for past columns */}
         {!isPastColumn && (
           <input
             type="text"
-            className="quick-add-input"
+            className="quick-add-input placeholder-[#444]"
             value={quickAddValue}
             onChange={e => setQuickAddValue(e.target.value)}
             onKeyDown={e => {
@@ -1252,7 +1264,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
                 (e.target as HTMLInputElement).blur();
               }
             }}
-            placeholder="Add task..."
+            placeholder="Add task... /today /fri"
             style={{
               background: 'transparent',
               border: 'none',

@@ -318,7 +318,7 @@ export function ThinkPad() {
               style={{ background: 'color-mix(in srgb, #ef4444 5%, transparent)', boxShadow: '0 0 12px color-mix(in srgb, #ef4444 12%, transparent)' }}>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-red-500/80 flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
                   Overdue
                 </span>
                 <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded-full">{overdueTasks.length}</span>

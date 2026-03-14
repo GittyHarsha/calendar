@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { useStore, Project, Priority } from '../store';
+import { useStore, Project } from '../store';
 import { differenceInDays, parseISO, startOfToday, addDays, format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus, Maximize2 } from 'lucide-react';
+import { Clock, AlertTriangle, Plus, X, ChevronDown, ChevronRight, Pencil, FolderPlus } from 'lucide-react';
 import { DatePickerPopover } from './DatePickerPopover';
-import { ProjectNotesModal } from './ProjectNotesModal';
 
 export const newProjectTrigger = { open: () => {} };
 
@@ -24,20 +23,13 @@ function getDescendantIds(projectId: string, projects: Project[]): string[] {
 /** Returns styling + animation class based on calendar days remaining */
 function urgencyStyles(days: number | null) {
   if (days === null) return { border: 'border-[#2A2A2A]',    text: 'text-[#aaa]',      bg: 'bg-[#141414]',     icon: null,                                                                      glow: '' };
-  if (days < 0)      return { border: 'border-red-500',       text: 'text-red-400',      bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-400 animate-pulse" />,     glow: 'deadline-alarm' };
-  if (days === 0)    return { border: 'border-red-500 border-2', text: 'text-red-300',   bg: 'bg-red-500/15',    icon: <AlertTriangle size={14} className="text-red-300 animate-pulse" />,     glow: 'deadline-alarm' };
+  if (days < 0)      return { border: 'border-red-500',       text: 'text-red-400',      bg: 'bg-red-500/10',    icon: <AlertTriangle size={14} className="text-red-400" />,     glow: 'deadline-alarm' };
+  if (days === 0)    return { border: 'border-red-500 border-2', text: 'text-red-300',   bg: 'bg-red-500/15',    icon: <AlertTriangle size={14} className="text-red-300" />,     glow: 'deadline-alarm' };
   if (days <= 3)     return { border: 'border-red-500/80 border-2', text: 'text-red-400', bg: 'bg-red-500/10',   icon: <AlertTriangle size={14} className="text-red-400" />,                  glow: 'deadline-alarm' };
   if (days <= 7)     return { border: 'border-[#F27D26] border-2', text: 'text-[#F27D26]', bg: 'bg-[#F27D26]/10', icon: <AlertTriangle size={14} className="text-[#F27D26]" />,               glow: 'deadline-warn' };
   if (days <= 14)    return { border: 'border-yellow-500',    text: 'text-yellow-400',   bg: 'bg-yellow-500/10', icon: <Clock size={14} className="text-yellow-400" />,                       glow: '' };
   return                    { border: 'border-[#3B82F6]',     text: 'text-[#3B82F6]',    bg: 'bg-[#3B82F6]/10',  icon: <Clock size={14} className="text-[#3B82F6]" />,                        glow: '' };
 }
-
-const PRIORITY_NEXT: Record<Priority, Priority> = { High: 'Medium', Medium: 'Low', Low: 'High' };
-const PRIORITY_CLASS: Record<Priority, string> = {
-  High: 'bg-red-500/20 text-red-500',
-  Medium: 'bg-yellow-500/20 text-yellow-500',
-  Low: 'bg-blue-500/20 text-blue-500',
-};
 
 function ProgressBar({ projectId }: { projectId: string }) {
   const { tasks, projects } = useStore();
@@ -104,27 +96,23 @@ function ProjectForm({
   label, initial, parentColor, compact = false, onSubmit, onCancel,
 }: {
   label: string;
-  initial?: { name?: string; deadline?: string | null; color?: string; priority?: Priority; startedAt?: string | null };
+  initial?: { name?: string; deadline?: string | null; color?: string };
   parentColor?: string;
   compact?: boolean;
-  onSubmit: (name: string, deadline: string | null, color: string, priority: Priority, startedAt: string | null) => void;
+  onSubmit: (name: string, deadline: string | null, color: string) => void;
   onCancel: () => void;
 }) {
   const today = startOfToday();
   const [name, setName] = useState(initial?.name ?? '');
   const [deadline, setDeadline] = useState<string>(initial?.deadline ?? format(new Date(), 'yyyy-MM-dd'));
-  const [startedAt, setStartedAt] = useState<string>(initial?.startedAt ?? format(new Date(), 'yyyy-MM-dd'));
   const [color, setColor] = useState(initial?.color ?? parentColor ?? '#3B82F6');
-  const [priority, setPriority] = useState<Priority>(initial?.priority ?? 'Medium');
   const [showPicker, setShowPicker] = useState(false);
-  const [showStartedPicker, setShowStartedPicker] = useState(false);
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
-  const startedBtnRef = useRef<HTMLButtonElement>(null);
 
   const handle = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSubmit(name.trim(), deadline || null, color, priority, startedAt || null);
+    onSubmit(name.trim(), deadline || null, color);
   };
 
   return (
@@ -135,24 +123,6 @@ function ProjectForm({
       </div>
       <input type="text" autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Name…"
         className="bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#333]" />
-      <div className="flex flex-col gap-1">
-        <label className="text-[11px] uppercase tracking-wider text-[#8E9299]">Started</label>
-        <div className="flex gap-1 items-center">
-          <button type="button" ref={startedBtnRef}
-            onClick={e => { e.stopPropagation(); setShowStartedPicker(p => !p); }}
-            className="flex-1 text-left bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-sm text-[#8E9299] hover:border-[#333] transition-colors focus:outline-none">
-            {startedAt ? format(parseISO(startedAt), 'MMM d, yyyy') : 'Set start date'}
-          </button>
-          {startedAt && (
-            <button type="button" onClick={() => setStartedAt('')} className="text-[#aaa] hover:text-red-400 transition-colors" title="Clear start date">
-              <X size={13} />
-            </button>
-          )}
-        </div>
-        {showStartedPicker && (
-          <DatePickerPopover value={startedAt || null} onChange={d => { setStartedAt(d ?? ''); setShowStartedPicker(false); }} onClose={() => setShowStartedPicker(false)} clearable anchorRef={startedBtnRef} />
-        )}
-      </div>
       <div className="relative flex flex-col gap-1">
         <div className="flex gap-1 items-center">
           <button type="button" ref={deadlineBtnRef}
@@ -177,12 +147,6 @@ function ProjectForm({
         </div>
       </div>
       <div className="flex gap-2 items-center">
-        <select value={priority} onChange={e => setPriority(e.target.value as Priority)}
-          className="flex-1 bg-transparent border border-[#1E1E1E] rounded px-2 py-1.5 text-xs text-[#8E9299] focus:outline-none">
-          <option value="High">High Priority</option>
-          <option value="Medium">Medium Priority</option>
-          <option value="Low">Low Priority</option>
-        </select>
         <input type="color" value={color} onChange={e => setColor(e.target.value)}
           className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent" title="Pick color" />
       </div>
@@ -202,7 +166,6 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
   const [editingDL, setEditingDL] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
@@ -253,10 +216,6 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
             <button onClick={() => setAddingChild(true)} className="text-[#888] hover:text-[#D0CFC7]" title="Add subproject">
               <FolderPlus size={13} />
             </button>
-            <button onClick={() => updateProject(project.id, { priority: PRIORITY_NEXT[project.priority] })}
-              className={cn('text-xs font-bold px-1.5 py-0.5 rounded', PRIORITY_CLASS[project.priority])} title="Priority">
-              {project.priority[0]}
-            </button>
             {confirmDelete
               ? <span className="flex items-center gap-1 text-xs">
                   <button onClick={() => deleteProject(project.id)} className="text-red-400 hover:text-red-300 font-bold">Yes</button>
@@ -273,7 +232,7 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         <div className="flex items-center gap-3 pl-5">
           <button ref={deadlineBtnRef} onClick={e => { e.stopPropagation(); setEditingDL(true); }}
             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
-            {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} className={overdue ? 'animate-pulse' : ''} />}
+            {(overdue || urgent) && <AlertTriangle size={11} style={{ color: accent }} />}
             <span className="text-2xl font-mono font-black leading-none" style={{ color: days === null ? '#555' : accent }}>
               {days === null ? '—' : Math.abs(days)}
             </span>
@@ -288,33 +247,13 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
         {editingDL && (
           <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable anchorRef={deadlineBtnRef} />
         )}
-        {/* Inline notes */}
-        {(project.notes || showNotes) && (
-          <div className="flex flex-col gap-1 pl-5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wider text-[#444] font-semibold">Notes</span>
-              <button onClick={() => setShowNotes(true)} title="Expand notes"
-                className="text-[#444] hover:text-[#888] transition-colors">
-                <Maximize2 size={10} />
-              </button>
-            </div>
-            <textarea
-              value={project.notes ?? ''}
-              onChange={e => updateProject(project.id, { notes: e.target.value })}
-              onDoubleClick={() => setShowNotes(true)}
-              placeholder="Notes…"
-              rows={2}
-              className="w-full bg-transparent text-[13px] text-[#C8C7C4] placeholder-[#333] rounded p-1.5 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#333] leading-relaxed"
-            />
-          </div>
-        )}
       </div>
       {addingChild && (
         <div className="mx-3 mb-2" style={{ marginLeft: 24 + depth * 16 }}>
           <ProjectForm label="New Subproject" compact parentColor={project.color}
             onCancel={() => setAddingChild(false)}
-            onSubmit={(name, deadline, color, priority, startedAt) => {
-              addProject({ name, color, priority, deadline, parentId: project.id, startedAt });
+            onSubmit={(name, deadline, color) => {
+              addProject({ name, color, deadline, parentId: project.id });
               setAddingChild(false);
             }}
           />
@@ -323,7 +262,6 @@ function SubprojectRow({ project, today, depth }: { project: Project; today: Dat
       {expanded && children.map(child => (
         <SubprojectRow key={child.id} project={child} today={today} depth={depth + 1} />
       ))}
-      {showNotes && <ProjectNotesModal project={project} onClose={() => setShowNotes(false)} />}
     </>
   );
 }
@@ -337,7 +275,6 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [addingSub, setAddingSub] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
   const deadlineBtnRef = useRef<HTMLButtonElement>(null);
 
   const children = projects.filter(p => p.parentId === project.id);
@@ -376,9 +313,9 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
   if (editing) {
     return (
       <ProjectForm label="Edit Goal"
-        initial={{ name: project.name, deadline: project.deadline, color: project.color, priority: project.priority, startedAt: project.startedAt }}
+        initial={{ name: project.name, deadline: project.deadline, color: project.color }}
         onCancel={() => setEditing(false)}
-        onSubmit={(name, deadline, color, priority, startedAt) => { updateProject(project.id, { name, deadline, color, priority, startedAt }); setEditing(false); }}
+        onSubmit={(name, deadline, color) => { updateProject(project.id, { name, deadline, color }); setEditing(false); }}
       />
     );
   }
@@ -403,10 +340,6 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <span className={cn('text-[13px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded cursor-pointer hover:opacity-70', PRIORITY_CLASS[project.priority])}
-              onClick={() => updateProject(project.id, { priority: PRIORITY_NEXT[project.priority] })}>
-              {project.priority}
-            </span>
             <button onClick={() => setEditing(true)} className="hidden group-hover:flex text-[#888] hover:text-[#D0CFC7]"><Pencil size={11} /></button>
             {confirmDelete
               ? <span className="flex items-center gap-0.5 text-[12px]">
@@ -452,25 +385,6 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
         {editingDL && (
           <DatePickerPopover value={project.deadline} onChange={d => updateProject(project.id, { deadline: d })} onClose={() => setEditingDL(false)} clearable anchorRef={deadlineBtnRef} />
         )}
-
-        {/* Inline notes */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] uppercase tracking-wider text-[#555] font-semibold">Notes</span>
-            <button onClick={() => setShowNotes(true)} title="Expand notes"
-              className="text-[#555] hover:text-[#aaa] transition-colors">
-              <Maximize2 size={11} />
-            </button>
-          </div>
-          <textarea
-            value={project.notes ?? ''}
-            onChange={e => updateProject(project.id, { notes: e.target.value })}
-            onDoubleClick={() => setShowNotes(true)}
-            placeholder="Project notes…"
-            rows={2}
-            className="w-full bg-transparent text-[13px] text-[#C8C7C4] placeholder-[#444] rounded p-2 resize-none focus:outline-none border border-[#1E1E1E] focus:border-[#333] leading-relaxed"
-          />
-        </div>
       </div>
 
       {/* Subprojects tree section */}
@@ -497,8 +411,8 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
           <div className="p-2">
             <ProjectForm label="New Subproject" compact parentColor={project.color}
               onCancel={() => setAddingSub(false)}
-              onSubmit={(name, deadline, color, priority, startedAt) => {
-                addProject({ name, color, priority, deadline, parentId: project.id, startedAt });
+              onSubmit={(name, deadline, color) => {
+                addProject({ name, color, deadline, parentId: project.id });
                 setAddingSub(false);
               }}
             />
@@ -510,7 +424,6 @@ function MacroGoalCard({ project, today }: { project: Project; today: Date; key?
           </button>
         )}
       </div>
-      {showNotes && <ProjectNotesModal project={project} onClose={() => setShowNotes(false)} />}
     </div>
   );
 }
@@ -522,11 +435,9 @@ export function MacroGoalsPanel() {
 
   React.useEffect(() => { newProjectTrigger.open = () => setIsCreating(true); }, []);
 
-  const priorityWeight = { High: 3, Medium: 2, Low: 1 };
   const topLevel = projects
     .filter(p => !p.parentId)
     .sort((a, b) =>
-      priorityWeight[b.priority] - priorityWeight[a.priority] ||
       (a.deadline && b.deadline ? new Date(a.deadline).getTime() - new Date(b.deadline).getTime() : a.deadline ? -1 : 1)
     );
 
@@ -541,8 +452,8 @@ export function MacroGoalsPanel() {
         <div className="w-[280px] shrink-0">
           <ProjectForm label="New Goal"
             onCancel={() => setIsCreating(false)}
-            onSubmit={(name, deadline, color, priority, startedAt) => {
-              addProject({ name, color, priority, deadline, startedAt });
+            onSubmit={(name, deadline, color) => {
+              addProject({ name, color, deadline });
               setIsCreating(false);
             }}
           />

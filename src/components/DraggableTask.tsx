@@ -2,13 +2,12 @@ import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 're
 import ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Task, Priority, TaskStatus, TaskLabel, useStore, fmtDuration, Subtask } from '../store';
-import { GripVertical, Trash2, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
+import { Task, Priority, useStore, fmtDuration, Subtask } from '../store';
+import { GripVertical, Trash2, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Maximize2, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { format, parseISO, startOfToday, differenceInDays, addDays, subDays, formatDistanceToNow } from 'date-fns';
+import { format, parseISO, startOfToday, differenceInDays, addDays, subDays } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
 import { DatePickerPopover } from './DatePickerPopover';
-import { exportTimeLogCSV } from '../utils/exportTimeLogs';
 import { useToast } from './Toast';
 
 let hoveredTaskId: string | null = null;
@@ -171,7 +170,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
   const [editingDeadline, setEditingDeadline] = useState(false);
   const [editingStartDate, setEditingStartDate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [showTimeLog, setShowTimeLog] = useState(false);
   const [showAllTimeEntries, setShowAllTimeEntries] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
@@ -311,18 +310,6 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
           </div>
         </div>
 
-        {/* Start date */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-[10px] uppercase font-mono text-[#666]">
-            <CalendarDays size={13} />
-            <span>Start</span>
-          </div>
-          <button ref={startDateButtonRef} onClick={() => setEditingStartDate(v => !v)}
-            className="text-xs font-mono text-[#888] hover:text-white px-1.5 py-0.5 rounded bg-[#1A1A1A] hover:bg-[#222]">
-            {task.startDate ? format(parseISO(task.startDate), 'MMM d') : '+ set'}
-          </button>
-        </div>
-
         {/* Deadline */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-[10px] uppercase font-mono" style={{ color: dl ? dl.color : '#666' }}>
@@ -339,30 +326,6 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
             {task.deadline ? format(parseISO(task.deadline), 'MMM d') : '+ set'}
           </button>
         </div>
-
-        {/* Deadline History */}
-        {task.deadlineHistory && task.deadlineHistory.length > 0 && (
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] uppercase tracking-widest font-mono text-[#666]">Deadline History</span>
-            {task.deadlineHistory.map((oldDate, i) => {
-              const nextDate = i < task.deadlineHistory.length - 1 ? task.deadlineHistory[i + 1] : task.deadline;
-              if (!nextDate) return null;
-              const days = differenceInDays(parseISO(nextDate), parseISO(oldDate));
-              const isLast = i === task.deadlineHistory.length - 1;
-              return (
-                <div key={i} className="flex items-center gap-1 text-[11px] font-mono" style={{ color: 'var(--text-2, #666)' }}>
-                  <span>{format(parseISO(oldDate), 'MMM d')}</span>
-                  <span style={{ color: '#444' }}>→</span>
-                  <span>{format(parseISO(nextDate), 'MMM d')}</span>
-                  <span style={{ color: days > 0 ? '#ef4444' : '#22c55e' }}>
-                    ({days > 0 ? '+' : ''}{days}d)
-                  </span>
-                  {isLast && <span className="text-[10px]" style={{ color: '#444' }}>← current</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
 
         {/* Recurring task scope prompt */}
         {pendingUpdate && (
@@ -415,248 +378,203 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
           </div>
         </div>
 
-        {/* Status: blocked / waiting */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase font-mono text-[#666]">
-            <Lock size={13} />
-            <span>Status</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {(['active', 'blocked', 'waiting'] as TaskStatus[]).map(s => {
-              const active = (task.taskStatus ?? 'active') === s;
-              const color = s === 'blocked' ? '#ef4444' : s === 'waiting' ? '#eab308' : 'var(--accent)';
-              return (
-                <button key={s}
-                  onClick={() => updateTask(task.id, { taskStatus: s === 'active' ? undefined : s })}
-                  className="text-[10px] font-bold px-1.5 py-0.5 rounded capitalize transition-colors"
-                  style={{
-                    background: active ? color + '22' : '#1A1A1A',
-                    color: active ? color : '#555',
-                    border: `1px solid ${active ? color : '#2A2A2A'}`,
-                  }}>
-                  {s}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="border-t border-[#1E1E1E]" />
 
-        {/* Labels */}
-        {(() => {
-          const { availableLabels } = useStore.getState();
-          const taskLabels = task.labels ?? [];
-          return (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] uppercase font-mono text-[#666]">Labels</span>
-              <div className="flex flex-wrap gap-1">
-                {availableLabels.map((label: TaskLabel) => {
-                  const isActive = taskLabels.includes(label.name);
-                  return (
-                    <button key={label.name}
-                      onClick={() => {
-                        const newLabels = isActive
-                          ? taskLabels.filter(l => l !== label.name)
-                          : [...taskLabels, label.name];
-                        updateTask(task.id, { labels: newLabels });
-                      }}
-                      className="rounded-full px-2 py-0.5 transition-colors"
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        color: isActive ? label.color : '#555',
-                        background: isActive ? label.color + '33' : '#1A1A1A',
-                        border: `1px solid ${isActive ? label.color + '55' : '#2A2A2A'}`,
-                      }}>
-                      {label.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
-        <div className="border-t border-[#1E1E1E]" />
-
-        {/* Focus timer */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => {
-              startPomodoro(task.id);
-              window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `◉ Pomodoro started — ${task.title}` }));
-              onClose();
-            }}
-            className={cn(
-              'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors font-medium',
-              pomodoro.taskId === task.id && pomodoro.phase === 'work'
-                ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
-                : 'border-[#2A2A2A] text-[#aaa] bg-[#111] hover:border-[var(--accent)] hover:text-[var(--accent)]'
-            )}>
-            <Timer size={12} />
-            {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
-          </button>
-          {(() => { const t = getTaskTime(task.id); return t > 0
-            ? <span className="text-xs text-[#555] font-mono">{fmtDuration(t)}</span>
-            : null; })()}
-        </div>
-
-        <div className="border-t border-[#1E1E1E]" />
-
-        {/* Time Log */}
-        {(() => {
-          const taskEntries = timeEntries.filter(e => e.taskId === task.id);
-          const totalTime = getTaskTime(task.id);
-          const visible = showAllTimeEntries ? taskEntries : taskEntries.slice(0, 5);
-          const overflow = taskEntries.length - 5;
-          return (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setShowTimeLog(v => !v)}
-                  className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:border-[#3A3A3A] hover:text-[#F0EFEB] transition-colors">
-                  <span>⏱</span>
-                  <span>Time Log</span>
-                  {totalTime > 0 && (
-                    <span className="font-mono text-[#555]">{fmtDuration(totalTime)}</span>
-                  )}
-                </button>
-                {taskEntries.length > 0 && (
-                  <button
-                    onClick={() => exportTimeLogCSV(tasks, timeEntries, projects)}
-                    title="Export CSV"
-                    className="text-[#444] hover:text-[#aaa] transition-colors p-1">
-                    <Download size={12} />
-                  </button>
-                )}
-              </div>
-              {showTimeLog && taskEntries.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  {visible.map(e => (
-                    <div key={e.id} className="flex items-center justify-between text-[11px] font-mono">
-                      <span className="text-[#666]">{format(parseISO(e.startedAt), 'MMM d')}</span>
-                      <span className="text-[#555]">{fmtDuration(e.duration)}</span>
-                    </div>
-                  ))}
-                  {overflow > 0 && (
-                    <button
-                      onClick={() => setShowAllTimeEntries(v => !v)}
-                      className="text-[11px] text-[var(--accent)] font-mono hover:underline text-left">
-                      {showAllTimeEntries ? '↑ show less' : `+${overflow} more`}
-                    </button>
-                  )}
-                </div>
-              )}
-              {showTimeLog && taskEntries.length === 0 && (
-                <div className="text-[11px] text-[#555] font-mono">No sessions yet</div>
-              )}
-            </div>
-          );
-        })()}
-
-        <div className="border-t border-[#1E1E1E]" />
-
-        {/* Notes (inline expandable) */}
+        {/* Notes (always visible, compact) */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
-            <button onClick={() => setShowNotes(v => !v)}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:border-[#3A3A3A] hover:text-[#F0EFEB] transition-colors flex-1">
+            <span className="text-[10px] uppercase font-mono text-[#666] flex items-center gap-1.5">
               <AlignLeft size={12} />
-              {task.description ? 'Edit notes' : 'Add notes'}
-            </button>
+              Notes
+            </span>
             <button onClick={onOpenNotes} title="Expand notes"
-              className="p-1.5 rounded-md border border-[#2A2A2A] bg-[#111] text-[#444] hover:text-[#aaa] hover:border-[#3A3A3A] transition-colors">
+              className="p-1 rounded-md border border-[#2A2A2A] bg-[#111] text-[#444] hover:text-[#aaa] hover:border-[#3A3A3A] transition-colors">
               <Maximize2 size={11} />
             </button>
           </div>
-          {showNotes && (
-            <textarea
-              defaultValue={task.description ?? ''}
-              onChange={e => updateTask(task.id, { description: e.target.value })}
-              placeholder="Write anything…"
-              rows={3}
-              className="w-full bg-[#1A1A1A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-1.5 resize-none focus-visible:ring-1 focus-visible:ring-[#333] outline-none border border-[#2A2A2A] focus:border-[#444]"
-            />
-          )}
+          <textarea
+            defaultValue={task.description ?? ''}
+            onChange={e => updateTask(task.id, { description: e.target.value })}
+            placeholder="Write anything…"
+            rows={3}
+            className="w-full bg-[#1A1A1A] text-xs text-[#C8C7C4] placeholder-[#444] rounded p-1.5 resize-none focus-visible:ring-1 focus-visible:ring-[#333] outline-none border border-[#2A2A2A] focus:border-[#444]"
+          />
         </div>
 
         <div className="border-t border-[#1E1E1E]" />
 
-        {/* Subtasks */}
-        {(() => {
-          const subtasks = task.subtasks ?? [];
-          const doneCount = subtasks.filter(s => s.done).length;
-          return (
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] uppercase font-mono text-[#666]">Subtasks</span>
-                {subtasks.length > 0 && (
-                  <span className="text-[11px] font-mono px-1 py-0.5 rounded"
-                    style={{ background: '#ffffff10', color: '#888' }}>
-                    {doneCount}/{subtasks.length}
-                  </span>
-                )}
+        {/* More toggle */}
+        <button
+          onClick={() => setShowMore(!showMore)}
+          className="w-full text-[10px] text-[var(--text-2)] hover:text-[var(--text-1)] py-1 flex items-center gap-1 justify-center"
+        >
+          {showMore ? '▾ Less' : '▸ More'}
+        </button>
+
+        {showMore && (
+          <>
+            {/* Start date */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-[10px] uppercase font-mono text-[#666]">
+                <CalendarDays size={13} />
+                <span>Start</span>
               </div>
-              {subtasks.map((s: Subtask) => (
-                <div key={s.id}
-                  onMouseEnter={() => setHoveredSubtaskId(s.id)}
-                  onMouseLeave={() => setHoveredSubtaskId(null)}
-                  className="flex items-center gap-1.5 group/sub">
-                  <input type="checkbox" checked={s.done}
-                    onChange={e => updateSubtask(task.id, s.id, e.target.checked)}
-                    style={{ accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }} />
-                  <span className="flex-1 text-xs"
-                    style={{
-                      color: s.done ? '#555' : '#C8C7C4',
-                      textDecoration: s.done ? 'line-through' : 'none',
-                      fontFamily: 'Consolas, monospace',
-                    }}>
-                    {s.title}
-                  </span>
-                  {hoveredSubtaskId === s.id && (
-                    <button onClick={() => deleteSubtask(task.id, s.id)}
-                      style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 13 }}
-                      title="Remove subtask">×</button>
+              <button ref={startDateButtonRef} onClick={() => setEditingStartDate(v => !v)}
+                className="text-xs font-mono text-[#888] hover:text-white px-1.5 py-0.5 rounded bg-[#1A1A1A] hover:bg-[#222]">
+                {task.startDate ? format(parseISO(task.startDate), 'MMM d') : '+ set'}
+              </button>
+            </div>
+
+            {/* Deadline History */}
+            {task.deadlineHistory && task.deadlineHistory.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] uppercase tracking-widest font-mono text-[#666]">Deadline History</span>
+                {task.deadlineHistory.map((oldDate, i) => {
+                  const nextDate = i < task.deadlineHistory.length - 1 ? task.deadlineHistory[i + 1] : task.deadline;
+                  if (!nextDate) return null;
+                  const days = differenceInDays(parseISO(nextDate), parseISO(oldDate));
+                  const isLast = i === task.deadlineHistory.length - 1;
+                  return (
+                    <div key={i} className="flex items-center gap-1 text-[11px] font-mono" style={{ color: 'var(--text-2, #666)' }}>
+                      <span>{format(parseISO(oldDate), 'MMM d')}</span>
+                      <span style={{ color: '#444' }}>→</span>
+                      <span>{format(parseISO(nextDate), 'MMM d')}</span>
+                      <span style={{ color: days > 0 ? '#ef4444' : '#22c55e' }}>
+                        ({days > 0 ? '+' : ''}{days}d)
+                      </span>
+                      {isLast && <span className="text-[10px]" style={{ color: '#444' }}>← current</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="border-t border-[#1E1E1E]" />
+
+            {/* Focus timer */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  startPomodoro(task.id);
+                  window.dispatchEvent(new CustomEvent('horizon:toast', { detail: `◉ Pomodoro started — ${task.title}` }));
+                  onClose();
+                }}
+                className={cn(
+                  'flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border transition-colors font-medium',
+                  pomodoro.taskId === task.id && pomodoro.phase === 'work'
+                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]'
+                    : 'border-[#2A2A2A] text-[#aaa] bg-[#111] hover:border-[var(--accent)] hover:text-[var(--accent)]'
+                )}>
+                <Timer size={12} />
+                {pomodoro.taskId === task.id && pomodoro.phase === 'work' ? 'Focusing…' : 'Focus 25m'}
+              </button>
+              {(() => { const t = getTaskTime(task.id); return t > 0
+                ? <span className="text-xs text-[#555] font-mono">{fmtDuration(t)}</span>
+                : null; })()}
+            </div>
+
+            <div className="border-t border-[#1E1E1E]" />
+
+            {/* Time Log */}
+            {(() => {
+              const taskEntries = timeEntries.filter(e => e.taskId === task.id);
+              const totalTime = getTaskTime(task.id);
+              const visible = showAllTimeEntries ? taskEntries : taskEntries.slice(0, 5);
+              const overflow = taskEntries.length - 5;
+              return (
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={() => setShowTimeLog(v => !v)}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-[#2A2A2A] bg-[#111] text-[#aaa] hover:border-[#3A3A3A] hover:text-[#F0EFEB] transition-colors">
+                    <span>⏱</span>
+                    <span>Time Log</span>
+                    {totalTime > 0 && (
+                      <span className="font-mono text-[#555]">{fmtDuration(totalTime)}</span>
+                    )}
+                  </button>
+                  {showTimeLog && taskEntries.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      {visible.map(e => (
+                        <div key={e.id} className="flex items-center justify-between text-[11px] font-mono">
+                          <span className="text-[#666]">{format(parseISO(e.startedAt), 'MMM d')}</span>
+                          <span className="text-[#555]">{fmtDuration(e.duration)}</span>
+                        </div>
+                      ))}
+                      {overflow > 0 && (
+                        <button
+                          onClick={() => setShowAllTimeEntries(v => !v)}
+                          className="text-[11px] text-[var(--accent)] font-mono hover:underline text-left">
+                          {showAllTimeEntries ? '↑ show less' : `+${overflow} more`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {showTimeLog && taskEntries.length === 0 && (
+                    <div className="text-[11px] text-[#555] font-mono">No sessions yet</div>
                   )}
                 </div>
-              ))}
-              <input
-                type="text"
-                value={newSubtaskTitle}
-                onChange={e => setNewSubtaskTitle(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && newSubtaskTitle.trim()) {
-                    addSubtask(task.id, newSubtaskTitle.trim());
-                    setNewSubtaskTitle('');
-                  }
-                }}
-                placeholder="+ add subtask (Enter)"
-                className="w-full bg-[#1A1A1A] text-xs placeholder-[#444] rounded p-1.5 focus-visible:ring-1 focus-visible:ring-[#333] outline-none border border-[#2A2A2A] focus:border-[#444]"
-                style={{ color: '#C8C7C4', fontFamily: 'Consolas, monospace' }}
-              />
-            </div>
-          );
-        })()}
+              );
+            })()}
 
-        {/* Created age indicator */}
-        {(() => {
-          const creationDate = task.startedAt ?? task.date;
-          if (!creationDate) return null;
-          const parsed = parseISO(creationDate);
-          const isToday = differenceInDays(startOfToday(), parsed) === 0;
-          return (
-            <div style={{
-              textAlign: 'right',
-              fontSize: 10,
-              fontStyle: 'italic',
-              color: 'var(--text-2)',
-              paddingTop: 4,
-            }}>
-              {isToday ? 'Created today' : `Created ${formatDistanceToNow(parsed, { addSuffix: true })}`}
-            </div>
-          );
-        })()}
+            <div className="border-t border-[#1E1E1E]" />
+
+            {/* Subtasks */}
+            {(() => {
+              const subtasks = task.subtasks ?? [];
+              const doneCount = subtasks.filter(s => s.done).length;
+              return (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase font-mono text-[#666]">Subtasks</span>
+                    {subtasks.length > 0 && (
+                      <span className="text-[11px] font-mono px-1 py-0.5 rounded"
+                        style={{ background: '#ffffff10', color: '#888' }}>
+                        {doneCount}/{subtasks.length}
+                      </span>
+                    )}
+                  </div>
+                  {subtasks.map((s: Subtask) => (
+                    <div key={s.id}
+                      onMouseEnter={() => setHoveredSubtaskId(s.id)}
+                      onMouseLeave={() => setHoveredSubtaskId(null)}
+                      className="flex items-center gap-1.5 group/sub">
+                      <input type="checkbox" checked={s.done}
+                        onChange={e => updateSubtask(task.id, s.id, e.target.checked)}
+                        style={{ accentColor: 'var(--accent)', cursor: 'pointer', flexShrink: 0 }} />
+                      <span className="flex-1 text-xs"
+                        style={{
+                          color: s.done ? '#555' : '#C8C7C4',
+                          textDecoration: s.done ? 'line-through' : 'none',
+                          fontFamily: 'Consolas, monospace',
+                        }}>
+                        {s.title}
+                      </span>
+                      {hoveredSubtaskId === s.id && (
+                        <button onClick={() => deleteSubtask(task.id, s.id)}
+                          style={{ color: '#666', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, fontSize: 13 }}
+                          title="Remove subtask">×</button>
+                      )}
+                    </div>
+                  ))}
+                  <input
+                    type="text"
+                    value={newSubtaskTitle}
+                    onChange={e => setNewSubtaskTitle(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newSubtaskTitle.trim()) {
+                        addSubtask(task.id, newSubtaskTitle.trim());
+                        setNewSubtaskTitle('');
+                      }
+                    }}
+                    placeholder="+ add subtask (Enter)"
+                    className="w-full bg-[#1A1A1A] text-xs placeholder-[#444] rounded p-1.5 focus-visible:ring-1 focus-visible:ring-[#333] outline-none border border-[#2A2A2A] focus:border-[#444]"
+                    style={{ color: '#C8C7C4', fontFamily: 'Consolas, monospace' }}
+                  />
+                </div>
+              );
+            })()}
+          </>
+        )}
       </div>
 
       {editingStartDate && (
@@ -681,7 +599,7 @@ export function TaskPopup({ task, anchorRef, onClose, onOpenNotes, onMouseEnter,
   );
 }
 
-export function DraggableTask({ task, showDate, isFocused = false, isSelected = false, onToggleSelect, isSuggested = false }: { key?: React.Key; task: Task; showDate?: boolean; isFocused?: boolean; isSelected?: boolean; onToggleSelect?: (taskId: string) => void; isSuggested?: boolean }) {
+export function DraggableTask({ task, showDate, isFocused = false, isSelected = false, onToggleSelect, isSuggested = false, isGhost = false }: { key?: React.Key; task: Task; showDate?: boolean; isFocused?: boolean; isSelected?: boolean; onToggleSelect?: (taskId: string) => void; isSuggested?: boolean; isGhost?: boolean }) {
   const { projects, tasks, updateTask, setHoveredProjectId, getTaskTime, pomodoro } = useStore();
   const { showToast } = useToast();
   const project = projects.find(p => p.id === task.projectId);
@@ -699,15 +617,21 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
   const [showTimePicker, setShowTimePicker] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const timeBadgeRef = useRef<HTMLSpanElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+  const hoverRef = useRef(false);
+  const popupHoverRef = useRef(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const scheduleClose = () => {
-    closeTimer.current = setTimeout(() => setShowPopup(false), 80);
+  const checkClose = () => {
+    closeTimerRef.current = setTimeout(() => {
+      if (!hoverRef.current && !popupHoverRef.current) {
+        setShowPopup(false);
+      }
+    }, 150);
   };
-  const cancelClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-  };
+
+  useEffect(() => {
+    return () => { clearTimeout(closeTimerRef.current); };
+  }, []);
 
   const handleToggleComplete = () => {
     const wasCompleted = task.completed;
@@ -740,17 +664,6 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
   const dl = deadlineAccent(deadlineDays);
   const isOverdue = !task.completed && deadlineDays !== null && deadlineDays < 0;
   const daysStale = !task.completed && task.date ? differenceInDays(startOfToday(), parseISO(task.date)) : 0;
-
-  // Dependency status: count completed vs total dependencies
-  const depStatus = useMemo(() => {
-    if (!task.dependencies?.length) return null;
-    const total = task.dependencies.length;
-    const done = task.dependencies.filter(depId => {
-      const dep = tasks.find(t => t.id === depId);
-      return dep?.completed;
-    }).length;
-    return { done, total, allMet: done === total };
-  }, [task.dependencies, tasks]);
 
   // Streak: count consecutive days (ending at task's date or today) with a same-title completed task
   const streak = useMemo(() => {
@@ -798,6 +711,54 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
     }
   }, [isFocused]);
 
+  // Ghost task: minimal, non-interactive reminder
+  if (isGhost) {
+    const workDateLabel = task.date
+      ? format(parseISO(task.date), 'MMM d')
+      : '—';
+    const dlDays = task.deadline ? differenceInDays(parseISO(task.deadline), today) : null;
+    const dlAccent = dlDays !== null && dlDays < 0 ? '#ef4444'
+      : dlDays !== null && dlDays <= 3 ? '#F27D26'
+      : dlDays !== null && dlDays <= 10 ? '#eab308'
+      : '#555';
+    return (
+      <div
+        className={cn(
+          'relative flex flex-col rounded border border-dashed border-l-2 cursor-default select-none',
+          priority === 'High' ? 'border-l-red-500' :
+          priority === 'Medium' ? 'border-l-yellow-400' :
+          'border-l-[#2A2A2A]',
+        )}
+        style={{
+          background: 'transparent',
+          borderColor: dlAccent + '55',
+          borderLeftStyle: 'dashed',
+          borderLeftWidth: 3,
+          borderLeftColor: priority === 'High' ? '#ef4444' : priority === 'Medium' ? '#eab308' : '#2A2A2A',
+        }}
+      >
+        <div className="flex items-center gap-2 px-2.5 py-1.5">
+          {project && (
+            <div className="shrink-0 w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: project.color }} title={projectLabel} />
+          )}
+          <span
+            className="flex-1 text-[13px] italic opacity-60 leading-snug truncate"
+            style={{ color: '#E0DFDC' }}
+            title={task.title}
+          >
+            {task.title}
+          </span>
+        </div>
+        <div className="px-2.5 pb-1.5" style={{ marginTop: -2 }}>
+          <span className="text-[9px] text-[var(--text-2)]">
+            Due here · work {workDateLabel}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div
@@ -812,10 +773,12 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           setShowPopup(prev => !prev);
         }}
         onMouseEnter={() => {
-          hoveredTaskId = task.id; cancelClose(); setHoveredProjectId(task.projectId); setShowPopup(true);
+          hoverRef.current = true; clearTimeout(closeTimerRef.current);
+          hoveredTaskId = task.id; setHoveredProjectId(task.projectId); setShowPopup(true);
         }}
         onMouseLeave={() => {
-          hoveredTaskId = null; setHoveredProjectId(null); scheduleClose();
+          hoverRef.current = false;
+          hoveredTaskId = null; setHoveredProjectId(null); checkClose();
         }}
         className={cn(
           'relative group flex flex-col border border-l-2 rounded cursor-grab',
@@ -886,9 +849,6 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
             <span className="text-[11px] font-mono shrink-0" style={{ color: 'var(--accent)' }}>▶</span>
           )}
-          {task.taskStatus === 'blocked' && (
-            <span className="text-[9px] shrink-0" style={{ color: '#ef4444' }}>●</span>
-          )}
         </div>
         {/* Subtask progress — compact */}
         {(task.subtasks?.length ?? 0) > 0 && !task.completed && (() => {
@@ -908,8 +868,8 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
         <TaskPopup task={task} anchorRef={cardRef}
           onClose={() => setShowPopup(false)}
           onOpenNotes={() => setShowNotes(true)}
-          onMouseEnter={cancelClose}
-          onMouseLeave={scheduleClose}
+          onMouseEnter={() => { popupHoverRef.current = true; clearTimeout(closeTimerRef.current); }}
+          onMouseLeave={() => { popupHoverRef.current = false; checkClose(); }}
         />
       )}
       {showTimePicker && !task.completed && (

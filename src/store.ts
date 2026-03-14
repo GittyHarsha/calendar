@@ -13,18 +13,8 @@ export type Project = {
   color: string;
   deadline?: string | null;
   createdAt: string;
-  priority: Priority;
-  startedAt?: string | null;
   parentId?: string | null;
-  notes?: string;
 };
-
-export type TaskLabel = {
-  name: string;
-  color: string;
-};
-
-export type TaskStatus = 'active' | 'blocked' | 'waiting';
 
 export type Task = {
   id: string;
@@ -44,9 +34,6 @@ export type Task = {
   startDate?: string | null;
   sortOrder?: number;
   estimatedMinutes?: number | null;
-  taskStatus?: TaskStatus;
-  dependencies?: string[];
-  labels?: string[];
 };
 
 export type TimeEntry = {
@@ -162,7 +149,6 @@ type EpochState = {
   hoveredProjectId: string | null;
   hideCompleted: boolean;
   journalEntries: Record<string, JournalEntry>;
-  availableLabels: TaskLabel[];
 
   // Actions
   addProject: (project: Omit<Project, 'id' | 'createdAt'>) => void;
@@ -211,8 +197,6 @@ const initialProjects: Project[] = [
     color: '#F27D26', // Urgent orange
     deadline: format(addDays(today, 45), 'yyyy-MM-dd'),
     createdAt: format(today, 'yyyy-MM-dd'),
-    priority: 'High',
-    startedAt: null,
   },
   {
     id: 'p2',
@@ -220,8 +204,6 @@ const initialProjects: Project[] = [
     color: '#3B82F6', // Blue
     deadline: format(addDays(today, 80), 'yyyy-MM-dd'),
     createdAt: format(today, 'yyyy-MM-dd'),
-    priority: 'Medium',
-    startedAt: null,
   }
 ];
 
@@ -249,17 +231,8 @@ export const useStore = create<EpochState>()(
   dailyGoal: 5,
   weeklyIntention: '',
   journalEntries: {},
-  availableLabels: [
-    { name: 'bug', color: '#ef4444' },
-    { name: 'feature', color: '#3b82f6' },
-    { name: 'urgent', color: '#f97316' },
-    { name: 'review', color: '#a855f7' },
-    { name: 'blocked', color: '#6b7280' },
-    { name: 'quick', color: '#22c55e' },
-  ],
-  
   addProject: (project) => set((state) => ({
-    projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd'), startedAt: project.startedAt || null }]
+    projects: [...state.projects, { ...project, id: crypto.randomUUID(), createdAt: format(startOfToday(), 'yyyy-MM-dd') }]
   })),
   
   updateProject: (id, updates) => set((state) => ({
@@ -505,7 +478,6 @@ export const useStore = create<EpochState>()(
         dailyGoal: state.dailyGoal,
         weeklyIntention: state.weeklyIntention,
         journalEntries: state.journalEntries,
-        availableLabels: state.availableLabels,
       }),
     }
   )

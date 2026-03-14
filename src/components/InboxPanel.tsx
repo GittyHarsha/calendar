@@ -203,7 +203,7 @@ function Section({ label, accent, urgent, children }: { label: string; accent: s
   return (
     <div className="border-b border-[#1E1E1E]">
       <div className="flex items-center gap-2 px-4 py-1.5 sticky top-0" style={{ background: 'var(--bg-0)' }}>
-        {urgent && <span className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0" style={{ background: accent }} />}
+        {urgent && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: accent }} />}
         <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: accent }}>{label}</span>
       </div>
       <div className="flex flex-col">
