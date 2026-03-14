@@ -663,6 +663,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
   const deadlineDays = task.deadline ? differenceInDays(parseISO(task.deadline), today) : null;
   const dl = deadlineAccent(deadlineDays);
   const isOverdue = !task.completed && deadlineDays !== null && deadlineDays < 0;
+  const isDateOverdue = !task.completed && task.date && task.date < format(startOfToday(), 'yyyy-MM-dd');
   const daysStale = !task.completed && task.date ? differenceInDays(startOfToday(), parseISO(task.date)) : 0;
 
   // Streak: count consecutive days (ending at task's date or today) with a same-title completed task
@@ -692,11 +693,16 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
 
   // Priority left-border color (overdue pulse animation handles its own border)
   const priorityGlowStyle: React.CSSProperties = isOverdue ? {} :
+    isDateOverdue ? { borderLeftColor: '#ef4444', borderLeftWidth: 3 } :
     !task.completed && priority === 'High' ? { borderLeftColor: '#ef4444', borderLeftWidth: 3 } :
     !task.completed && priority === 'Medium' ? { borderLeftColor: '#eab308', borderLeftWidth: 3 } :
     {};
 
   const cardBaseBg = task.completed ? '#141414' : 'var(--bg-2)';
+
+  // Merge dnd-kit transition with completion fade/scale
+  const completionTransition = 'opacity 0.3s ease, transform 0.3s ease, background 0.3s ease';
+  const combinedTransition = transition ? `${transition}, ${completionTransition}` : completionTransition;
 
   // Combined ref: dnd + card
   const setRefs = (el: HTMLDivElement | null) => {
@@ -783,16 +789,16 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
         className={cn(
           'relative group flex flex-col border border-l-2 rounded cursor-grab',
           (isSelected || isFocused) ? 'border-[color:var(--accent)]' : 'border-[#222]',
-          task.completed ? 'border-l-[#333]' : isOverdue ? '' : PRIORITY_BORDER[priority],
-          isOverdue && '',
-          isDragging ? 'opacity-20' : '',
-          task.completed && 'opacity-40'
+          task.completed ? 'border-l-[#333]' : (isOverdue || isDateOverdue) ? '' : PRIORITY_BORDER[priority],
+          (isOverdue || isDateOverdue) && '',
+          isDragging && 'opacity-20',
         )}
         style={{
           background: cardBaseBg,
           boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-          transform: CSS.Transform.toString(transform),
-          transition,
+          opacity: isDragging ? undefined : task.completed ? 0.4 : 1,
+          transform: [CSS.Transform.toString(transform), task.completed ? 'scale(0.98)' : ''].filter(Boolean).join(' ') || undefined,
+          transition: combinedTransition,
           ...priorityGlowStyle,
         }}
       >
@@ -844,6 +850,11 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           {dl && !task.completed && (
             <span className="text-[10px] font-mono shrink-0" style={{ color: dl.color, fontWeight: dl.bold ? 700 : undefined }}>
               {dl.label}
+            </span>
+          )}
+          {task.subtasks && task.subtasks.length > 0 && (
+            <span className="text-[10px] text-[var(--text-2)] font-mono">
+              {task.subtasks.filter(s => s.done).length}/{task.subtasks.length}
             </span>
           )}
           {pomodoro.taskId === task.id && pomodoro.phase === 'work' && (
