@@ -1063,7 +1063,7 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       {...(isCurrent ? { 'data-today': '' } : undefined)}
       className={cn(
         "border-r border-[#1E1E1E] flex flex-col h-full min-h-0 transition-colors duration-150 relative",
-        isOver && !isPastDeadline && "bg-[#1A1A1A]",
+        isOver && !isPastDeadline && "bg-white/[0.02]",
         isPastDeadline && "bg-[#ef4444]/10",
         isWeekend && !isOver && "bg-[#0A0A0A]/50",
       )}
@@ -1192,10 +1192,8 @@ function TimeColumn({ startDate, endDate, mode, index, hideCompleted, filterProj
       {/* Tasks Area */}
       <div className="flex-1 px-2.5 py-2 overflow-y-auto flex flex-col gap-2.5">
         {isOver && (
-          <div className="flex justify-center">
-            <span className="text-[10px] font-mono bg-accent text-black px-2 py-0.5 rounded-full shadow-sm">
-              {format(startDate, 'EEE, MMM d')}
-            </span>
+          <div className="flex justify-center px-2">
+            <div className="w-full h-[2px] rounded-full opacity-40" style={{ background: 'var(--accent)' }} />
           </div>
         )}
 

@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, TaskStatus, TaskLabel, useStore, fmtDuration, Subtask } from '../store';
-import { GripVertical, Trash2, FileText, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
+import { GripVertical, Trash2, Flag, CalendarDays, ArrowRight, AlignLeft, Timer, Download, Maximize2, Lock, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format, parseISO, startOfToday, differenceInDays, addDays, subDays, formatDistanceToNow } from 'date-fns';
 import { TaskNotesModal } from './TaskNotesModal';
@@ -822,7 +822,7 @@ export function DraggableTask({ task, showDate, isFocused = false, isSelected = 
           (isSelected || isFocused) ? 'border-[color:var(--accent)]' : 'border-[#222]',
           task.completed ? 'border-l-[#333]' : isOverdue ? '' : PRIORITY_BORDER[priority],
           isOverdue && '',
-          isDragging ? 'opacity-40 scale-[0.98]' : '',
+          isDragging ? 'opacity-20' : '',
           task.completed && 'opacity-40'
         )}
         style={{

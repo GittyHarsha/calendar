@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
-import { useStore, WORK_DURATION, BREAK_DURATION, fmtDuration, type Task } from '../store';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useStore, WORK_DURATION, BREAK_DURATION, fmtDuration } from '../store';
 import { startOfToday, format } from 'date-fns';
 
 
@@ -9,9 +9,6 @@ function fmtCountdown(ms: number) {
   const total = Math.max(0, Math.ceil(ms / 1000));
   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
 }
-
-const BREAK_COLOR = '#22c55e';
-const TOMATO = '🍅';
 
 export function PomodoroBar() {
   const { tasks, projects, pomodoro, timeEntries, startPomodoro, pausePomodoro, stopPomodoro,
@@ -40,7 +37,6 @@ export function PomodoroBar() {
 
       if (pomodoro.phase === 'work' && e >= WORK_DURATION) {
         completeWorkSession();
-        setShowBreakModal(true);
         if (intervalRef.current) clearInterval(intervalRef.current);
         try {
           const taskTitle = tasks.find(t => t.id === pomodoro.taskId)?.title ?? null;
@@ -86,8 +82,8 @@ export function PomodoroBar() {
     const todaySessions = todayEntries.length;
     const todayMs = todayEntries.reduce((s, e) => s + e.duration, 0);
     const statsLabel = todaySessions > 0
-      ? `◉ ${todaySessions} · ${fmtDuration(todayMs)}`
-      : '◉ Start focus';
+      ? `${todaySessions} · ${fmtDuration(todayMs)}`
+      : null;
 
     const priorityOrder = { High: 0, Medium: 1, Low: 2 } as const;
     const todayTasks = tasks
@@ -96,16 +92,19 @@ export function PomodoroBar() {
       .slice(0, 5);
 
     return (
-      <div ref={dropdownRef} style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9990 }}>
+      <div ref={dropdownRef} style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9990,
+        height: 40, background: 'var(--bg-0)', borderTop: '1px solid #1E1E1E',
+        display: 'flex', alignItems: 'center', padding: '0 12px',
+        fontFamily: 'Consolas, monospace',
+      }}>
         {showTaskDropdown && (
           <div style={{
-            position: 'absolute', bottom: '100%', right: 0, marginBottom: 6,
-            background: 'var(--bg-0)', border: '1px solid var(--border-1)',
-            borderRadius: 10, padding: '4px 0',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
-            fontFamily: 'Consolas, monospace', fontSize: 12,
-            minWidth: 220, maxWidth: 280,
-            animation: 'pomodoroSlideUp 0.15s ease-out',
+            position: 'absolute', bottom: '100%', left: 12, marginBottom: 4,
+            background: 'var(--bg-0)', border: '1px solid #1E1E1E',
+            borderRadius: 8, padding: '4px 0',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            fontSize: 12, minWidth: 220, maxWidth: 280,
           }}>
             {todayTasks.map(t => {
               const proj = projects.find(p => p.id === t.projectId);
@@ -113,7 +112,7 @@ export function PomodoroBar() {
                 <button
                   key={t.id}
                   onClick={() => { startPomodoro(t.id); setShowTaskDropdown(false); }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-2)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#1A1A1A'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
@@ -137,16 +136,16 @@ export function PomodoroBar() {
               );
             })}
             {todayTasks.length > 0 && (
-              <div style={{ height: 1, background: 'var(--border-1)', margin: '4px 8px' }} />
+              <div style={{ height: 1, background: '#1E1E1E', margin: '4px 8px' }} />
             )}
             <button
               onClick={() => { startPomodoro(null); setShowTaskDropdown(false); }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-2)'; }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1A1A1A'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 width: '100%', padding: '7px 12px', border: 'none',
-                background: 'transparent', color: 'var(--text-2)',
+                background: 'transparent', color: '#888',
                 cursor: 'pointer', textAlign: 'left',
                 fontFamily: 'inherit', fontSize: 12,
               }}
@@ -155,21 +154,19 @@ export function PomodoroBar() {
         )}
         <button
           onClick={() => setShowTaskDropdown(v => !v)}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--text-1)'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)'; }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-1)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#666'; }}
           style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--bg-0)', border: '1px solid var(--border-1)',
-            borderRadius: 40, padding: '8px 16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            fontFamily: 'Consolas, monospace', color: 'var(--text-2)',
-            fontSize: 12, cursor: 'pointer', userSelect: 'none',
-            transition: 'border-color 0.15s, color 0.15s, box-shadow 0.15s',
+            ...ctrlBtn(),
+            gap: 6, width: 'auto', padding: '0 8px',
           }}
         >
           <span style={{ fontSize: 14, lineHeight: 1, color: 'var(--accent)' }}>◉</span>
-          <span>{statsLabel}</span>
+          <span>Start focus</span>
         </button>
+        {statsLabel && (
+          <span style={{ fontSize: 10, color: '#555', marginLeft: 10 }}>{statsLabel}</span>
+        )}
       </div>
     );
   }
@@ -183,110 +180,93 @@ export function PomodoroBar() {
   const remaining = Math.max(0, duration - elapsed);
   const pct = Math.min(1, elapsed / duration);
   const isPaused = pomodoro.paused;
-  const sessionAccent = isWork ? (isEyeRest ? '#22d3ee' : 'var(--accent)') : BREAK_COLOR;
-  const R = 16; const C2 = 2 * Math.PI * R;
 
   return (
-    <>
-      {(
-        <div
-          style={{
-            position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-            zIndex: 9990, display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--bg-0)',
-            border: `1px solid ${isPaused ? 'var(--border-1)' : sessionAccent === 'var(--accent)' ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : sessionAccent + '35'}`,
-            borderRadius: 40, padding: '8px 14px 8px 10px',
-            boxShadow: isPaused ? '0 4px 16px rgba(0,0,0,0.4)' : `0 4px 24px rgba(0,0,0,0.6)`,
-            fontFamily: 'Consolas, monospace', userSelect: 'none',
-            transition: 'box-shadow 0.3s, border-color 0.3s',
-            animation: 'pomodoroSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-          }}>
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9990,
+      height: 40, background: 'var(--bg-0)', borderTop: '1px solid #1E1E1E',
+      fontFamily: 'Consolas, monospace', userSelect: 'none',
+    }}>
+      {/* Progress bar — 2px at very top of bar */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: '#1A1A1A',
+      }}>
+        <div style={{
+          height: '100%', width: `${pct * 100}%`,
+          background: 'var(--accent)', opacity: 0.6,
+          transition: 'width 0.5s linear',
+        }} />
+      </div>
 
-          {/* Progress arc */}
-          <svg width={32} height={32} style={{ flexShrink: 0, opacity: isPaused ? 0.45 : 1, transition: 'opacity 0.3s' }}>
-            <circle cx={16} cy={16} r={R} fill="none" stroke="var(--bg-2)" strokeWidth={2.5} />
-            <circle cx={16} cy={16} r={R} fill="none"
-              stroke={sessionAccent}
-              strokeWidth={2.5}
-              strokeDasharray={C2}
-              strokeDashoffset={C2 * (1 - pct)}
-              strokeLinecap="round"
-              style={{ transform: 'rotate(-90deg)', transformOrigin: '16px 16px', transition: 'stroke-dashoffset 0.5s linear' }} />
-          </svg>
-
-          {/* Task name */}
-          <div style={{ overflow: 'hidden', maxWidth: 160, minWidth: 0 }}>
-            <div style={{
-              fontSize: 12, color: isPaused ? 'var(--text-2)' : 'var(--text-1)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              opacity: isPaused ? 0.6 : 1,
-            }}>
-              {isEyeRest ? 'Misc' : isWork ? (task?.title ?? '—') : 'Break'}
-              {project && !isEyeRest && (
-                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: project.color, marginLeft: 5, verticalAlign: 'middle', marginBottom: 1 }} />
-              )}
-            </div>
-          </div>
-
-          {/* Countdown */}
-          <div style={{
-            fontSize: 20, fontWeight: 700, letterSpacing: 1.5, flexShrink: 0,
-            fontVariantNumeric: 'tabular-nums',
-            color: isPaused ? 'var(--text-2)' : sessionAccent,
-            opacity: isPaused ? 0.5 : 1,
-            transition: 'color 0.3s, opacity 0.3s',
-          }}>
-            {fmtCountdown(remaining)}
-          </div>
-
-          {/* Controls */}
-          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-            {isWork && (
-              <button
-                onClick={pausePomodoro}
-                style={ctrlBtn('var(--bg-2)')}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
-              >
-                {isPaused ? '▶' : '⏸'}
-              </button>
-            )}
-            {!isWork && (
-              <button onClick={skipBreak} style={ctrlBtn('var(--bg-2)')}
-                onMouseEnter={e => (e.currentTarget.style.borderColor = BREAK_COLOR)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-1)')}
-              >▶</button>
-            )}
-            <button
-              onClick={() => { stopPomodoro(); }}
-              style={ctrlBtn('var(--bg-2)')}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-1)'; e.currentTarget.style.color = 'var(--text-2)'; }}
-            >✕</button>
-          </div>
+      <div style={{
+        display: 'flex', alignItems: 'center', height: '100%',
+        padding: '0 12px', gap: 10,
+      }}>
+        {/* Task name */}
+        <div style={{
+          fontSize: 12, color: '#888',
+          overflow: 'hidden', textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap', maxWidth: 200,
+        }}>
+          {isEyeRest ? 'Misc' : isWork ? (task?.title ?? '—') : 'Break'}
+          {project && !isEyeRest && (
+            <span style={{
+              display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+              background: project.color, marginLeft: 5, verticalAlign: 'middle', marginBottom: 1,
+            }} />
+          )}
         </div>
-      )}
-    </>
+
+        {/* Countdown */}
+        <div style={{
+          fontSize: 14, fontFamily: 'Consolas, monospace', fontWeight: 500,
+          color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums', flexShrink: 0,
+        }}>
+          {fmtCountdown(remaining)}
+        </div>
+
+        {/* Session indicator */}
+        {pomodoro.sessionsCompleted > 0 && (
+          <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>
+            Focus {pomodoro.sessionsCompleted}
+          </span>
+        )}
+
+        {/* Controls */}
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          {isWork && (
+            <button onClick={pausePomodoro} style={ctrlBtn()}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1A1A1A'; e.currentTarget.style.color = 'var(--text-1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#666'; }}
+            >
+              {isPaused ? '▶' : '⏸'}
+            </button>
+          )}
+          {!isWork && (
+            <button onClick={skipBreak} style={ctrlBtn()}
+              onMouseEnter={e => { e.currentTarget.style.background = '#1A1A1A'; e.currentTarget.style.color = 'var(--text-1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#666'; }}
+            >▶</button>
+          )}
+          <button onClick={() => { stopPomodoro(); }} style={ctrlBtn()}
+            onMouseEnter={e => { e.currentTarget.style.background = '#1A1A1A'; e.currentTarget.style.color = 'var(--text-1)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#666'; }}
+          >✕</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function ctrlBtn(bg: string): CSSProperties {
+function ctrlBtn(): CSSProperties {
   return {
-    width: 30, height: 30, borderRadius: '50%',
-    border: '1px solid var(--border-1)',
-    background: bg, color: 'var(--text-2)', cursor: 'pointer', fontSize: 11,
+    width: 28, height: 28, borderRadius: 6,
+    border: 'none', background: 'transparent',
+    color: '#666', cursor: 'pointer', fontSize: 14,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'Consolas, monospace', transition: 'border-color 0.15s, color 0.15s',
+    fontFamily: 'Consolas, monospace', transition: 'background 0.15s, color 0.15s',
     flexShrink: 0,
   };
 }
 
-
-function btnStyle(bg: string): CSSProperties {
-  return {
-    width: 30, height: 30, borderRadius: '50%', border: '1px solid var(--border-1)',
-    background: bg, color: 'var(--text-2)', cursor: 'pointer', fontSize: 12,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontFamily: 'Consolas, monospace',
-  };
-}

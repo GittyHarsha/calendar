@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import type { Task, Project } from '../store';
-import { type Priority, type Recurrence } from '../store';
+import { type Priority } from '../store';
 import { differenceInDays, format, parseISO, startOfToday } from 'date-fns';
 import { Flag, ArrowRight, Inbox, MoreHorizontal, Plus } from 'lucide-react';
 import { TaskPopup } from './DraggableTask';
