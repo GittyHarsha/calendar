@@ -151,6 +151,7 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
           const accent = overdue ? '#ef4444' : urgent ? 'var(--accent)' : soon ? 'var(--text-2)' : 'var(--text-2)';
           const noDeadline = days === null;
           const isFiltered = filterProjectId === p.id;
+          const childrenFiltered = projects.some(c => c.parentId === p.id && filterProjectId === c.id);
 
            const ids = descendantIds(p.id);
            const allProjectTasks = tasks.filter(t => ids.includes(t.projectId ?? ''));
@@ -168,19 +169,28 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
             return { label: lbl, sublabel: `${shifts > 0 ? `↻${shifts} ` : ''}${t.title}`, accent: a, urgent: ov || urg };
           });
 
+          // Subprojects sorted by deadline urgency
+          const children = projects
+            .filter(c => c.parentId === p.id)
+            .sort((a, b) => {
+              if (!a.deadline && !b.deadline) return 0;
+              if (!a.deadline) return 1;
+              if (!b.deadline) return -1;
+              return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+            });
+
           return (
-            <button key={p.id}
-              onClick={() => onFilterProject(isFiltered ? null : p.id)}
+            <div key={p.id}
               className="flex flex-col gap-0 rounded-lg shrink-0 hover:brightness-110 transition-all text-left overflow-hidden"
               style={{
                 minWidth: 280,
                 background: `${p.color}12`,
-                border: isFiltered ? `2px solid ${p.color}` : `1px solid ${noDeadline ? '#252525' : accent + '50'}`,
+                border: (isFiltered || childrenFiltered) ? `2px solid ${p.color}` : `1px solid ${noDeadline ? '#252525' : accent + '50'}`,
                 boxShadow: isFiltered ? `0 0 8px ${p.color}40` : undefined,
               }}>
 
-              {/* ── Single row: accent bar + deadline + tasks ── */}
-              <div className="flex items-stretch gap-0">
+              {/* ── Main row: accent bar + deadline + tasks ── */}
+              <button className="flex items-stretch gap-0 w-full text-left" onClick={() => onFilterProject(isFiltered ? null : p.id)}>
                 {/* Left accent bar */}
                 <div className="w-1 self-stretch shrink-0" style={{ background: noDeadline ? '#222' : accent }} />
                 {/* Project deadline */}
@@ -202,8 +212,37 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-2)] mb-1">Tasks</span>
                   <TaskCarousel items={taskItems} />
                 </div>
-              </div>
-            </button>
+              </button>
+
+              {/* ── Subprojects ── */}
+              {children.length > 0 && (
+                <div className="border-t border-[#1E1E1E]">
+                  {children.map(child => {
+                    const cDays = child.deadline ? differenceInDays(parseISO(child.deadline), today) : null;
+                    const cOverdue = cDays !== null && cDays < 0;
+                    const cUrgent = cDays !== null && cDays >= 0 && cDays <= 7;
+                    const cColor = cOverdue ? '#ef4444' : cUrgent ? 'var(--accent)' : 'var(--text-2)';
+                    const isChildFiltered = filterProjectId === child.id;
+                    return (
+                      <button
+                        key={child.id}
+                        onClick={(e) => { e.stopPropagation(); onFilterProject(isChildFiltered ? null : child.id); }}
+                        className="flex items-center gap-2 w-full pl-4 pr-3 py-1 text-left hover:bg-white/[0.03] transition-colors"
+                        style={{ background: isChildFiltered ? `${child.color}18` : undefined }}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: child.color }} />
+                        <span className="text-[10px] truncate flex-1" style={{ color: 'var(--text-1)', opacity: 0.7 }}>{child.name}</span>
+                        {cDays !== null && (
+                          <span className="text-[10px] font-mono shrink-0" style={{ color: cColor }}>
+                            {cOverdue ? `${Math.abs(cDays)}d over` : `${cDays}d`}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
