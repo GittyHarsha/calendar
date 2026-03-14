@@ -153,10 +153,10 @@ function ProjectDeadlinesStrip({ onOpenGoals, filterProjectId, onFilterProject }
           const isFiltered = filterProjectId === p.id;
           const childrenFiltered = projects.some(c => c.parentId === p.id && filterProjectId === c.id);
 
-           const ids = descendantIds(p.id);
-           const allProjectTasks = tasks.filter(t => ids.includes(t.projectId ?? ''));
+           // Parent carousel: only tasks directly on this project (not descendants)
+           const directTasks = tasks.filter(t => t.projectId === p.id);
 
-          const upcomingTasks = allProjectTasks
+          const upcomingTasks = directTasks
             .filter(t => t.deadline && !t.completed)
             .map(t => ({ ...t, d: differenceInDays(parseISO(t.deadline!), today) }))
             .sort((a, b) => a.d - b.d);
